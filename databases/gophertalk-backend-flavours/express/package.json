@@ -1,0 +1,19 @@
+{
+  "name": "gophertalk-backend-express",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "src/app.js",
+  "scripts": {
+    "dev": "nodemon src/app.js",
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js"
+  },
+  "dependencies": {
+    "dotenv": "file:packages/dotenv-16.4.7.tgz",
+    "express": "file:packages/express-4.21.2.tgz",
+    "pg": "file:packages/pg-8.14.1.tgz"
+  },
+  "devDependencies": {
+    "nodemon": "file:packages/nodemon-3.1.9.tgz",
+    "jest": "file:packages/jest-29.7.0.tgz"
+  }
+}
