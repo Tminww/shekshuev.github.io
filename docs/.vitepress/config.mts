@@ -6,9 +6,7 @@ export default defineConfig({
   description: "Open source database and web development courses",
   themeConfig: {
     i18nRouting: true,
-    socialLinks: [
-      { icon: "github", link: "https://github.com/vuejs/vitepress" },
-    ],
+    socialLinks: [{ icon: "github", link: "https://github.com/vuejs/vitepress" }],
   },
   locales: {
     root: {
@@ -29,15 +27,15 @@ export default defineConfig({
                 items: [
                   {
                     text: "Introduction to databases",
-                    link: "/ru/databases/essentials/introduction",
+                    link: "/databases/essentials/introduction",
                   },
                   {
                     text: "Relational data model",
-                    link: "/ru/databases/essentials/relational-model",
+                    link: "/databases/essentials/relational-model",
                   },
                   {
                     text: "Entity-relationship model development",
-                    link: "/ru/databases/essentials/erd",
+                    link: "/databases/essentials/erd",
                   },
                 ],
               },
@@ -46,57 +44,56 @@ export default defineConfig({
                 items: [
                   {
                     text: "SQL essentials",
-                    link: "/ru/databases/sql/essentials",
+                    link: "/databases/sql/essentials",
                   },
                   {
                     text: "Data selection",
-                    link: "/ru/databases/sql/single-table-select",
+                    link: "/databases/sql/single-table-select",
                   },
                   {
                     text: "PostgreSQL functions",
-                    link: "/ru/databases/sql/functions",
+                    link: "/databases/sql/functions",
                   },
                   {
                     text: "Multitable queries",
-                    link: "/ru/databases/sql/multitable-select",
+                    link: "/databases/sql/multitable-select",
                   },
                   {
                     text: "Subqueries",
-                    link: "/ru/databases/sql/subqueries",
+                    link: "/databases/sql/subqueries",
                   },
                   {
                     text: "Table creation",
-                    link: "/ru/databases/sql/create-table",
+                    link: "/databases/sql/create-table",
                   },
                   {
                     text: "Data modification",
-                    link: "/ru/databases/sql/data-modification",
+                    link: "/databases/sql/data-modification",
                   },
                   {
                     text: "Indexes, views and transactions",
-                    link: "/ru/databases/sql/indexes-views-transactions",
+                    link: "/databases/sql/indexes-views-transactions",
                   },
                 ],
               },
               {
                 text: "PostgreSQL administration essentials",
-                link: "/ru/databases/administration",
                 items: [
                   {
                     text: "PostgreSQL data organization",
-                    link: "/ru/databases/administration/essentials",
+                    link: "/databases/administration/essentials",
                   },
                   {
                     text: "PostgreSQL tooling",
-                    link: "/ru/databases/administration/tooling",
+                    link: "/databases/administration/tooling",
                   },
                   {
                     text: "Database access control",
-                    link: "/ru/databases/administration/access-control",
+                    link: "/databases/administration/access-control",
                   },
                   {
                     text: "Server configuration",
-                    link: "/ru/databases/administration/configuration",
+                    link: "/databases/administration/configuration",
                   },
                 ],
               },
@@ -105,23 +102,23 @@ export default defineConfig({
                 items: [
                   {
                     text: "NoSQL essentials",
-                    link: "/ru/databases/nosql/essentials",
+                    link: "/databases/nosql/essentials",
                   },
                   {
                     text: "Clickhouse essentials",
-                    link: "/ru/databases/nosql/clickhouse",
+                    link: "/databases/nosql/clickhouse",
                   },
                   {
                     text: "HBase essentials",
-                    link: "/ru/databases/nosql/hbase",
+                    link: "/databases/nosql/hbase",
                   },
                   {
                     text: "Mongodb essentials",
-                    link: "/ru/databases/nosql/mongodb",
+                    link: "/databases/nosql/mongodb",
                   },
                   {
                     text: "SQL and NoSQL systems with large amount of data",
-                    link: "/ru/databases/nosql/comparation",
+                    link: "/databases/nosql/comparation",
                   },
                 ],
               },
@@ -130,22 +127,22 @@ export default defineConfig({
                 items: [
                   {
                     text: "Funcitons and triggers",
-                    link: "/ru/databases/development/plpgsql",
+                    link: "/databases/development/plpgsql",
                   },
                   {
                     text: "Python",
                     items: [
                       {
                         text: "Python web application development",
-                        link: "/ru/databases/development/python/database-connection",
+                        link: "/databases/development/python/database-connection",
                       },
                       {
                         text: "PostgreSQL CRUD from Python",
-                        link: "/ru/databases/development/python/postgres",
+                        link: "/databases/development/python/postgres",
                       },
                       {
                         text: "Mongodb CRUD from Python",
-                        link: "/ru/databases/development/python/mongodb",
+                        link: "/databases/development/python/mongodb",
                       },
                     ],
                   },
@@ -154,15 +151,15 @@ export default defineConfig({
                     items: [
                       {
                         text: "JavaScript web application development",
-                        link: "/ru/databases/development/js/database-connection",
+                        link: "/databases/development/js/database-connection",
                       },
                       {
                         text: "PostgreSQL CRUD from JavaScript",
-                        link: "/ru/databases/development/js/postgres",
+                        link: "/databases/development/js/postgres",
                       },
                       {
                         text: "Mongodb CRUD from JavaScript",
-                        link: "/ru/databases/development/js/mongodb",
+                        link: "/databases/development/js/mongodb",
                       },
                     ],
                   },
