@@ -8,8 +8,5 @@ hero:
   actions:
     - theme: brand
       text: Databases
-      link: /databases
-    - theme: alt
-      text: Vue
-      link: /vue
+      link: /databases/essentials/introduction
 ---

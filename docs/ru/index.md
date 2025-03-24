@@ -8,5 +8,5 @@ hero:
   actions:
     - theme: brand
       text: Базы данных
-      link: /ru/databases
+      link: /ru/databases/essentials/introduction
 ---

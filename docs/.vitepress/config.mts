@@ -17,7 +17,7 @@ export default defineConfig({
       themeConfig: {
         nav: [
           { text: "Home", link: "/" },
-          { text: "Databases", link: "/databases" },
+          { text: "Databases", link: "/databases/essentials/introduction" },
         ],
 
         sidebar: [
@@ -133,16 +133,38 @@ export default defineConfig({
                     link: "/ru/databases/development/plpgsql",
                   },
                   {
-                    text: "Python web application development",
-                    link: "/ru/databases/development/database-connection",
+                    text: "Python",
+                    items: [
+                      {
+                        text: "Python web application development",
+                        link: "/ru/databases/development/python/database-connection",
+                      },
+                      {
+                        text: "PostgreSQL CRUD from Python",
+                        link: "/ru/databases/development/python/postgres",
+                      },
+                      {
+                        text: "Mongodb CRUD from Python",
+                        link: "/ru/databases/development/python/mongodb",
+                      },
+                    ],
                   },
                   {
-                    text: "PostgreSQL CRUD from python",
-                    link: "/ru/databases/development/postgres",
-                  },
-                  {
-                    text: "Mongodb CRUD from python",
-                    link: "/ru/databases/development/mongodb",
+                    text: "JavaScript",
+                    items: [
+                      {
+                        text: "JavaScript web application development",
+                        link: "/ru/databases/development/js/database-connection",
+                      },
+                      {
+                        text: "PostgreSQL CRUD from JavaScript",
+                        link: "/ru/databases/development/js/postgres",
+                      },
+                      {
+                        text: "Mongodb CRUD from JavaScript",
+                        link: "/ru/databases/development/js/mongodb",
+                      },
+                    ],
                   },
                 ],
               },
@@ -158,7 +180,10 @@ export default defineConfig({
       themeConfig: {
         nav: [
           { text: "Главная", link: "/ru" },
-          { text: "Базы данных", link: "/ru/databases" },
+          {
+            text: "Базы данных",
+            link: "/ru/databases/essentials/introduction",
+          },
         ],
 
         sidebar: [
@@ -273,16 +298,38 @@ export default defineConfig({
                     link: "/ru/databases/development/plpgsql",
                   },
                   {
-                    text: "Разработка web-приложения на python",
-                    link: "/ru/databases/development/database-connection",
+                    text: "Python",
+                    items: [
+                      {
+                        text: "Разработка web-приложения на Python",
+                        link: "/ru/databases/development/python/database-connection",
+                      },
+                      {
+                        text: "Вставка, редактирование и выборка данных в БД PostgreSQL из Python",
+                        link: "/ru/databases/development/python/postgres",
+                      },
+                      {
+                        text: "Вставка, редактирование и выборка данных в БД Mongodb из Python",
+                        link: "/ru/databases/development/python/mongodb",
+                      },
+                    ],
                   },
                   {
-                    text: "Вставка, редактирование и выборка данных в БД PostgreSQL из python",
-                    link: "/ru/databases/development/postgres",
-                  },
-                  {
-                    text: "Вставка, редактирование и выборка данных в БД Mongodb из python",
-                    link: "/ru/databases/development/mongodb",
+                    text: "JavaScript",
+                    items: [
+                      {
+                        text: "Разработка web-приложения на JavaScript",
+                        link: "/ru/databases/development/js/database-connection",
+                      },
+                      {
+                        text: "Вставка, редактирование и выборка данных в БД PostgreSQL из JavaScript",
+                        link: "/ru/databases/development/js/postgres",
+                      },
+                      {
+                        text: "Вставка, редактирование и выборка данных в БД Mongodb из JavaScript",
+                        link: "/ru/databases/development/js/mongodb",
+                      },
+                    ],
                   },
                 ],
               },
