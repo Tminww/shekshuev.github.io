@@ -1,5 +1,3 @@
-# Installing libraries and connecting PostgreSQL to the application
-
 ## Introduction
 
 In this course, we will develop a web application using Node.js and a PostgreSQL database.
@@ -605,4 +603,139 @@ There are several ways to do this:
 
 3. Using Postman software — more on this later.
 
-# Postman essentials
+## What is Postman?
+
+In the world of modern software development, interaction between various applications through APIs (Application Programming Interfaces) has become an essential part of the process. However, before we can build complex integrations, we need to ensure that our API works correctly and returns the expected results.
+
+This is where Postman comes in — a powerful and intuitive tool designed specifically for API testing and development. Sending HTTP requests, creating tests, organizing requests into collections, working with variables — all of this is just a part of Postman’s functionality that simplifies and enhances the testing process.
+
+**Key features and useful functions of Postman**:
+
+- Sending HTTP requests: Postman allows you to easily create and send various types of HTTP requests such as `GET`, `POST`, `PUT`, `DELETE`, and others. You can configure request parameters, send headers, query parameters, and a request body.
+
+- API testing: Postman allows you to create tests to verify server responses. You can define expected values and conditions to automatically check whether the API returns the correct results.
+
+- Collections and environments: Postman allows you to organize requests and tests into collections, which simplifies managing a large number of requests. Collections can also be used to automate tests or run them in a specific order. Environments allow you to switch between different configuration contexts (e.g., development, staging, production).
+
+- Working with variables: Postman supports the use of variables, making it easier for testers to manage and reuse data in requests, tests, and environments.
+
+These are just some of the many features Postman offers, but overall, Postman is a convenient tool for working with and testing APIs. It also helps structure and automate testing workflows.
+
+## Collections
+
+A **collection** in Postman is a group of API requests organized together by purpose or project.
+
+For example, a collection might include all requests for a specific API:
+
+- `GET /users`
+- `POST /login`
+- `DELETE /posts/:id`
+
+**Why use collections:**
+
+- Easily organize requests into folders/projects;
+- Run multiple requests at once (e.g., for testing);
+- Export and share them with teammates.
+
+---
+
+## Environments
+
+An **environment** in Postman is a set of variables that can be reused across requests.
+
+For example:
+
+| Variable     | Dev Value               | Prod Value              |
+| ------------ | ----------------------- | ----------------------- |
+| `base_url`   | `http://localhost:3000` | `https://api.myapp.com` |
+| `auth_token` | `dev-abc123`            | `prod-xyz789`           |
+
+You can use these variables inside requests:
+
+```
+{{base_url}}/api/users
+Authorization: Bearer {{auth_token}}
+```
+
+When switching the environment, Postman will substitute the correct values automatically.
+
+## Importing Environment and Collection
+
+Download the Postman environment and collection.
+
+- <a target="_blank" href="/databases/gophertalk flavours.postman_collection.json">GopherTalk Flavours Collection</a>
+- <a target="_blank" href="/databases/gophertalk flavours.postman_environment.json">GopherTalk Flavours Environment</a>
+
+Next, either drag the files into the Postman window or use the menu `File -> Import` to import the environment and collection.
+
+After import, go to the left-hand menu and open the Environments tab. Select the `gophertalk flavours` environment. You will see a table of variables:
+
+![Postman Environment](../../../../assets/databases/postman-environment.png)
+
+The `api_url` variable contains the URL of our server: `http://localhost:3000/api`.  
+The `access_token` and `refresh_token` variables are used to store the JWT tokens that are issued after login. We’ll come back to them later.
+
+Now go to the Collections tab. Expand the `gophertalk flavours` collection. It contains three folders:
+
+- `users` – endpoints for working with users
+- `posts` – endpoints for working with posts
+- `auth` – endpoints for authentication
+
+![Postman Collection](../../../../assets/databases/postman-collection.png)
+
+You will implement all these endpoints later. For now, we're interested in the `health-check` endpoint. Double-click it.
+
+![Postman Health Check](../../../../assets/databases/postman-health-check.png)
+
+At the top, you will see the HTTP method highlighted in green — in this case, `GET`.  
+To the right of the method is the URL. Note that it uses the variable `api_url` mentioned above. Substituting the variable gives us the final URL: `http://localhost:3000/api/health-check`.  
+This is the same URL we configured in our app to check the database connection.  
+To make the variables work, make sure to select the correct environment in the top right corner above the `Send` button. In our case, it’s `gophertalk flavours`.
+
+Make sure your app is running and click `Send`. The result will be displayed below in the `Response` window.
+
+![Postman Health Check Response](../../../../assets/databases/postman-health-check-response.png)
+
+Below the URL bar in Postman you will see the following tabs:
+
+- `Params` – URL query parameters for the `GET` request
+- `Authorization` – authentication settings for the request
+- `Headers` – request headers
+- `Body` – request body
+- `Scripts` – scripts that can run before or after the request
+- `Settings` – request-specific settings
+
+We will work with some of these tabs later.
+
+## Conclusion
+
+### Building the Express Application Skeleton
+
+We have created a minimal but functional skeleton of a web application using Express.  
+You’ve learned how to:
+
+- connect essential dependencies (`express`, `pg`, `dotenv`);
+- configure environment variables via `.env`;
+- set up a PostgreSQL connection pool;
+- implement a basic route (`/api/health-check`);
+- organize your project structure into layers: `controllers`, `services`, `repositories`, `routes`, `middlewares`, and so on.
+
+This foundational structure will serve as the basis for building a full-featured REST API.
+
+---
+
+### Introduction to Postman
+
+We also got acquainted with Postman — an essential tool for testing and debugging APIs.  
+You’ve learned how to:
+
+- send HTTP requests of various types;
+- use collections and environments for better organization;
+- work with variables and insert them into your requests;
+- test API endpoints without writing frontend code.
+
+Postman greatly accelerates the development process, especially in the early stages when quick verification of routes, authorization, and server logic is crucial.
+
+---
+
+> In the next stage, we’ll begin implementing real endpoints, working with users and authentication — gradually turning our skeleton into a complete API.
