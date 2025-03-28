@@ -670,7 +670,7 @@ Next, either drag the files into the Postman window or use the menu `File -> Imp
 
 After import, go to the left-hand menu and open the Environments tab. Select the `gophertalk flavours` environment. You will see a table of variables:
 
-![Postman Environment](../../../../assets/databases/postman-environment.png)
+![Postman Environment](./../../../assets/databases/postman-environment.png)
 
 The `api_url` variable contains the URL of our server: `http://localhost:3000/api`.  
 The `access_token` and `refresh_token` variables are used to store the JWT tokens that are issued after login. We’ll come back to them later.
@@ -681,11 +681,11 @@ Now go to the Collections tab. Expand the `gophertalk flavours` collection. It c
 - `posts` – endpoints for working with posts
 - `auth` – endpoints for authentication
 
-![Postman Collection](../../../../assets/databases/postman-collection.png)
+![Postman Collection](./../../../assets/databases/postman-collection.png)
 
 You will implement all these endpoints later. For now, we're interested in the `health-check` endpoint. Double-click it.
 
-![Postman Health Check](../../../../assets/databases/postman-health-check.png)
+![Postman Health Check](./../../../assets/databases/postman-health-check.png)
 
 At the top, you will see the HTTP method highlighted in green — in this case, `GET`.  
 To the right of the method is the URL. Note that it uses the variable `api_url` mentioned above. Substituting the variable gives us the final URL: `http://localhost:3000/api/health-check`.  
@@ -694,7 +694,7 @@ To make the variables work, make sure to select the correct environment in the t
 
 Make sure your app is running and click `Send`. The result will be displayed below in the `Response` window.
 
-![Postman Health Check Response](../../../../assets/databases/postman-health-check-response.png)
+![Postman Health Check Response](./../../../assets/databases/postman-health-check-response.png)
 
 Below the URL bar in Postman you will see the following tabs:
 
