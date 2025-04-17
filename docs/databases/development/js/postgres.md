@@ -64,12 +64,7 @@ export const UserRepository = {
       VALUES ($1, $2, $3, $4)
       RETURNING id, user_name, password_hash, status;
     `;
-    const values = [
-      dto.user_name,
-      dto.first_name,
-      dto.last_name,
-      dto.password_hash,
-    ];
+    const values = [dto.user_name, dto.first_name, dto.last_name, dto.password_hash];
     const res = await pool.query(query, values);
     return res.rows[0];
   },
@@ -174,12 +169,7 @@ This code implements the createUser method in the UserRepository object, which i
 - Preparing values for the query:
 
   ```js
-  const values = [
-    dto.user_name,
-    dto.first_name,
-    dto.last_name,
-    dto.password_hash,
-  ];
+  const values = [dto.user_name, dto.first_name, dto.last_name, dto.password_hash];
   ```
 
   The values are taken from the input `dto` object and passed in the same order as defined in the SQL query.
@@ -226,12 +216,7 @@ export const UserRepository = {
       VALUES ($1, $2, $3, $4)
       RETURNING id, user_name, password_hash, status;
     `;
-    const values = [
-      dto.user_name,
-      dto.first_name,
-      dto.last_name,
-      dto.password_hash,
-    ];
+    const values = [dto.user_name, dto.first_name, dto.last_name, dto.password_hash];
     const res = await pool.query(query, values);
     return res.rows[0];
   },
@@ -263,12 +248,7 @@ export const UserRepository = {
       VALUES ($1, $2, $3, $4)
       RETURNING id, user_name, password_hash, status;
     `;
-    const values = [
-      dto.user_name,
-      dto.first_name,
-      dto.last_name,
-      dto.password_hash,
-    ];
+    const values = [dto.user_name, dto.first_name, dto.last_name, dto.password_hash];
     const res = await pool.query(query, values);
     return res.rows[0];
   },
@@ -306,6 +286,127 @@ export const UserRepository = {
 
 > [!IMPORTANT] Task  
 > Write the SQL queries for the `getUserById` and `getUserByUserName` methods yourself. For the `getUserById` method, you should return the fields: `user_name`, `first_name`, `last_name`, `status`, `created_at`, `updated_at`. For the `getUserByUserName` method, return: `user_name`, `password_hash`, `status`.
+
+Let's look at the `updateUser` method
+
+```js
+async updateUser(id, dto) {
+    const fields = [];
+    const args = [];
+    let index = 1;
+
+    if (dto.password_hash) {
+      fields.push(`password_hash = $${index++}`);
+      args.push(dto.password_hash);
+    }
+    if (dto.user_name) {
+      fields.push(`user_name = $${index++}`);
+      args.push(dto.user_name);
+    }
+    if (dto.first_name) {
+      fields.push(`first_name = $${index++}`);
+      args.push(dto.first_name);
+    }
+    if (dto.last_name) {
+      fields.push(`last_name = $${index++}`);
+      args.push(dto.last_name);
+    }
+
+    if (fields.length === 0) {
+      throw new Error("No fields to update");
+    }
+
+    fields.push(`updated_at = NOW()`);
+    const query = `
+      UPDATE users SET ${fields.join(", ")}
+      WHERE id = $${index} AND deleted_at IS NULL
+      RETURNING id, user_name, first_name, last_name, status, created_at, updated_at;
+    `;
+    args.push(id);
+
+    const res = await pool.query(query, args);
+    if (res.rowCount === 0) {
+      throw new Error("User not found");
+    }
+    return res.rows[0];
+  }
+```
+
+This asynchronous method is designed to update user data in the database. It accepts two arguments:
+
+- `id`: The ID of the user to update.
+- `dto`: An object containing the data to update.
+
+### Operation Logic:
+
+1.  **Initialization**:
+
+    - Two arrays are created: `fields` to store strings with field updates (`field = $index`) and `args` to store the values that will be substituted into the query.
+    - `index` is initialized to `1`. This variable is used to generate placeholders `$1`, `$2`, etc., in the SQL query.
+
+2.  **Checking Fields for Updates**:
+
+    - A sequential check is performed for the presence of fields in the `dto` object, and the corresponding data is added to the `fields` and `args` arrays:
+      - `password_hash`: If present, `password_hash = $index` is added to `fields` and the value `dto.password_hash` to `args`.
+      - `user_name`: Similarly for the username.
+      - `first_name`: Similarly for the first name.
+      - `last_name`: Similarly for the last name.
+    - With each field added, `index` is incremented.
+
+3.  **Checking for the Presence of Fields to Update**:
+
+    - If the `fields` array is empty (i.e., there were no fields to update in `dto`), an exception `Error("No fields to update")` is thrown.
+
+4.  **Adding the `updated_at` Field**:
+
+    - The string `updated_at = NOW()` is added to the `fields` array, which will update the `updated_at` field with the current time.
+
+5.  **Forming the SQL Query**:
+
+    - An SQL query is formed to update the user data.
+    - The construction `UPDATE users SET ${fields.join(", ")}` is used, where `fields.join(", ")` combines the strings with field updates into one string separated by commas.
+    - The condition `WHERE id = $index AND deleted_at IS NULL` specifies that you need to update the user with the specified `id` who is not marked as deleted (`deleted_at IS NULL`).
+    - The construction `RETURNING id, user_name, first_name, last_name, status, created_at, updated_at` returns the updated user data.
+
+6.  **Adding the User's `id` to the Query Arguments**:
+
+    - The user's `id` is added to the `args` array, which will be used in the `WHERE id = $index` condition.
+
+7.  **Executing the Query**:
+
+    - The SQL query is executed using `pool.query(query, args)`. The query result is saved in the `res` variable.
+
+8.  **Handling the Query Result**:
+    - If `res.rowCount === 0`, that is, no users were found to update, an exception `Error("User not found")` is thrown.
+    - Otherwise, the first row of the query result (`res.rows[0]`), containing the updated user data, is returned.
+
+The last method we will implement in this repository is the `deleteUser` method to delete a user.
+
+```js
+async deleteUser(id) {
+    const query = `...`;
+    const res = await pool.query(query, [id]);
+    if (res.rowCount === 0) {
+      throw new Error("User not found");
+    }
+  }
+```
+
+This asynchronous method is designed to "delete" a user from the database. In fact, this could be a soft delete, where the record is not physically deleted, but only marked as deleted. Or it could be a complete deletion of the record from the table.
+
+### Operation Logic:
+
+1.  **Forming the SQL Query**
+
+2.  **Executing the Query**:
+
+    - The SQL query is executed using `pool.query(query, [id])`. The query result is saved in the `res` variable.
+
+3.  **Handling the Query Result**:
+    - If `res.rowCount === 0`, this means that no user with the specified `id` was found to delete. In this case, an `Error("User not found")` exception is thrown.
+
+> [!IMPORTANT] Задание
+> Write an SQL query that performs a soft delete of a user, setting the `deleted_at` value to the current time for the user with the specified `id`. Also, write an SQL query that completely deletes the user with the specified `id` from the table.
 
 # Developing the Functional Layer of a Web Application
 

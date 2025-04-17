@@ -60,12 +60,7 @@ export const UserRepository = {
       VALUES ($1, $2, $3, $4)
       RETURNING id, user_name, password_hash, status;
     `;
-    const values = [
-      dto.user_name,
-      dto.first_name,
-      dto.last_name,
-      dto.password_hash,
-    ];
+    const values = [dto.user_name, dto.first_name, dto.last_name, dto.password_hash];
     const res = await pool.query(query, values);
     return res.rows[0];
   },
@@ -166,12 +161,7 @@ export const UserRepository = {
 - Подготовка значений для запроса:
 
   ```js
-  const values = [
-    dto.user_name,
-    dto.first_name,
-    dto.last_name,
-    dto.password_hash,
-  ];
+  const values = [dto.user_name, dto.first_name, dto.last_name, dto.password_hash];
   ```
 
   Значения берутся из входного объекта `dto` и передаются в том порядке, в котором указаны в SQL-запросе.
@@ -216,12 +206,7 @@ export const UserRepository = {
       VALUES ($1, $2, $3, $4)
       RETURNING id, user_name, password_hash, status;
     `;
-    const values = [
-      dto.user_name,
-      dto.first_name,
-      dto.last_name,
-      dto.password_hash,
-    ];
+    const values = [dto.user_name, dto.first_name, dto.last_name, dto.password_hash];
     const res = await pool.query(query, values);
     return res.rows[0];
   },
@@ -253,12 +238,7 @@ export const UserRepository = {
       VALUES ($1, $2, $3, $4)
       RETURNING id, user_name, password_hash, status;
     `;
-    const values = [
-      dto.user_name,
-      dto.first_name,
-      dto.last_name,
-      dto.password_hash,
-    ];
+    const values = [dto.user_name, dto.first_name, dto.last_name, dto.password_hash];
     const res = await pool.query(query, values);
     return res.rows[0];
   },
@@ -296,6 +276,127 @@ export const UserRepository = {
 
 > [!IMPORTANT] Задание
 > Напишите самостоятельно SQL запросы для методов `getUserById` и `getUserByUserName`. Для метода `getUserById` необходимо вернуть поля `user_name`, `first_name`, `last_name`, `status`, `created_at`, `updated_at`, а для метода `getUserByUserName` - `user_name`, `password_hash`, `status`.
+
+Рассмотрим метод `updateUser`
+
+```js
+async updateUser(id, dto) {
+    const fields = [];
+    const args = [];
+    let index = 1;
+
+    if (dto.password_hash) {
+      fields.push(`password_hash = $${index++}`);
+      args.push(dto.password_hash);
+    }
+    if (dto.user_name) {
+      fields.push(`user_name = $${index++}`);
+      args.push(dto.user_name);
+    }
+    if (dto.first_name) {
+      fields.push(`first_name = $${index++}`);
+      args.push(dto.first_name);
+    }
+    if (dto.last_name) {
+      fields.push(`last_name = $${index++}`);
+      args.push(dto.last_name);
+    }
+
+    if (fields.length === 0) {
+      throw new Error("No fields to update");
+    }
+
+    fields.push(`updated_at = NOW()`);
+    const query = `
+      UPDATE users SET ${fields.join(", ")}
+      WHERE id = $${index} AND deleted_at IS NULL
+      RETURNING id, user_name, first_name, last_name, status, created_at, updated_at;
+    `;
+    args.push(id);
+
+    const res = await pool.query(query, args);
+    if (res.rowCount === 0) {
+      throw new Error("User not found");
+    }
+    return res.rows[0];
+  }
+```
+
+Этот асинхронный метод предназначен для обновления данных пользователя в базе данных. Он принимает два аргумента:
+
+- `id`: Идентификатор пользователя, которого необходимо обновить.
+- `dto`: Объект, содержащий данные для обновления.
+
+### Логика работы:
+
+1.  **Инициализация**:
+
+    - Создаются два массива: `fields` для хранения строк с обновлениями полей (`field = $index`) и `args` для хранения значений, которые будут подставлены в запрос.
+    - `index` инициализируется значением `1`. Эта переменная используется для генерации плейсхолдеров `$1`, `$2` и т.д. в SQL-запросе.
+
+2.  **Проверка полей для обновления**:
+
+    - Выполняется последовательная проверка наличия полей в объекте `dto` и добавление соответствующих данных в массивы `fields` и `args`:
+      - `password_hash`: Если присутствует, добавляется `password_hash = $index` в `fields` и значение `dto.password_hash` в `args`.
+      - `user_name`: Аналогично для имени пользователя.
+      - `first_name`: Аналогично для имени.
+      - `last_name`: Аналогично для фамилии.
+    - При каждом добавлении поля `index` увеличивается.
+
+3.  **Проверка наличия полей для обновления**:
+
+    - Если массив `fields` пуст (то есть в `dto` не было полей для обновления), выбрасывается исключение `Error("No fields to update")`.
+
+4.  **Добавление поля `updated_at`**:
+
+    - В массив `fields` добавляется строка `updated_at = NOW()`, которая обновит поле `updated_at` текущим временем.
+
+5.  **Формирование SQL-запроса**:
+
+    - Формируется SQL-запрос для обновления данных пользователя.
+    - Используется конструкция `UPDATE users SET ${fields.join(", ")}`, где `fields.join(", ")` объединяет строки с обновлениями полей в одну строку, разделенную запятыми.
+    - Условие `WHERE id = $index AND deleted_at IS NULL` указывает, что обновлять нужно пользователя с заданным `id`, который не помечен как удаленный (`deleted_at IS NULL`).
+    - Конструкция `RETURNING id, user_name, first_name, last_name, status, created_at, updated_at` возвращает данные обновленного пользователя.
+
+6.  **Добавление `id` пользователя в аргументы запроса**:
+
+    - В массив `args` добавляется `id` пользователя, который будет использоваться в условии `WHERE id = $index`.
+
+7.  **Выполнение запроса**:
+
+    - Выполняется SQL-запрос с использованием `pool.query(query, args)`. Результат запроса сохраняется в переменной `res`.
+
+8.  **Обработка результата запроса**:
+    - Если `res.rowCount === 0`, то есть не было найдено ни одного пользователя для обновления, выбрасывается исключение `Error("User not found")`.
+    - В противном случае возвращается первая строка результата запроса (`res.rows[0]`), содержащая данные обновленного пользователя.
+
+Последний метод, который мы реализуем в этом репозитории - это метод удаления пользователя `deleteUser`.
+
+```js
+async deleteUser(id) {
+    const query = `...`;
+    const res = await pool.query(query, [id]);
+    if (res.rowCount === 0) {
+      throw new Error("User not found");
+    }
+  }
+```
+
+Этот асинхронный метод предназначен для "удаления" пользователя из базы данных. Фактически, это может быть мягкое удаление (soft delete), когда запись не удаляется физически, а лишь помечается как удалённая. Либо это может быть полное удаление записи из таблицы.
+
+### Логика работы:
+
+1.  **Формирование SQL-запроса**
+
+2.  **Выполнение запроса**:
+
+    - Выполняется SQL-запрос с использованием `pool.query(query, [id])`. Результат запроса сохраняется в переменной `res`.
+
+3.  **Обработка результата запроса**:
+    - Если `res.rowCount === 0`, это значит, что не было найдено пользователя с указанным `id` для удаления. В этом случае выбрасывается исключение `Error("User not found")`.
+
+> [!IMPORTANT] Задание
+> Напишите SQL-запрос, который выполняет мягкое удаление пользователя, устанавливая значение `deleted_at` в текущее время для пользователя с указанным `id`. Также напишите SQL-запрос, который полностью удаляет пользователя с указанным `id` из таблицы.
 
 # Разработка функционального слоя web-приложения
 
