@@ -8,5 +8,9 @@
     "mermaid": "^11.6.0",
     "vitepress": "^1.6.3",
     "vitepress-plugin-mermaid": "^2.0.17"
+  },
+  "dependencies": {
+    "@electric-sql/pglite": "^0.2.17",
+    "@electric-sql/pglite-repl": "^0.2.17"
   }
 }

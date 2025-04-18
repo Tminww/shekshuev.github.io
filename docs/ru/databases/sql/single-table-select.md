@@ -1,5 +1,6 @@
 <script setup>
 import Conversation from "../../../../components/Conversation.vue";
+import Repl from "../../../../components/Repl.vue";
 import alexey from "../../../assets/databases/heroes/clerk_alexey.png";
 import ivan from "../../../assets/databases/heroes/clerk_ivan.png";
 import petr from "../../../assets/databases/heroes/petr.png";
@@ -234,7 +235,42 @@ SELECT * FROM users;
 
 - `is_historical` — признак, указывающий, является ли полк реальным историческим подразделением («Да») или вымышленным для учебных целей («Вымышленный»).
 
-Используя эту таблицу, мы будем практиковаться в составлении SQL-запросов для выборки и преобразования данных. Начнем с базового синтаксиса.
+Используя эту таблицу, мы будем практиковаться в составлении SQL-запросов для выборки и преобразования данных.
+
+<Repl :initial-queries="[
+`CREATE TABLE poteshnye_polki (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255),
+    surname VARCHAR(255),
+    birth_date DATE,
+    location VARCHAR(255),
+    soldiers_count INTEGER,
+    is_historical BOOLEAN
+);`,
+`INSERT INTO poteshnye_polki (name, surname, birth_date, location, soldiers_count, is_historical) VALUES
+('Сергей', 'Бухвостов', '1659-01-01', 'Преображенское', 1200, TRUE),
+('Александр', 'Меншиков', '1673-11-16', 'Семёновское', 1100, TRUE),
+('Патрик', 'Гордон', '1635-03-31', 'Измайлово', 900, TRUE),
+('Фёдор', 'Матвеевич', '1661-12-07', 'Москва', 800, TRUE),
+('Иван', 'Кантемир', '1668-01-05', 'Новгород', 700, FALSE),
+('Иван', 'Шереметев', '1670-07-22', 'Санкт-Петербург', 650, FALSE),
+('Михаил', 'Голицын', '1675-04-30', 'Москва', 600, FALSE),
+('Василий', 'Долгорукий', '1662-12-12', 'Тула', 550, FALSE),
+('Дмитрий', 'Трубецкой', '1678-05-18', 'Ярославль', 500, FALSE),
+('Андрей', 'Воронцов', '1672-10-25', 'Санкт-Петербург', 450, FALSE),
+('Николай', 'Репнин', '1676-08-14', 'Москва', 400, FALSE),
+('Иван', 'Романов', '1669-03-03', 'Санкт-Петербург', 380, FALSE),
+('Алексей', 'Орлов', '1674-11-21', 'Новгород', 360, FALSE),
+('Дмитрий', 'Волконский', '1667-06-11', 'Тверь', 340, FALSE),
+('Сергей', 'Романов', '1671-02-28', 'Москва', 320, FALSE),
+('Пётр', 'Козлов', '1679-09-07', 'Санкт-Петербург', 300, FALSE),
+('Иван', 'Ширинский', '1673-05-15', 'Ярославль', 280, FALSE),
+('Михаил', 'Кутузов', '1670-12-01', 'Москва', 260, FALSE),
+('Алексей', 'Лопухин', '1666-07-19', 'Новгород', 240, FALSE),
+('Василий', 'Трубецкой', '1677-04-22', 'Санкт-Петербург', 220, FALSE);`
+]"/>
+
+Начнем с базового синтаксиса.
 
 ```sql
 SELECT <столбцы или *> FROM <таблица>;
@@ -306,22 +342,22 @@ SELECT name, surname FROM poteshnye_polki;
 В SQL можно создавать вычисляемые столбцы, используя арифметические операции: `+`, `-`, `*`, `/` и пр.
 
 ```sql
-SELECT name, surname, soldiers_count, soldiers_count + 100 AS soldiers_after_recruitment
+SELECT name, surname, soldiers_count, soldiers_count + 100
 FROM poteshnye_polki;
 ```
 
-Здесь прибавляем 100 рекрутов к числу солдат и даём новому столбцу имя soldiers_after_recruitment.
+Здесь прибавляем 100 рекрутов к числу солдат.
 
 В PostgreSQL строки объединяются оператором ||:
 
 ```sql
-SELECT name || ' ' || surname AS full_name, location FROM poteshnye_polki;
+SELECT name || ' ' || surname, location FROM poteshnye_polki;
 ```
 
 Можно также и комбинировать:
 
 ```sql
-SELECT name || ' ' || surname AS full_name, soldiers_count + 100 AS soldiers_after_recruitment FROM poteshnye_polki;
+SELECT name || ' ' || surname, soldiers_count + 100 FROM poteshnye_polki;
 ```
 
 <Conversation :phrases="[
@@ -405,18 +441,16 @@ END;
 ]"/>
 
 ```sql
-SELECT name || ' ' || surname AS "ФИО командира",
+SELECT name || ' ' || surname,
        soldiers_count,
        CASE
          WHEN soldiers_count > 1000 THEN 'Большой полк'
          ELSE 'Малый полк'
-       END AS "Тип полка"
+       END
 FROM poteshnye_polki;
 ```
 
-В этом примере создаётся столбец `Тип полка`, который принимает значение `Большой полк`, если численность солдат превышает `1000`, и `Малый полк` в противном случае.
-
-Также часто используются псевдонимы, чтобы сделать запросы более читаемыми. Псевдонимы позволяют давать временные имена таблицам и столбцам, которые используются в запросе.
+В этом примере создаётся столбец, который принимает значение `Большой полк`, если численность солдат превышает `1000`, и `Малый полк` в противном случае.
 
 ## Псевдонимы
 

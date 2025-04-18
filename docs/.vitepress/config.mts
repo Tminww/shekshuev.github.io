@@ -338,5 +338,17 @@ export default withMermaid(
         },
       },
     },
+    vue: {
+      template: {
+        compilerOptions: {
+          isCustomElement: tag => tag.startsWith("pglite-"),
+        },
+      },
+    },
+    vite: {
+      optimizeDeps: {
+        exclude: ["@electric-sql/pglite"],
+      },
+    },
   })
 );
