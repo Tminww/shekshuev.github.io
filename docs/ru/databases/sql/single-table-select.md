@@ -1,10 +1,11 @@
 <script setup>
 import Conversation from "../../../../components/Conversation.vue";
-import Repl from "../../../../components/Repl.vue";
 import alexey from "../../../assets/databases/heroes/clerk_alexey.png";
 import ivan from "../../../assets/databases/heroes/clerk_ivan.png";
 import petr from "../../../assets/databases/heroes/petr.png";
+import { defineAsyncComponent } from "vue";
 
+const Repl = defineAsyncComponent(() => import("../../../../components/Repl.vue"))
 
 </script>
 
