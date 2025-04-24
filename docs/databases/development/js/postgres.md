@@ -1,5 +1,68 @@
 # Developing the Repository Layer of a Web Application
 
+## Database Initialization
+
+You need to manually create SQL tables that reflect the structure of the GopherTalk social network. Below are the tables, their fields, and the relationships between them.
+
+1. **Table `users`** — stores user data.
+2. **Table `posts`** — stores user posts. The `reply_to_id` field refers to another post if it's a reply.
+3. **Table `likes`** — stores information about which users liked which posts.
+4. **Table `views`** — stores information about which users viewed which posts.
+
+```mermaid
+erDiagram
+  users {
+    BIGSERIAL id PK
+    VARCHAR(30) user_name
+    VARCHAR(30) first_name
+    VARCHAR(30) last_name
+    VARCHAR(72) password_hash
+    SMALLINT status
+    TIMESTAMP created_at
+    TIMESTAMP updated_at
+    TIMESTAMP deleted_at
+  }
+
+  posts {
+    BIGSERIAL id PK
+    VARCHAR(280) text
+    BIGINT reply_to_id FK
+    BIGINT user_id FK
+    TIMESTAMP created_at
+    TIMESTAMP deleted_at
+  }
+
+  likes {
+    BIGINT user_id PK, FK
+    BIGINT post_id PK, FK
+    TIMESTAMP created_at
+  }
+
+  views {
+    BIGINT user_id PK, FK
+    BIGINT post_id PK, FK
+    TIMESTAMP created_at
+  }
+
+  users ||--o{ posts : "has many"
+  users ||--o{ likes : "likes"
+  users ||--o{ views : "views"
+
+  posts ||--o{ likes : "liked in"
+  posts ||--o{ views : "viewed in"
+  posts ||--o| posts : "replies to"
+
+```
+
+### Requirements:
+
+- Use the data types and constraints as described.
+- Set up primary and foreign keys accordingly.
+- Create a unique index on `user_name`, but only for users who are not deleted (`deleted_at IS NULL`).
+- Make sure that the `status` field can only have values `0` or `1`.
+
+> 💡 Tip: After creating the tables, verify the schema using an ER diagram to ensure the relationships are correct.
+
 ## Application Architecture: Controllers, Services, and Repositories
 
 As an application grows, more business logic, validation, and database operations are added — and the code quickly turns into an unreadable mess.  
@@ -407,6 +470,345 @@ This asynchronous method is designed to "delete" a user from the database. In fa
 
 > [!IMPORTANT] Задание
 > Write an SQL query that performs a soft delete of a user, setting the `deleted_at` value to the current time for the user with the specified `id`. Also, write an SQL query that completely deletes the user with the specified `id` from the table.
+
+## Testing the User Repository
+
+In the root of the project, create a `__tests__` folder, and in it a `repositories` folder. In the `repositories` folder, create a `userRepository.test.js` file and place the code with unit tests in it:
+
+```js
+import { expect, jest } from "@jest/globals";
+import { pool } from "../../src/config/db.js";
+import { UserRepository } from "../../src/repositories/userRepository.js";
+
+function normalizeSQL(sql) {
+  return sql.toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+describe("UserRepository", () => {
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  describe("createUser", () => {
+    it("successfully creates new user", async () => {
+      const mock = jest.spyOn(pool, "query");
+
+      const dto = {
+        user_name: "john",
+        first_name: "John",
+        last_name: "Doe",
+        password_hash: "password",
+      };
+
+      const expected = {
+        id: 1,
+        user_name: "john",
+        password_hash: "password",
+        status: 1,
+      };
+
+      mock.mockResolvedValueOnce({ rows: [expected], rowCount: 1 });
+
+      const result = await UserRepository.createUser(dto);
+
+      expect(result).toEqual(expected);
+      const [sql, params] = mock.mock.calls[0];
+      const normalizedSQL = normalizeSQL(sql);
+      expect(normalizedSQL).toContain("insert into users (user_name, first_name, last_name, password_hash)");
+      expect(normalizedSQL).toContain("returning id, user_name, password_hash, status");
+      expect(params).toEqual([dto.user_name, dto.first_name, dto.last_name, dto.password_hash]);
+    });
+
+    it("error on user insert", async () => {
+      const mock = jest.spyOn(pool, "query");
+
+      const dto = {
+        user_name: "john",
+        first_name: "John",
+        last_name: "Doe",
+        password_hash: "password",
+      };
+
+      const fakeError = new Error("insert failed");
+      mock.mockRejectedValueOnce(fakeError);
+
+      await expect(UserRepository.createUser(dto)).rejects.toThrow("insert failed");
+
+      const [sql, params] = mock.mock.calls[0];
+      const normalizedSQL = normalizeSQL(sql);
+      expect(normalizedSQL).toContain("insert into users (user_name, first_name, last_name, password_hash)");
+      expect(params).toEqual([dto.user_name, dto.first_name, dto.last_name, dto.password_hash]);
+    });
+  });
+
+  describe("getAllUsers", () => {
+    it("successfully gets all users", async () => {
+      const mock = jest.spyOn(pool, "query");
+
+      const now = new Date();
+
+      const expectedUsers = [
+        {
+          id: 1,
+          user_name: "john",
+          first_name: "John",
+          last_name: "Doe",
+          status: 1,
+          created_at: now,
+          updated_at: now,
+        },
+        {
+          id: 2,
+          user_name: "jane",
+          first_name: "Jane",
+          last_name: "Smith",
+          status: 1,
+          created_at: now,
+          updated_at: now,
+        },
+      ];
+
+      mock.mockResolvedValueOnce({ rows: expectedUsers, rowCount: expectedUsers.length });
+
+      const result = await UserRepository.getAllUsers(100, 0);
+
+      expect(result).toEqual(expectedUsers);
+
+      const [sql, params] = mock.mock.calls[0];
+      const normalizedSQL = normalizeSQL(sql);
+      expect(normalizedSQL).toContain(
+        "select id, user_name, first_name, last_name, status, created_at, updated_at from users where deleted_at is null"
+      );
+      expect(params).toEqual([0, 100]);
+    });
+
+    it("returns error", async () => {
+      const mock = jest.spyOn(pool, "query");
+      mock.mockRejectedValueOnce(new Error("SQL error"));
+
+      await expect(UserRepository.getAllUsers(100, 0)).rejects.toThrow("SQL error");
+
+      const [sql, params] = mock.mock.calls[0];
+      const normalizedSQL = normalizeSQL(sql);
+      expect(normalizedSQL).toContain("from users where deleted_at is null");
+      expect(params).toEqual([0, 100]);
+    });
+  });
+
+  describe("getUserById", () => {
+    it("successfully gets user by id", async () => {
+      const mock = jest.spyOn(pool, "query");
+      const now = new Date();
+
+      const expected = {
+        id: 1,
+        user_name: "john",
+        first_name: "John",
+        last_name: "Doe",
+        status: 1,
+        created_at: now,
+        updated_at: now,
+      };
+
+      mock.mockResolvedValueOnce({ rows: [expected], rowCount: 1 });
+
+      const result = await UserRepository.getUserById(1);
+
+      expect(result).toEqual(expected);
+
+      const [sql, params] = mock.mock.calls[0];
+      const normalizedSQL = normalizeSQL(sql);
+      expect(normalizedSQL).toContain("from users where id = $1 and deleted_at is null");
+      expect(params).toEqual([1]);
+    });
+
+    it("returns error if user not found", async () => {
+      const mock = jest.spyOn(pool, "query");
+      mock.mockResolvedValueOnce({ rows: [], rowCount: 0 });
+
+      await expect(UserRepository.getUserById(2)).rejects.toThrow("User not found");
+
+      const [sql, params] = mock.mock.calls[0];
+      const normalizedSQL = normalizeSQL(sql);
+      expect(normalizedSQL).toContain("from users where id = $1 and deleted_at is null");
+      expect(params).toEqual([2]);
+    });
+  });
+
+  describe("getUserByUserName", () => {
+    it("successfully gets user by username", async () => {
+      const mock = jest.spyOn(pool, "query");
+
+      const expected = {
+        id: 1,
+        user_name: "john",
+        password_hash: "password",
+        status: 1,
+      };
+
+      mock.mockResolvedValueOnce({ rows: [expected], rowCount: 1 });
+
+      const result = await UserRepository.getUserByUserName("john");
+
+      expect(result).toEqual(expected);
+
+      const [sql, params] = mock.mock.calls[0];
+      const normalizedSQL = normalizeSQL(sql);
+      expect(normalizedSQL).toContain("from users where user_name = $1 and deleted_at is null");
+      expect(params).toEqual(["john"]);
+    });
+
+    it("returns error if user not found", async () => {
+      const mock = jest.spyOn(pool, "query");
+      mock.mockResolvedValueOnce({ rows: [], rowCount: 0 });
+
+      await expect(UserRepository.getUserByUserName("notfound")).rejects.toThrow("User not found");
+
+      const [sql, params] = mock.mock.calls[0];
+      const normalizedSQL = normalizeSQL(sql);
+      expect(normalizedSQL).toContain("from users where user_name = $1 and deleted_at is null");
+      expect(params).toEqual(["notfound"]);
+    });
+  });
+
+  describe("updateUser", () => {
+    it("successfully updates user", async () => {
+      const mock = jest.spyOn(pool, "query");
+      const now = new Date();
+      const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+
+      const id = 1;
+      const dto = {
+        user_name: "john_updated",
+        first_name: "John",
+        last_name: "Doe",
+        password_hash: "password",
+      };
+
+      const expected = {
+        id,
+        user_name: dto.user_name,
+        first_name: dto.first_name,
+        last_name: dto.last_name,
+        status: 1,
+        created_at: oneHourAgo,
+        updated_at: now,
+      };
+
+      mock.mockResolvedValueOnce({ rows: [expected], rowCount: 1 });
+
+      const result = await UserRepository.updateUser(id, dto);
+
+      expect(result).toEqual(expected);
+
+      const [sql, params] = mock.mock.calls[0];
+      const normalizedSQL = normalizeSQL(sql);
+      expect(normalizedSQL).toContain("update users set");
+      expect(normalizedSQL).toContain("where id = $");
+      expect(normalizedSQL).toContain("returning id, user_name, first_name, last_name, status");
+      expect(params).toContain(dto.user_name);
+      expect(params).toContain(dto.password_hash);
+      expect(params).toContain(dto.first_name);
+      expect(params).toContain(dto.last_name);
+      expect(params).toContain(id);
+    });
+
+    it("returns error if no fields to update", async () => {
+      await expect(UserRepository.updateUser(1, {})).rejects.toThrow("No fields to update");
+    });
+
+    it("returns error if user not found", async () => {
+      const mock = jest.spyOn(pool, "query");
+
+      const dto = {
+        user_name: "ghost",
+      };
+
+      mock.mockResolvedValueOnce({ rows: [], rowCount: 0 });
+
+      await expect(UserRepository.updateUser(999, dto)).rejects.toThrow("User not found");
+
+      const [sql, params] = mock.mock.calls[0];
+      const normalizedSQL = normalizeSQL(sql);
+      expect(normalizedSQL).toContain("update users set");
+      expect(normalizedSQL).toContain("where id = $");
+      expect(params).toEqual(["ghost", 999]);
+    });
+  });
+
+  describe("deleteUser", () => {
+    it("successfully deletes user", async () => {
+      const mock = jest.spyOn(pool, "query");
+
+      mock.mockResolvedValueOnce({ rowCount: 1 });
+
+      await expect(UserRepository.deleteUser(1)).resolves.toBeUndefined();
+
+      const [sql, params] = mock.mock.calls[0];
+      const normalizedSQL = normalizeSQL(sql);
+      expect(normalizedSQL).toContain("update users set deleted_at = now()");
+      expect(normalizedSQL).toContain("where id = $1 and deleted_at is null");
+      expect(params).toEqual([1]);
+    });
+
+    it("returns error if user not found", async () => {
+      const mock = jest.spyOn(pool, "query");
+
+      mock.mockResolvedValueOnce({ rowCount: 0 });
+
+      await expect(UserRepository.deleteUser(2)).rejects.toThrow("User not found");
+
+      const [sql, params] = mock.mock.calls[0];
+      const normalizedSQL = normalizeSQL(sql);
+      expect(normalizedSQL).toContain("update users set deleted_at = now()");
+      expect(params).toEqual([2]);
+    });
+  });
+});
+```
+
+After that run the command
+
+```bash
+npm run test
+```
+
+If you did everything correctly, all tests will pass.
+
+```bash
+> gophertalk-backend-express@0.1.0 test
+> node --experimental-vm-modules node_modules/jest/bin/jest.js
+
+(node:50607) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ PASS  __tests__/repositories/userRepository.test.js
+  UserRepository
+    createUser
+      ✓ successfully creates new user (2 ms)
+      ✓ error on user insert (2 ms)
+    getAllUsers
+      ✓ successfully gets all users (1 ms)
+      ✓ returns error
+    getUserById
+      ✓ successfully gets user by id (1 ms)
+      ✓ returns error if user not found
+    getUserByUserName
+      ✓ successfully gets user by username
+      ✓ returns error if user not found (1 ms)
+    updateUser
+      ✓ successfully updates user
+      ✓ returns error if no fields to update (1 ms)
+      ✓ returns error if user not found
+    deleteUser
+      ✓ successfully deletes user
+      ✓ returns error if user not found
+
+Test Suites: 1 passed, 1 total
+Tests:       13 passed, 13 total
+Snapshots:   0 total
+Time:        0.138 s
+Ran all test suites.
+```
 
 # Developing the Functional Layer of a Web Application
 

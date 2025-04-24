@@ -1,5 +1,5 @@
 import { expect, jest } from "@jest/globals";
-import { pool } from "../../src/db/index.js";
+import { pool } from "../../src/config/db.js";
 import { UserRepository } from "../../src/repositories/userRepository.js";
 
 function normalizeSQL(sql) {
