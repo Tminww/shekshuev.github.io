@@ -1,6 +1,4 @@
-# Developing the Repository Layer of a Web Application
-
-## Database Initialization
+## Developing the Repository Layer of a Web Application
 
 You need to manually create SQL tables that reflect the structure of the GopherTalk social network. Below are the tables, their fields, and the relationships between them.
 
@@ -1699,6 +1697,156 @@ In this section, we have consistently developed two data access layers — the U
 
 This approach makes the code clean, maintainable, and extensible. Now we are ready to move on to the next layer — the functional layer (services), where we will implement the application logic and data validation before passing it to the repositories.
 
-# Developing the Functional Layer of a Web Application
+## Developing the Functional Layer of a Web Application
+
+In the previous section, we implemented the repository layer — direct access to the database. Now it's time to move on to the next architectural layer — the logic layer, also known as the service layer. This layer contains "services" — modules that implement the core behavior of the application.
+
+**Why do we need a logic layer?**
+
+The logic layer separates application logic from the specifics of data storage (repositories) and transport (such as HTTP). This approach allows us to:
+
+- Increase code reusability — a service can be used from a controller or from a background task;
+
+- Simplify testing — services can be tested independently from HTTP and the database;
+
+- Improve code readability — each module has a clear responsibility;
+
+- Simplify team collaboration — developers can work on services and controllers separately.
+
+**Which services will we implement?**
+
+In our GopherTalk application, we will implement three main services:
+
+- `AuthService` — handles user registration, login, and token generation.
+
+- `UserService` — manages users (search, update, delete).
+
+- `PostService` — handles posts (create, retrieve, like, view, delete).
+
+Each service will use the corresponding repository and, if needed, helper functions such as password hashing or token generation.
+
+## Authorization service development
+
+This service is responsible for user registration, login, and token pair generation. It interacts with the user repository and auxiliary utilities for working with passwords and JWT.
+
+::: details What is JWT?
+
+JSON Web Token (JWT) is an open standard (RFC 7519) that provides a compact and self-contained way to securely transfer information between parties in the form of a JSON object. The token is digitally signed, which allows you to verify the authenticity and integrity of the data. JWT consists of three parts: a header, a payload, and a signature, each of which is encoded in Base64Url and separated by dots.
+
+JWT is a string that contains encoded user information and other data, signed with a secret key or a public/private key pair. This verifies that the token has not been tampered with and that the sender is who they claim to be.
+
+**Advantages of JWT**
+
+- **Self-sufficiency**: JWT contains all the necessary information inside itself, which allows you to verify the token locally without accessing a database or centralized session storage, improving performance and scalability.
+- **Cross-platform**: JWT can be used in different programming languages ​​and environments, which is convenient for distributed systems.
+- **Flexibility**: The token can store additional information, such as user roles, token expiration time, and other user data.
+- **Single Sign-On (SSO) Friendly**: Due to its compact size and ability to be used across different domains, JWT is widely used for single sign-on.
+- **Signature Security**: The digital signature ensures the integrity and authenticity of the data, preventing the token from being tampered with.
+
+**JWT Disadvantages**
+
+- **Lack of built-in revocation mechanism**: JWT does not support token revocation by default, which can be a problem if you need to revoke access immediately.
+- **Leakage risk**: If the secret key or private signing key is compromised, an attacker can create fake tokens.
+- **Complexity of session management**: Unlike classic session cookies, JWT requires additional logic to manage the session lifecycle and secure storage on the client.
+- **Not always easier to use**: Despite its popularity, JWT is not always easier to implement and operate, especially for novice developers.
+
+**Usage of JWT**
+
+- **Authentication**: The most common scenario is when a user logs in and the server issues a JWT, which the client sends with each request to access protected resources.
+- **Inter-service information exchange**: JWT is used to securely transfer information between different systems where it is important to verify the authenticity of the sender and the integrity of the data.
+- **Single Sign-On (SSO)**: Due to its compactness and independence from a specific server, JWT is suitable for implementing single sign-on across multiple applications or domains.
+- **Microservice architecture**: In distributed systems, JWT allows each service to independently verify user rights without a centralized session store.
+
+**JWT consists of three parts, separated by dots (`.`):**
+
+- **Header**
+  Contains metadata about the token: the token type (usually "JWT") and the signature algorithm used (e.g. HS256, RS256). This is a JSON object encoded in Base64Url.
+
+- **Payload**
+  Contains claims - data that is passed in the token, such as user ID, roles, token lifetime, and other user data. Also a JSON object encoded in Base64Url.
+
+- **Signature**
+  A cryptographic signature that is created from the header and payload using a secret key or key pair. Allows you to verify the integrity and authenticity of the token.
+  :::
+
+In the `src` folder of the project, create a `services` folder, and in it a file `authService.js`, and place the following code there:
+
+```js
+import { UserRepository } from "../repositories/userRepository.js";
+import { hashPassword, verifyPassword } from "../utils/hash.js";
+import { createToken } from "../utils/token.js";
+
+export const AuthService = {
+  async login(dto, config) {
+    const user = await UserRepository.getUserByUserName(dto.user_name);
+    if (!user) {
+      throw new Error("User not found");
+    }
+    const valid = verifyPassword(dto.password, user.password_hash);
+    if (!valid) {
+      throw new Error("Wrong password");
+    }
+    return this.generateTokenPair(user, config);
+  },
+
+  async register(dto, config) {
+    const hashedPassword = hashPassword(dto.password);
+    const newUserDTO = {
+      user_name: dto.user_name,
+      password_hash: hashedPassword,
+      first_name: dto.first_name,
+      last_name: dto.last_name,
+    };
+    const user = await UserRepository.createUser(newUserDTO);
+    return this.generateTokenPair(user, config);
+  },
+
+  async generateTokenPair(user, config) {
+    const id = user.id.toString();
+    const accessToken = createToken(config.ACCESS_TOKEN_SECRET, id, config.ACCESS_TOKEN_EXPIRES);
+    const refreshToken = createToken(config.REFRESH_TOKEN_SECRET, id, config.REFRESH_TOKEN_EXPIRES);
+    return {
+      access_token: accessToken,
+      refresh_token: refreshToken,
+    };
+  },
+};
+```
+
+#### Method Description
+
+**`login(dto, config)`**
+
+- Searches for a user by name.
+
+- Checks if the password is correct.
+
+- Returns tokens if everything is correct.
+
+**`register(dto, config)`**
+
+- Hashes the password.
+
+- Creates a new user.
+
+- Returns tokens for the new user.
+
+**`generateTokenPair(user, config)`**
+
+- Generates two tokens:
+
+  - access token — for quick authentication;
+
+  - refresh token — to refresh the access token without re-login.
+
+- Uses secrets and token lifetime from the configuration.
+
+## Testing the authorization service
+
+Let's write tests for `authService` right away to check its operation. To do this, create a `services` folder in the `__tests__` folder, and in it a file `authService.test.js`. Place the code below in it.
+
+::: details Unit tests authService
+
+:::
 
 # Developing the Controller Layer of a Web Application
