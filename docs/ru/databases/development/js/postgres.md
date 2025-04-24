@@ -111,6 +111,20 @@ erDiagram
 
 ## Разработка репозитория пользователей
 
+На этом этапе мы реализуем слой работы с базой данных — **репозиторий пользователей**.  
+Задача этого слоя — обеспечивать сохранение, получение, обновление и удаление данных пользователей без участия бизнес-логики или HTTP-контроллеров.
+
+Репозиторий будет включать методы:
+
+- добавления нового пользователя,
+- получения всех пользователей с пагинацией,
+- поиска пользователя по `id` и по `user_name`,
+- обновления данных пользователя,
+- мягкого удаления пользователя.
+
+Мы начнем с самого простого метода — `createUser`, который сохраняет нового пользователя в таблице `users`.  
+Затем реализуем остальные методы и подключим unit-тесты для проверки корректности.
+
 В папке `src` проекта создайте папку `repositories`, а в ней файл `userRepository.js`. Поместите в него следующий код:
 
 ```js
@@ -799,6 +813,461 @@ Snapshots:   0 total
 Time:        0.138 s
 Ran all test suites.
 ```
+
+## Разработка репозитория постов
+
+На этом этапе мы реализуем **репозиторий постов** — слой, отвечающий за взаимодействие с таблицей `posts`, а также связанными с ней таблицами `likes`, `views` и вложенными ответами (реплаями).
+
+Репозиторий постов будет включать следующие методы:
+
+- создание нового поста (`createPost`);
+- получение списка постов с фильтрацией и пагинацией (`getAllPosts`);
+- получение одного поста по `id`, включая автора, количество лайков, просмотров и ответов (`getPostByID`);
+- удаление поста владельцем (`deletePost`);
+- отметка, что пользователь просмотрел пост (`viewPost`);
+- лайк/дизлайк поста (`likePost`, `dislikePost`).
+
+Мы начнем с реализации метода `createPost`, затем последовательно опишем остальные. Все методы взаимодействуют с базой через SQL-запросы, используют подстановки для защиты от SQL-инъекций и возвращают данные в формате DTO.
+
+Создайте файл `src/repositories/postRepository.js`, в него поместите следующий код:
+
+```js
+import { pool } from "../db/index.js";
+
+export const PostRepository = {
+  async createPost(dto) {
+    const query = `...`;
+    const values = [dto.text, dto.user_id, dto.reply_to_id];
+    const res = await pool.query(query, values);
+    return res.rows[0];
+  },
+};
+```
+
+Пояснение:
+
+- `dto` — объект, содержащий данные нового поста (`text`, `user_id`, `reply_to_id`);
+
+- SQL-запрос вставляет данные в таблицу posts;
+
+- После вставки сразу возвращаются поля нового поста: `id`, `text`, `created_at`, `reply_to_id`.
+
+> [!IMPORTANT] Задание
+> В соответствии с пояснением напишите SQL запрос для добавления нового поста. Не забудьте использовать позиционные параметры `$1`, `$2`, `$3` — для предотвращения SQL-инъекций
+
+Метод `getAllPosts` возвращает список постов с расширенной информацией: количество лайков, просмотров, ответов, а также информацию о пользователе и отметках "нравится" и "просмотрено" от текущего пользователя.
+
+```js
+async getAllPosts(dto) {
+    const params = [dto.user_id];
+    let query = `
+      WITH likes_count AS (
+        SELECT post_id, COUNT(*) AS likes_count
+        FROM likes GROUP BY post_id
+      ),
+      views_count AS (
+        SELECT post_id, COUNT(*) AS views_count
+        FROM views GROUP BY post_id
+      ),
+      replies_count AS (
+        SELECT reply_to_id, COUNT(*) AS replies_count
+        FROM posts WHERE reply_to_id IS NOT NULL GROUP BY reply_to_id
+      )
+      SELECT
+        p.id, p.text, p.reply_to_id, p.created_at,
+        u.id AS user_id, u.user_name, u.first_name, u.last_name,
+        COALESCE(lc.likes_count, 0) AS likes_count,
+        COALESCE(vc.views_count, 0) AS views_count,
+        COALESCE(rc.replies_count, 0) AS replies_count,
+        CASE WHEN l.user_id IS NOT NULL THEN true ELSE false END AS user_liked,
+        CASE WHEN v.user_id IS NOT NULL THEN true ELSE false END AS user_viewed
+      FROM posts p
+      JOIN users u ON p.user_id = u.id
+      LEFT JOIN likes_count lc ON p.id = lc.post_id
+      LEFT JOIN views_count vc ON p.id = vc.post_id
+      LEFT JOIN replies_count rc ON p.id = rc.reply_to_id
+      LEFT JOIN likes l ON l.post_id = p.id AND l.user_id = $1
+      LEFT JOIN views v ON v.post_id = p.id AND v.user_id = $1
+      WHERE p.deleted_at IS NULL
+    `;
+
+    if (dto.search) {
+      query += ` AND p.text ILIKE $${params.length + 1}`;
+      params.push(`%${dto.search}%`);
+    }
+
+    if (dto.owner_id) {
+      query += ` AND p.user_id = $${params.length + 1}`;
+      params.push(dto.owner_id);
+    }
+
+    if (dto.reply_to_id) {
+      query += ` AND p.reply_to_id = $${params.length + 1} ORDER BY p.created_at ASC`;
+      params.push(dto.reply_to_id);
+    } else {
+      query += ` AND p.reply_to_id IS NULL ORDER BY p.created_at DESC`;
+    }
+
+    query += ` OFFSET $${params.length + 1} LIMIT $${params.length + 2}`;
+    params.push(dto.offset, dto.limit);
+
+    const res = await pool.query(query, params);
+
+    return res.rows.map((row) => ({
+      id: row.id,
+      text: row.text,
+      reply_to_id: row.reply_to_id,
+      created_at: row.created_at,
+      likes_count: row.likes_count,
+      views_count: row.views_count,
+      replies_count: row.replies_count,
+      user_liked: row.user_liked,
+      user_viewed: row.user_viewed,
+      user: {
+        id: row.user_id,
+        user_name: row.user_name,
+        first_name: row.first_name,
+        last_name: row.last_name,
+      },
+    }));
+  }
+```
+
+Метод `getAllPosts` предназначен для получения списка публикаций с расширенной информацией:
+
+- автор поста;
+
+- количество лайков, просмотров, ответов;
+
+- флаги, лайкнул и/или просматривал ли текущий пользователь этот пост.
+
+#### Структура SQL-запроса
+
+Запрос построен с использованием CTE (Common Table Expressions) и выглядит следующим образом:
+
+```sql
+WITH likes_count AS (...),
+     views_count AS (...),
+     replies_count AS (...)
+SELECT ...
+FROM posts ...
+```
+
+Рассмотрим все части по порядку.
+
+#### 1. Подсчёт количества лайков к каждому посту
+
+```sql
+likes_count AS (
+  SELECT post_id, COUNT(*) AS likes_count
+  FROM likes
+  GROUP BY post_id
+)
+```
+
+Здесь из таблицы `likes` собирается информация о количестве лайков для каждого поста. Используется `GROUP BY post_id`, чтобы сгруппировать лайки по постам.
+
+#### 2. Подсчёт количества просмотров
+
+```sql
+views_count AS (
+  SELECT post_id, COUNT(*) AS views_count
+  FROM views
+  GROUP BY post_id
+)
+```
+
+Аналогично первой CTE, но теперь считаются просмотры из таблицы `views`.
+
+#### 3. Подсчёт количества ответов на каждый пост
+
+```sql
+replies_count AS (
+  SELECT reply_to_id, COUNT(*) AS replies_count
+  FROM posts
+  WHERE reply_to_id IS NOT NULL
+  GROUP BY reply_to_id
+)
+```
+
+Здесь из самой таблицы `posts` выбираются те строки, где `reply_to_id IS NOT NULL`, то есть это ответы на другие посты. Считается, сколько таких ответов у каждого родительского поста.
+
+#### 4. Основной запрос
+
+```sql
+SELECT
+  p.id, p.text, p.reply_to_id, p.created_at,
+  u.id AS user_id, u.user_name, u.first_name, u.last_name,
+  COALESCE(lc.likes_count, 0) AS likes_count,
+  COALESCE(vc.views_count, 0) AS views_count,
+  COALESCE(rc.replies_count, 0) AS replies_count,
+  CASE WHEN l.user_id IS NOT NULL THEN true ELSE false END AS user_liked,
+  CASE WHEN v.user_id IS NOT NULL THEN true ELSE false END AS user_viewed
+FROM posts p
+JOIN users u ON p.user_id = u.id
+LEFT JOIN likes_count lc ON p.id = lc.post_id
+LEFT JOIN views_count vc ON p.id = vc.post_id
+LEFT JOIN replies_count rc ON p.id = rc.reply_to_id
+LEFT JOIN likes l ON l.post_id = p.id AND l.user_id = $1
+LEFT JOIN views v ON v.post_id = p.id AND v.user_id = $1
+WHERE p.deleted_at IS NULL
+...
+```
+
+Что здесь происходит:
+
+- `JOIN users` — соединение поста с его автором по `user_id`;
+
+- `LEFT JOIN` с `likes_count`, `views_count`, `replies_count` — добавляются данные из CTE о количестве лайков, просмотров и ответов;
+
+- `LEFT JOIN likes l` и `views v` — проверяется, поставил ли лайк или просмотр текущий пользователь (`$1` — его id). Эти поля используются в логических выражениях ниже;
+
+- `CASE WHEN ... THEN true ELSE false` — определяет `user_liked` и `user_viewed`;
+
+- `COALESCE(..., 0)` — если данных о лайках/просмотрах/ответах нет (например, никто не лайкал), подставляется `0`;
+
+- `WHERE p.deleted_at IS NULL` — фильтрация: берутся только не удалённые посты.
+
+#### 5. Дополнительные фильтры
+
+**По тексту:**
+
+```sql
+if (dto.search) {
+  query += ` AND p.text ILIKE $${params.length + 1}`;
+  params.push(`%${dto.search}%`);
+}
+```
+
+Если передана строка `search`, ищутся посты, в тексте которых есть соответствие.
+
+**По пользователю (автору):**
+
+```sql
+if (dto.owner_id) {
+  query += ` AND p.user_id = $${params.length + 1}`;
+  params.push(dto.owner_id);
+}
+```
+
+Если передан `owner_id`, отбираются посты конкретного пользователя.
+
+**По ответам:**
+
+```sql
+if (dto.reply_to_id) {
+  query += ` AND p.reply_to_id = $${params.length + 1} ORDER BY p.created_at ASC`;
+} else {
+  query += ` AND p.reply_to_id IS NULL ORDER BY p.created_at DESC`;
+}
+```
+
+Проверяется, являются ли посты ответами на другой пост (`reply_to_id`) или это корневые посты.
+
+#### 6. Пагинация
+
+```js
+query += ` OFFSET $${params.length + 1} LIMIT $${params.length + 2}`;
+params.push(dto.offset, dto.limit);
+```
+
+Реализуется механика "скользящего окна" — выбирается определённый диапазон постов.
+
+#### 7. Возвращаемый результат
+
+Результат собирается в виде массива постов. Каждый пост содержит:
+
+- данные самого поста,
+
+- данные автора (`user`),
+
+- количество лайков, просмотров, ответов,
+
+- флаги `user_liked`, `user_viewed`.
+
+Далее рассмотрим реализацию метода `getPostById`.
+
+```js
+import { pool } from "../db/index.js";
+
+export const PostRepository = {
+  async getPostById(postId, userId) {
+    const query = `
+      WITH likes_count AS (
+        SELECT post_id, COUNT(*) AS likes_count
+        FROM likes
+        GROUP BY post_id
+      ),
+      views_count AS (
+        SELECT post_id, COUNT(*) AS views_count
+        FROM views
+        GROUP BY post_id
+      ),
+      replies_count AS (
+        SELECT reply_to_id, COUNT(*) AS replies_count
+        FROM posts
+        WHERE reply_to_id IS NOT NULL
+        GROUP BY reply_to_id
+      )
+      SELECT 
+        p.id AS post_id,
+        p.text,
+        p.reply_to_id,
+        p.created_at,
+        u.id AS user_id,
+        u.user_name,
+        u.first_name,
+        u.last_name,
+        COALESCE(lc.likes_count, 0) AS likes_count,
+        COALESCE(vc.views_count, 0) AS views_count,
+        COALESCE(rc.replies_count, 0) AS replies_count,
+        CASE WHEN l.user_id IS NOT NULL THEN true ELSE false END AS user_liked,
+        CASE WHEN v.user_id IS NOT NULL THEN true ELSE false END AS user_viewed
+      FROM posts p
+      JOIN users u ON p.user_id = u.id
+      LEFT JOIN likes_count lc ON p.id = lc.post_id
+      LEFT JOIN views_count vc ON p.id = vc.post_id
+      LEFT JOIN replies_count rc ON p.id = rc.reply_to_id
+      LEFT JOIN likes l ON l.post_id = p.id AND l.user_id = $1
+      LEFT JOIN views v ON v.post_id = p.id AND v.user_id = $1
+      WHERE p.id = $2 AND p.deleted_at IS NULL;
+    `;
+
+    const res = await pool.query(query, [userId, postId]);
+    if (res.rowCount === 0) {
+      throw new Error("Post not found");
+    }
+
+    const row = res.rows[0];
+    return {
+      id: row.post_id,
+      text: row.text,
+      reply_to_id: row.reply_to_id,
+      created_at: row.created_at,
+      likes_count: row.likes_count,
+      views_count: row.views_count,
+      replies_count: row.replies_count,
+      user_liked: row.user_liked,
+      user_viewed: row.user_viewed,
+      user: {
+        id: row.user_id,
+        user_name: row.user_name,
+        first_name: row.first_name,
+        last_name: row.last_name,
+      },
+    };
+  },
+};
+```
+
+Метод `getPostById` используется для получения одного конкретного поста по его идентификатору. Он возвращает расширенную информацию по посту, включая лайки, просмотры, количество ответов и данные об авторе. Метод похож на `getAllPosts`, за исключением некоторых отличий.
+
+**Фильтрация по ID поста**
+
+Вместо выборки множества записей, запрос ограничивается одним постом:
+
+```sql
+WHERE p.id = $2 AND p.deleted_at IS NULL
+```
+
+Первый параметр (`$1`) — это `user_id` (нужен для определения, лайкнул ли/просматривал ли пользователь пост),
+второй (`$2`) — это ID самого поста, который ищется.
+
+**Отсутствует пагинация**
+
+Метод возвращает только один пост, поэтому нет `OFFSET` и `LIMIT`.
+
+**Возвращаемое значение**
+
+`getPostById` возвращает один объект поста, а `getAllPosts` - массив.
+
+**Обработка крайних случаев**
+
+Если пост не найден, `getPostById` выбрасывает исключение "Post not found", а `getAllPosts` возвращает пустой массив.
+
+Перейдем к реализации метода `deletePost` в репозитории `PostRepository`
+
+```js
+async deletePost(id, ownerId) {
+  const query = `...`;
+  const res = await pool.query(query, [id, ownerId]);
+  if (res.rowCount === 0) {
+    throw new Error("Post not found or already deleted");
+  }
+}
+```
+
+> [!IMPORTANT] Задание
+> Реализуйте метод `deletePost`, который помечает пост как удалённый. SQL-запрос должен обновлять поле `deleted_at` текущим временем, работать только с постами, принадлежащими автору и исключать уже удалённые посты.
+
+Теперь реализуем метод, который регистрирует факт просмотра поста пользователем. Каждый пользователь может просмотреть пост только один раз — повторные просмотры не записываются.
+
+```js
+async function viewPost(postId, userId) {
+  const query = `...`;
+
+  try {
+    const res = await pool.query(query, [postId, userId]);
+    if (res.rowCount === 0) {
+      throw new Error("Post not found");
+    }
+  } catch (err) {
+    if (err.message.includes("pk__views")) {
+      throw new Error("Post already viewed");
+    }
+    throw err;
+  }
+}
+```
+
+> [!CAUTION] Внимание
+> Обратите внимание на строку `err.message.includes("pk__views")`. Здесь `pk__views` - это имя первичного ключа у таблицы `views`. Подставьте свое, если у вас отличается.
+
+> [!IMPORTANT] Задание
+> Реализуйте метод `viewPost`, который добавляет новую запись в таблицу `views`.
+
+Теперь реализуем метод, который позволяет пользователю поставить лайк посту. Один пользователь может поставить лайк одному посту только один раз — повторные попытки должны вызывать ошибку.
+
+```js
+async function likePost(postId, userId) {
+  const query = `...`;
+
+  try {
+    const res = await pool.query(query, [postId, userId]);
+    if (res.rowCount === 0) {
+      throw new Error("Post not found");
+    }
+  } catch (err) {
+    if (err.message.includes("pk__likes")) {
+      throw new Error("Post already liked");
+    }
+    throw err;
+  }
+}
+```
+
+> [!CAUTION] Внимание
+> Обратите внимание на строку `err.message.includes("pk__likes")`. Здесь `pk__likes` - это имя первичного ключа у таблицы `likes`. Подставьте свое, если у вас отличается.
+
+> [!IMPORTANT] Задание
+> Реализуйте метод `likePost`, который добавляет новую запись в таблицу `likes`.
+
+Метод `dislikePost` позволяет пользователю убрать лайк с поста, если он его ранее поставил.
+
+```js
+async function dislikePost(postId, userId) {
+  const query = `...`;
+
+  const res = await pool.query(query, [postId, userId]);
+
+  if (res.rowCount === 0) {
+    throw new Error("Post not found");
+  }
+}
+```
+
+> [!IMPORTANT] Задание
+> Реализуйте метод `dislikePost`, который удаляет запись из таблицы `likes`.
 
 # Разработка функционального слоя web-приложения
 

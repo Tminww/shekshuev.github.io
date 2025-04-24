@@ -115,6 +115,20 @@ For each layer, you will be provided with unit tests to verify the correctness o
 
 ## Developing the User Repository
 
+At this stage, we will implement the **user repository** — the layer responsible for interacting with the database.  
+This layer handles storing, retrieving, updating, and deleting user data, without involving any business logic or HTTP controllers.
+
+The repository will include methods for:
+
+- creating a new user,
+- retrieving all users with pagination,
+- finding a user by `id` and by `user_name`,
+- updating user data,
+- soft-deleting a user.
+
+We will start with the simplest method — `createUser`, which inserts a new user into the `users` table.  
+Then, we will implement the remaining methods and write unit tests to ensure everything works as expected.
+
 In the src folder of the project, create a folder named repositories, and inside it, create a file called `userRepository.js`. Place the following code into that file:
 
 ```js
@@ -809,6 +823,462 @@ Snapshots:   0 total
 Time:        0.138 s
 Ran all test suites.
 ```
+
+## Post Repository Development
+
+At this stage, we will implement the **post repository** — the layer responsible for interacting with the `posts` table and its related tables: `likes`, `views`, and replies (nested posts).
+
+The post repository will include the following methods:
+
+- creating a new post (`createPost`);
+- retrieving a list of posts with filters and pagination (`getAllPosts`);
+- retrieving a single post by `id`, including author info, like/view/reply counts (`getPostByID`);
+- deleting a post by its owner (`deletePost`);
+- marking a post as viewed by a user (`viewPost`);
+- liking/disliking a post (`likePost`, `dislikePost`).
+
+We’ll start with the implementation of the `createPost` method, then move on to the others.  
+All methods interact with the database using SQL queries with parameterized inputs to prevent SQL injection, and return data in DTO format.
+
+Create a file `src/repositories/postRepository.js` and put the following code in it:
+
+```js
+import { pool } from "../db/index.js";
+
+export const PostRepository = {
+  async createPost(dto) {
+    const query = `...`;
+    const values = [dto.text, dto.userId, dto.replyToId];
+    const res = await pool.query(query, values);
+    return res.rows[0];
+  },
+};
+```
+
+Explanation
+
+- `dto` is an object containing the new post's data (`text`, `user_id`, `reply_to_id`);
+
+- The SQL query inserts the data into the posts table;
+
+- After the insertion, the newly created post’s fields (`id`, `text`, `created_at`, `reply_to_id`) are immediately returned.
+
+> [!IMPORTANT] Task
+> According to the explanation, write a SQL query to add a new post. Do not forget to use positional parameters `$1`, `$2`, `$3` - to prevent SQL injection
+
+The `getAllPosts` method returns a list of posts with extended information: number of likes, views, replies, as well as user information and likes and views from the current user.
+
+```js
+async getAllPosts(dto) {
+    const params = [dto.user_id];
+    let query = `
+      WITH likes_count AS (
+        SELECT post_id, COUNT(*) AS likes_count
+        FROM likes GROUP BY post_id
+      ),
+      views_count AS (
+        SELECT post_id, COUNT(*) AS views_count
+        FROM views GROUP BY post_id
+      ),
+      replies_count AS (
+        SELECT reply_to_id, COUNT(*) AS replies_count
+        FROM posts WHERE reply_to_id IS NOT NULL GROUP BY reply_to_id
+      )
+      SELECT
+        p.id, p.text, p.reply_to_id, p.created_at,
+        u.id AS user_id, u.user_name, u.first_name, u.last_name,
+        COALESCE(lc.likes_count, 0) AS likes_count,
+        COALESCE(vc.views_count, 0) AS views_count,
+        COALESCE(rc.replies_count, 0) AS replies_count,
+        CASE WHEN l.user_id IS NOT NULL THEN true ELSE false END AS user_liked,
+        CASE WHEN v.user_id IS NOT NULL THEN true ELSE false END AS user_viewed
+      FROM posts p
+      JOIN users u ON p.user_id = u.id
+      LEFT JOIN likes_count lc ON p.id = lc.post_id
+      LEFT JOIN views_count vc ON p.id = vc.post_id
+      LEFT JOIN replies_count rc ON p.id = rc.reply_to_id
+      LEFT JOIN likes l ON l.post_id = p.id AND l.user_id = $1
+      LEFT JOIN views v ON v.post_id = p.id AND v.user_id = $1
+      WHERE p.deleted_at IS NULL
+    `;
+
+    if (dto.search) {
+      query += ` AND p.text ILIKE $${params.length + 1}`;
+      params.push(`%${dto.search}%`);
+    }
+
+    if (dto.owner_id) {
+      query += ` AND p.user_id = $${params.length + 1}`;
+      params.push(dto.owner_id);
+    }
+
+    if (dto.reply_to_id) {
+      query += ` AND p.reply_to_id = $${params.length + 1} ORDER BY p.created_at ASC`;
+      params.push(dto.reply_to_id);
+    } else {
+      query += ` AND p.reply_to_id IS NULL ORDER BY p.created_at DESC`;
+    }
+
+    query += ` OFFSET $${params.length + 1} LIMIT $${params.length + 2}`;
+    params.push(dto.offset, dto.limit);
+
+    const res = await pool.query(query, params);
+
+    return res.rows.map((row) => ({
+      id: row.id,
+      text: row.text,
+      reply_to_id: row.reply_to_id,
+      created_at: row.created_at,
+      likes_count: row.likes_count,
+      views_count: row.views_count,
+      replies_count: row.replies_count,
+      user_liked: row.user_liked,
+      user_viewed: row.user_viewed,
+      user: {
+        id: row.user_id,
+        user_name: row.user_name,
+        first_name: row.first_name,
+        last_name: row.last_name,
+      },
+    }));
+  }
+```
+
+The `getAllPosts` method is designed to get a list of posts with extended information:
+
+- post author;
+
+- number of likes, views, replies;
+
+- flags, whether the current user liked and/or viewed this post.
+
+#### SQL query structure
+
+The query is built using CTE (Common Table Expressions) and looks like this:
+
+```sql
+WITH likes_count AS (...),
+     views_count AS (...),
+     replies_count AS (...)
+SELECT ...
+FROM posts ...
+```
+
+Let's look at all the parts in order.
+
+#### 1. Calculating the number of likes for each post
+
+```sql
+likes_count AS (
+  SELECT post_id, COUNT(*) AS likes_count
+  FROM likes
+  GROUP BY post_id
+)
+```
+
+Here, the number of likes for each post is collected from the `likes` table. `GROUP BY post_id` is used to group the likes by post.
+
+#### 2. Counting the number of views
+
+```sql
+views_count AS (
+  SELECT post_id, COUNT(*) AS views_count
+  FROM views
+  GROUP BY post_id
+)
+```
+
+Similar to the first CTE, but now views from the `views` table are counted.
+
+#### 3. Counting the number of replies to each post
+
+```sql
+replies_count AS (
+  SELECT reply_to_id, COUNT(*) AS replies_count
+  FROM posts
+  WHERE reply_to_id IS NOT NULL
+  GROUP BY reply_to_id
+)
+```
+
+Here, from the `posts` table itself, those rows are selected where `reply_to_id IS NOT NULL`, that is, these are replies to other posts. It is calculated how many such replies each parent post has.
+
+#### 4. Main query
+
+```sql
+SELECT
+  p.id, p.text, p.reply_to_id, p.created_at,
+  u.id AS user_id, u.user_name, u.first_name, u.last_name,
+  COALESCE(lc.likes_count, 0) AS likes_count,
+  COALESCE(vc.views_count, 0) AS views_count,
+  COALESCE(rc.replies_count, 0) AS replies_count,
+  CASE WHEN l.user_id IS NOT NULL THEN true ELSE false END AS user_liked,
+  CASE WHEN v.user_id IS NOT NULL THEN true ELSE false END AS user_viewed
+FROM posts p
+JOIN users u ON p.user_id = u.id
+LEFT JOIN likes_count lc ON p.id = lc.post_id
+LEFT JOIN views_count vc ON p.id = vc.post_id
+LEFT JOIN replies_count rc ON p.id = rc.reply_to_id
+LEFT JOIN likes l ON l.post_id = p.id AND l.user_id = $1
+LEFT JOIN views v ON v.post_id = p.id AND v.user_id = $1
+WHERE p.deleted_at IS NULL
+...
+```
+
+What's going on here:
+
+- `JOIN users` — join a post with its author by `user_id`;
+
+- `LEFT JOIN` with `likes_count`, `views_count`, `replies_count` - data from CTE about the number of likes, views and replies is added;
+
+- `LEFT JOIN likes l` and `views v` - checks if the current user (`$1` is his id) has liked or viewed something. These fields are used in the logical expressions below;
+
+- `CASE WHEN ... THEN true ELSE false` - defines `user_liked` and `user_viewed`;
+
+- `COALESCE(..., 0)` — if there is no data on likes/views/responses (for example, no one liked), `0` is substituted;
+
+- `WHERE p.deleted_at IS NULL` — filtering: only non-deleted posts are taken.
+
+#### 5. Additional filters
+
+**By text:**
+
+```sql
+if (dto.search) {
+  query += ` AND p.text ILIKE $${params.length + 1}`;
+  params.push(`%${dto.search}%`);
+}
+```
+
+If the string `search` is passed, posts with a match in the text are searched.
+
+**By user (author):**
+
+```sql
+if (dto.owner_id) {
+  query += ` AND p.user_id = $${params.length + 1}`;
+  params.push(dto.owner_id);
+}
+```
+
+If `owner_id` is passed, posts of a specific user are selected.
+
+**By replies:**
+
+```sql
+if (dto.reply_to_id) {
+  query += ` AND p.reply_to_id = $${params.length + 1} ORDER BY p.created_at ASC`;
+} else {
+  query += ` AND p.reply_to_id IS NULL ORDER BY p.created_at DESC`;
+}
+```
+
+Checks if posts are replies to another post (`reply_to_id`) or root posts.
+
+#### 6. Pagination
+
+```js
+query += ` OFFSET $${params.length + 1} LIMIT $${params.length + 2}`;
+params.push(dto.offset, dto.limit);
+```
+
+The "sliding window" mechanics are implemented - a certain range of posts is selected.
+
+#### 7. Returned result
+
+The result is collected as an array of posts. Each post contains:
+
+- data of the post itself,
+
+- data of the author (`user`),
+
+- number of likes, views, replies,
+
+- flags `user_liked`, `user_viewed`.
+
+Next, let's look at the implementation of the `getPostById` method.
+
+```js
+import { pool } from "../db/index.js";
+
+export const PostRepository = {
+  async getPostById(postId, userId) {
+    const query = `
+      WITH likes_count AS (
+        SELECT post_id, COUNT(*) AS likes_count
+        FROM likes
+        GROUP BY post_id
+      ),
+      views_count AS (
+        SELECT post_id, COUNT(*) AS views_count
+        FROM views
+        GROUP BY post_id
+      ),
+      replies_count AS (
+        SELECT reply_to_id, COUNT(*) AS replies_count
+        FROM posts
+        WHERE reply_to_id IS NOT NULL
+        GROUP BY reply_to_id
+      )
+      SELECT 
+        p.id AS post_id,
+        p.text,
+        p.reply_to_id,
+        p.created_at,
+        u.id AS user_id,
+        u.user_name,
+        u.first_name,
+        u.last_name,
+        COALESCE(lc.likes_count, 0) AS likes_count,
+        COALESCE(vc.views_count, 0) AS views_count,
+        COALESCE(rc.replies_count, 0) AS replies_count,
+        CASE WHEN l.user_id IS NOT NULL THEN true ELSE false END AS user_liked,
+        CASE WHEN v.user_id IS NOT NULL THEN true ELSE false END AS user_viewed
+      FROM posts p
+      JOIN users u ON p.user_id = u.id
+      LEFT JOIN likes_count lc ON p.id = lc.post_id
+      LEFT JOIN views_count vc ON p.id = vc.post_id
+      LEFT JOIN replies_count rc ON p.id = rc.reply_to_id
+      LEFT JOIN likes l ON l.post_id = p.id AND l.user_id = $1
+      LEFT JOIN views v ON v.post_id = p.id AND v.user_id = $1
+      WHERE p.id = $2 AND p.deleted_at IS NULL;
+    `;
+
+    const res = await pool.query(query, [userId, postId]);
+    if (res.rowCount === 0) {
+      throw new Error("Post not found");
+    }
+
+    const row = res.rows[0];
+    return {
+      id: row.post_id,
+      text: row.text,
+      reply_to_id: row.reply_to_id,
+      created_at: row.created_at,
+      likes_count: row.likes_count,
+      views_count: row.views_count,
+      replies_count: row.replies_count,
+      user_liked: row.user_liked,
+      user_viewed: row.user_viewed,
+      user: {
+        id: row.user_id,
+        user_name: row.user_name,
+        first_name: row.first_name,
+        last_name: row.last_name,
+      },
+    };
+  },
+};
+```
+
+The `getPostById` method is used to retrieve a single specific post by its ID. It returns detailed information about the post, including likes, views, replies, and author information. The method is similar to `getAllPosts`, except for a few differences.
+
+**Filtering by Post ID**
+
+Instead of fetching multiple posts, the query is limited to a single post:
+
+```sql
+WHERE p.id = $2 AND p.deleted_at IS NULL
+```
+
+The first parameter (`$1`) is `user_id` (needed to determine whether the user liked/viewed the post),
+the second (`$2`) is the ID of the post itself that is being searched.
+
+**No pagination**
+
+The method returns only one post, so there is no `OFFSET` and `LIMIT`.
+
+**Return Value**
+
+`getPostById` returns a single post object, while `getAllPosts` returns an array.
+
+**Edge Case Handling**
+
+If no post is found, `getPostById` throws a "Post not found" exception, while `getAllPosts` returns an empty array.
+
+Let's move on to implementing the `deletePost` method in the `PostRepository` repository.
+
+```js
+async deletePost(id, ownerId) {
+  const query = `...`;
+  const res = await pool.query(query, [id, ownerId]);
+  if (res.rowCount === 0) {
+    throw new Error("Post not found or already deleted");
+  }
+}
+```
+
+> [!IMPORTANT] Task
+> Implement the `deletePost` method, which marks a post as deleted. The SQL query should update the `deleted_at` field with the current time, work only with posts owned by the author, and exclude already deleted posts.
+
+Now we implement a method that records the fact that a user has viewed a post. Each user can view a post only once - repeated views are not recorded.
+
+```js
+async function viewPost(postId, userId) {
+  const query = `...`;
+
+  try {
+    const res = await pool.query(query, [postId, userId]);
+    if (res.rowCount === 0) {
+      throw new Error("Post not found");
+    }
+  } catch (err) {
+    if (err.message.includes("pk__views")) {
+      throw new Error("Post already viewed");
+    }
+    throw err;
+  }
+}
+```
+
+> [!CAUTION] Warning
+> Pay attention to the line `err.message.includes("pk__views")`. Here `pk__views` is the name of the primary key of the table `views`. Substitute yours if it is different.
+
+> [!IMPORTANT] Task
+> Implement the `viewPost` method, which adds a new record to the `views` table.
+
+Now we implement a method that allows a user to like a post. One user can only like a post once - repeated attempts should cause an error.
+
+```js
+async function likePost(postId, userId) {
+  const query = `...`;
+
+  try {
+    const res = await pool.query(query, [postId, userId]);
+    if (res.rowCount === 0) {
+      throw new Error("Post not found");
+    }
+  } catch (err) {
+    if (err.message.includes("pk__likes")) {
+      throw new Error("Post already liked");
+    }
+    throw err;
+  }
+}
+```
+
+> [!CAUTION] Warning
+> Pay attention to the line `err.message.includes("pk__likes")`. Here `pk__likes` is the name of the primary key of the table `likes`. Substitute yours if it is different.
+
+> [!IMPORTANT] Task
+> Implement the `likePost` method, which adds a new record to the `likes` table.
+
+The `dislikePost` method allows the user to remove a like from a post if they have previously given it.
+
+```js
+async function dislikePost(postId, userId) {
+  const query = `...`;
+
+  const res = await pool.query(query, [postId, userId]);
+
+  if (res.rowCount === 0) {
+    throw new Error("Post not found");
+  }
+}
+```
+
+> [!IMPORTANT] Task
+> Implement the `dislikePost` method, which deletes a record from the `likes` table.
 
 # Developing the Functional Layer of a Web Application
 
