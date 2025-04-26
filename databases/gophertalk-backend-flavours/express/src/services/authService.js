@@ -1,6 +1,6 @@
+import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken";
 import { UserRepository } from "../repositories/userRepository.js";
-import { hashPassword, verifyPassword } from "../utils/hash.js";
-import { createToken } from "../utils/token.js";
 
 export const AuthService = {
   async login(dto, config) {
@@ -8,7 +8,7 @@ export const AuthService = {
     if (!user) {
       throw new Error("User not found");
     }
-    const valid = verifyPassword(dto.password, user.password_hash);
+    const valid = await bcrypt.compare(dto.password, user.password_hash);
     if (!valid) {
       throw new Error("Wrong password");
     }
@@ -16,7 +16,7 @@ export const AuthService = {
   },
 
   async register(dto, config) {
-    const hashedPassword = hashPassword(dto.password);
+    const hashedPassword = await bcrypt.hash(dto.password, 10);
     const newUserDTO = {
       user_name: dto.user_name,
       password_hash: hashedPassword,
@@ -27,10 +27,12 @@ export const AuthService = {
     return this.generateTokenPair(user, config);
   },
 
-  async generateTokenPair(user, config) {
+  generateTokenPair(user, config) {
     const id = user.id.toString();
-    const accessToken = createToken(config.ACCESS_TOKEN_SECRET, id, config.ACCESS_TOKEN_EXPIRES);
-    const refreshToken = createToken(config.REFRESH_TOKEN_SECRET, id, config.REFRESH_TOKEN_EXPIRES);
+    const accessToken = jwt.sign({ sub: id }, config.ACCESS_TOKEN_SECRET, { expiresIn: config.ACCESS_TOKEN_EXPIRES });
+    const refreshToken = jwt.sign({ sub: id }, config.REFRESH_TOKEN_SECRET, {
+      expiresIn: config.REFRESH_TOKEN_EXPIRES,
+    });
     return {
       access_token: accessToken,
       refresh_token: refreshToken,

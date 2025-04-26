@@ -10,7 +10,9 @@
   "dependencies": {
     "dotenv": "file:packages/dotenv-16.4.7.tgz",
     "express": "file:packages/express-4.21.2.tgz",
-    "pg": "file:packages/pg-8.14.1.tgz"
+    "pg": "file:packages/pg-8.14.1.tgz",
+    "jsonwebtoken": "file:packages/jsonwebtoken-9.0.2.tgz",
+    "bcrypt": "file:packages/bcrypt-5.1.1.tgz"
   },
   "devDependencies": {
     "nodemon": "file:packages/nodemon-3.1.9.tgz",

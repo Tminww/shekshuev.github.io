@@ -269,6 +269,8 @@ Place the following packages into the `src/packages` folder:
 - <a target="_blank" href="/databases/jest-29.7.0.tgz">jest</a>
 - <a target="_blank" href="/databases/nodemon-3.1.9.tgz">nodemon</a>
 - <a target="_blank" href="/databases/pg-8.14.1.tgz">pg</a>
+- <a target="_blank" href="/databases/bcrypt-5.1.1.tgz">bcrypt</a>
+- <a target="_blank" href="/databases/jsonwebtoken-9.0.2.tgz">jsonwebtoken</a>
 
 After that, run the following command from the root of the project inside the `gophertalk-backend-express` directory:
 
