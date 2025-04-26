@@ -1683,6 +1683,8 @@ Time:        0.196 s, estimated 1 s
 Ran all test suites.
 ```
 
+## Section Summary
+
 In this section, we have consistently developed two data access layers — the User Repository and the Post Repository, following the architectural principle of separation of concerns. We have:
 
 - Implemented functions for basic database operations (create, read, update, delete).
@@ -1849,6 +1851,612 @@ Let's write tests for `authService` right away to check its operation. To do thi
 
 ::: details Unit tests authService
 
+```js
+import { describe, expect, jest } from "@jest/globals";
+import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken";
+import { UserRepository } from "../../src/repositories/userRepository.js";
+import { AuthService } from "../../src/services/authService.js";
+
+describe("AuthService", () => {
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  describe("login", () => {
+    it("successfully logs in a user", async () => {
+      const password = "password123";
+      const hashedPassword = await bcrypt.hash(password, 10);
+
+      const user = {
+        id: 1,
+        user_name: "testuser",
+        password_hash: hashedPassword,
+      };
+
+      const dto = {
+        user_name: "testuser",
+        password: "password123",
+      };
+
+      jest.spyOn(UserRepository, "getUserByUserName").mockResolvedValue(user);
+      jest.spyOn(bcrypt, "compare").mockResolvedValue(true);
+      jest.spyOn(jwt, "sign").mockReturnValue("mocked_token");
+
+      const config = {
+        ACCESS_TOKEN_SECRET: "access_secret",
+        ACCESS_TOKEN_EXPIRES: "1h",
+        REFRESH_TOKEN_SECRET: "refresh_secret",
+        REFRESH_TOKEN_EXPIRES: "7d",
+      };
+
+      const result = await AuthService.login(dto, config);
+
+      expect(result).toEqual({
+        access_token: "mocked_token",
+        refresh_token: "mocked_token",
+      });
+
+      expect(bcrypt.compare).toHaveBeenCalledWith(dto.password, user.password_hash);
+    });
+
+    it("throws error if user not found", async () => {
+      const dto = {
+        user_name: "nonexistent",
+        password: "password123",
+      };
+
+      jest.spyOn(UserRepository, "getUserByUserName").mockResolvedValue(null);
+
+      await expect(AuthService.login(dto, {})).rejects.toThrow("User not found");
+    });
+
+    it("throws error if password is wrong", async () => {
+      const user = {
+        id: 1,
+        user_name: "testuser",
+        password_hash: await bcrypt.hash("password123", 10),
+      };
+
+      const dto = {
+        user_name: "testuser",
+        password: "wrongpassword",
+      };
+
+      jest.spyOn(UserRepository, "getUserByUserName").mockResolvedValue(user);
+      jest.spyOn(bcrypt, "compare").mockResolvedValue(false);
+
+      await expect(AuthService.login(dto, {})).rejects.toThrow("Wrong password");
+    });
+  });
+
+  describe("register", () => {
+    it("successfully registers a user", async () => {
+      const dto = {
+        user_name: "newuser",
+        password: "password123",
+        first_name: "New",
+        last_name: "User",
+      };
+
+      const user = {
+        id: 1,
+        user_name: "newuser",
+        password_hash: "hashed_password",
+        first_name: "New",
+        last_name: "User",
+      };
+
+      jest.spyOn(bcrypt, "hash").mockResolvedValue("hashed_password");
+      jest.spyOn(UserRepository, "createUser").mockResolvedValue(user);
+      jest.spyOn(jwt, "sign").mockReturnValue("mocked_token");
+
+      const config = {
+        ACCESS_TOKEN_SECRET: "access_secret",
+        ACCESS_TOKEN_EXPIRES: "1h",
+        REFRESH_TOKEN_SECRET: "refresh_secret",
+        REFRESH_TOKEN_EXPIRES: "7d",
+      };
+
+      const result = await AuthService.register(dto, config);
+
+      expect(result).toEqual({
+        access_token: "mocked_token",
+        refresh_token: "mocked_token",
+      });
+
+      expect(bcrypt.hash).toHaveBeenCalledWith(dto.password, 10);
+      expect(UserRepository.createUser).toHaveBeenCalled();
+    });
+  });
+});
+```
+
 :::
+
+Run the tests. If everything is done correctly, there will be no errors in the tests.
+
+```bash
+npm run test
+
+> gophertalk-backend-express@0.1.0 test
+> node --experimental-vm-modules node_modules/jest/bin/jest.js
+
+(node:82199) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ PASS  __tests__/services/authService.test.js
+ PASS  __tests__/repositories/postRepository.test.js
+ PASS  __tests__/repositories/userRepository.test.js
+
+Test Suites: 3 passed, 3 total
+Tests:       34 passed, 34 total
+Snapshots:   0 total
+Time:        0.405 s, estimated 1 s
+Ran all test suites.
+```
+
+## User service development
+
+The user service (`UserService`) is responsible for working with user data via the repository. Its tasks include getting a list of users, searching for a specific user by ID, updating user information (including password encryption), and deleting a user.
+
+To implement it, create a file `src/userService.js` in the `services` directory and place the code there:
+
+```js
+import { UserRepository } from "../repositories/userRepository.js";
+import bcrypt from "bcrypt";
+
+export const UserService = {
+  async getAllUsers(limit, offset) {
+    return await UserRepository.getAllUsers(limit, offset);
+  },
+
+  async getUserById(id) {
+    return await UserRepository.getUserById(id);
+  },
+
+  async updateUser(id, userDto) {
+    const updateFields = { ...userDto };
+    if (updateFields.password) {
+      const saltRounds = 10;
+      updateFields.password_hash = await bcrypt.hash(updateFields.password, saltRounds);
+      delete updateFields.password;
+    }
+    return await UserRepository.updateUser(id, updateFields);
+  },
+
+  async deleteUser(id) {
+    return await UserRepository.deleteUser(id);
+  },
+};
+```
+
+**getAllUsers(limit, offset)**
+
+- Gets all users with pagination.
+
+- Makes a request to the repository with the offset (`offset`) and limit (`limit`) parameters.
+
+**getUserById(id)**
+
+- Finds a user by their unique identifier.
+
+**updateUser(id, userDto)**
+
+- Updates the user data.
+
+- If a new password is passed, it is hashed with `bcrypt` before being stored.
+
+- The original password is removed from the object before being updated.
+
+**deleteUser(id)**
+
+- Deletes a user by their ID. Soft deletion is usually implemented at the repository level by setting the `deleted_at` field.
+
+## User service testing
+
+Also, let's write tests for `userService` right away to check its operation. To do this, create a file `userService.test.js` in the `__tests__/services` folder. Put the code below in it.
+
+::: details Unit tests userService
+
+```js
+import { expect, jest } from "@jest/globals";
+import { UserRepository } from "../../src/repositories/userRepository.js";
+import { UserService } from "../../src/services/userService.js";
+
+describe("UserService", () => {
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  describe("getAllUsers", () => {
+    it("successfully gets all users", async () => {
+      const mock = jest.spyOn(UserRepository, "getAllUsers");
+      const now = new Date();
+
+      const expectedUsers = [
+        {
+          id: 1,
+          user_name: "john",
+          first_name: "John",
+          last_name: "Doe",
+          status: 1,
+          created_at: now,
+          updated_at: now,
+        },
+        {
+          id: 2,
+          user_name: "jane",
+          first_name: "Jane",
+          last_name: "Smith",
+          status: 1,
+          created_at: now,
+          updated_at: now,
+        },
+      ];
+
+      mock.mockResolvedValueOnce(expectedUsers);
+
+      const result = await UserService.getAllUsers(100, 0);
+
+      expect(result).toEqual(expectedUsers);
+      expect(mock).toHaveBeenCalledWith(100, 0);
+    });
+
+    it("returns error on getAllUsers failure", async () => {
+      const mock = jest.spyOn(UserRepository, "getAllUsers");
+
+      mock.mockRejectedValueOnce(new Error("SQL error"));
+
+      await expect(UserService.getAllUsers(100, 0)).rejects.toThrow("SQL error");
+      expect(mock).toHaveBeenCalledWith(100, 0);
+    });
+  });
+
+  describe("getUserById", () => {
+    it("successfully gets user by id", async () => {
+      const mock = jest.spyOn(UserRepository, "getUserById");
+      const now = new Date();
+
+      const expectedUser = {
+        id: 1,
+        user_name: "john",
+        first_name: "John",
+        last_name: "Doe",
+        status: 1,
+        created_at: now,
+        updated_at: now,
+      };
+
+      mock.mockResolvedValueOnce(expectedUser);
+
+      const result = await UserService.getUserById(1);
+
+      expect(result).toEqual(expectedUser);
+      expect(mock).toHaveBeenCalledWith(1);
+    });
+
+    it("returns error if user not found", async () => {
+      const mock = jest.spyOn(UserRepository, "getUserById");
+
+      mock.mockRejectedValueOnce(new Error("User not found"));
+
+      await expect(UserService.getUserById(2)).rejects.toThrow("User not found");
+      expect(mock).toHaveBeenCalledWith(2);
+    });
+  });
+
+  describe("updateUser", () => {
+    it("successfully updates user", async () => {
+      const mockUpdate = jest.spyOn(UserRepository, "updateUser");
+      const now = new Date();
+
+      const updateDTO = {
+        user_name: "john_updated",
+        first_name: "John",
+        last_name: "Doe",
+        password: "newpassword",
+      };
+
+      const expectedUpdatedUser = {
+        id: 1,
+        user_name: "john_updated",
+        first_name: "John",
+        last_name: "Doe",
+        status: 1,
+        created_at: new Date(now.getTime() - 3600000),
+        updated_at: now,
+      };
+
+      mockUpdate.mockResolvedValueOnce(expectedUpdatedUser);
+
+      const result = await UserService.updateUser(1, { ...updateDTO });
+
+      expect(result).toEqual(expectedUpdatedUser);
+      expect(mockUpdate).toHaveBeenCalled();
+      expect(mockUpdate.mock.calls[0][1].password_hash).toBeDefined();
+    });
+
+    it("returns error if update fails", async () => {
+      const mockUpdate = jest.spyOn(UserRepository, "updateUser");
+
+      mockUpdate.mockRejectedValueOnce(new Error("Update failed"));
+
+      await expect(UserService.updateUser(2, { user_name: "ghost" })).rejects.toThrow("Update failed");
+    });
+  });
+
+  describe("deleteUser", () => {
+    it("successfully deletes user", async () => {
+      const mockDelete = jest.spyOn(UserRepository, "deleteUser");
+
+      mockDelete.mockResolvedValueOnce(undefined);
+
+      await expect(UserService.deleteUser(1)).resolves.toBeUndefined();
+      expect(mockDelete).toHaveBeenCalledWith(1);
+    });
+
+    it("returns error if delete fails", async () => {
+      const mockDelete = jest.spyOn(UserRepository, "deleteUser");
+
+      mockDelete.mockRejectedValueOnce(new Error("Delete error"));
+
+      await expect(UserService.deleteUser(2)).rejects.toThrow("Delete error");
+      expect(mockDelete).toHaveBeenCalledWith(2);
+    });
+  });
+});
+```
+
+:::
+
+Run the tests. If everything is done correctly, there will be no errors in the tests.
+
+```bash
+npm run test
+
+> gophertalk-backend-express@0.1.0 test
+> node --experimental-vm-modules node_modules/jest/bin/jest.js
+
+(node:89149) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ PASS  __tests__/services/authService.test.js
+ PASS  __tests__/repositories/postRepository.test.js
+ PASS  __tests__/repositories/userRepository.test.js
+ PASS  __tests__/services/userService.test.js
+
+Test Suites: 4 passed, 4 total
+Tests:       42 passed, 42 total
+Snapshots:   0 total
+Time:        0.525 s, estimated 1 s
+Ran all test suites.
+```
+
+## Developing a post service
+
+This service implements business logic for working with posts in the GopherTalk social network. The service serves as an intermediate layer between controllers and the repository, providing a convenient interface for working with publications.
+
+```js
+import { PostRepository } from "../repositories/postRepository.js";
+
+export const PostService = {
+  async getAllPosts(filterDTO) {
+    return await PostRepository.getAllPosts(filterDTO);
+  },
+
+  async createPost(createDTO) {
+    return await PostRepository.createPost(createDTO);
+  },
+
+  async deletePost(postId, ownerId) {
+    return await PostRepository.deletePost(postId, ownerId);
+  },
+
+  async viewPost(postId, userId) {
+    return await PostRepository.viewPost(postId, userId);
+  },
+
+  async likePost(postId, userId) {
+    return await PostRepository.likePost(postId, userId);
+  },
+
+  async dislikePost(postId, userId) {
+    return await PostRepository.dislikePost(postId, userId);
+  },
+};
+```
+
+**`getAllPosts(filterDTO)`**
+
+- Gets a list of posts with support for filtering by author, post text, or parent post (`reply_to_id`). Delegates query execution to `PostRepository.getAllPosts`.
+
+**`createPost(createDTO)`**
+
+- Creates a new post in the system. Receives a DTO with the post data and calls `PostRepository.createPost` to save the record to the database.
+
+**`deletePost(postId, ownerId)`**
+
+- Deletes a user's post. Passes the post ID and owner to `PostRepository.deletePost`, where a soft delete occurs (setting `deleted_at`).
+
+**`viewPost(postId, userId)`**
+
+- Records the fact that a post has been viewed by a user. Calls `PostRepository.viewPost` to add a new record to the `views` table.
+
+**`likePost(postId, userId)`**
+
+- Allows the user to like a post. Calls `PostRepository.likePost` to save the like to the database.
+
+**`dislikePost(postId, userId)`**
+
+- Allows a user to remove their like from a post. Calls `PostRepository.dislikePost` to remove the like record.
+
+## Testing a post service
+
+## Тестирование сервиса постов
+
+Similarly, here we will immediately write tests for `userService` to check its operation. To do this, create a file `userService.test.js` in the `__tests__/services` folder. Place the code below in it.
+::: details Unit-тесты userService
+
+```js
+import { describe, expect, jest } from "@jest/globals";
+import { PostRepository } from "../../src/repositories/postRepository.js";
+import { PostService } from "../../src/services/postService.js";
+
+describe("PostService", () => {
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  describe("getAllPosts", () => {
+    it("successfully gets all posts", async () => {
+      const posts = [
+        { id: 1, text: "post1" },
+        { id: 2, text: "post2" },
+      ];
+      const mock = jest.spyOn(PostRepository, "getAllPosts").mockResolvedValue(posts);
+
+      const result = await PostService.getAllPosts({ user_id: 1, limit: 100, offset: 0 });
+      expect(result).toEqual(posts);
+      expect(mock).toHaveBeenCalledTimes(1);
+    });
+
+    it("throws error on failure", async () => {
+      const mock = jest.spyOn(PostRepository, "getAllPosts").mockRejectedValue(new Error("DB error"));
+
+      await expect(PostService.getAllPosts({ user_id: 1, limit: 100, offset: 0 })).rejects.toThrow("DB error");
+      expect(mock).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("createPost", () => {
+    it("successfully creates a post", async () => {
+      const post = { id: 1, text: "new post" };
+      const mock = jest.spyOn(PostRepository, "createPost").mockResolvedValue(post);
+
+      const result = await PostService.createPost({ text: "new post", user_id: 1 });
+      expect(result).toEqual(post);
+      expect(mock).toHaveBeenCalledTimes(1);
+    });
+
+    it("throws error on insert failure", async () => {
+      const mock = jest.spyOn(PostRepository, "createPost").mockRejectedValue(new Error("Insert error"));
+
+      await expect(PostService.createPost({ text: "new post", user_id: 1 })).rejects.toThrow("Insert error");
+      expect(mock).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("deletePost", () => {
+    it("successfully deletes a post", async () => {
+      const mock = jest.spyOn(PostRepository, "deletePost").mockResolvedValue();
+
+      await expect(PostService.deletePost(1, 0)).resolves.toBeUndefined();
+      expect(mock).toHaveBeenCalledWith(1, 0);
+    });
+
+    it("throws error on delete failure", async () => {
+      const mock = jest.spyOn(PostRepository, "deletePost").mockRejectedValue(new Error("Delete error"));
+
+      await expect(PostService.deletePost(2, 0)).rejects.toThrow("Delete error");
+      expect(mock).toHaveBeenCalledWith(2, 0);
+    });
+  });
+
+  describe("viewPost", () => {
+    it("successfully views a post", async () => {
+      const mock = jest.spyOn(PostRepository, "viewPost").mockResolvedValue();
+
+      await expect(PostService.viewPost(1, 0)).resolves.toBeUndefined();
+      expect(mock).toHaveBeenCalledWith(1, 0);
+    });
+
+    it("throws error on view failure", async () => {
+      const mock = jest.spyOn(PostRepository, "viewPost").mockRejectedValue(new Error("View error"));
+
+      await expect(PostService.viewPost(2, 0)).rejects.toThrow("View error");
+      expect(mock).toHaveBeenCalledWith(2, 0);
+    });
+  });
+
+  describe("likePost", () => {
+    it("successfully likes a post", async () => {
+      const mock = jest.spyOn(PostRepository, "likePost").mockResolvedValue();
+
+      await expect(PostService.likePost(1, 0)).resolves.toBeUndefined();
+      expect(mock).toHaveBeenCalledWith(1, 0);
+    });
+
+    it("throws error on like failure", async () => {
+      const mock = jest.spyOn(PostRepository, "likePost").mockRejectedValue(new Error("Like error"));
+
+      await expect(PostService.likePost(2, 0)).rejects.toThrow("Like error");
+      expect(mock).toHaveBeenCalledWith(2, 0);
+    });
+  });
+
+  describe("dislikePost", () => {
+    it("successfully dislikes a post", async () => {
+      const mock = jest.spyOn(PostRepository, "dislikePost").mockResolvedValue();
+
+      await expect(PostService.dislikePost(1, 0)).resolves.toBeUndefined();
+      expect(mock).toHaveBeenCalledWith(1, 0);
+    });
+
+    it("throws error on dislike failure", async () => {
+      const mock = jest.spyOn(PostRepository, "dislikePost").mockRejectedValue(new Error("Dislike error"));
+
+      await expect(PostService.dislikePost(2, 0)).rejects.toThrow("Dislike error");
+      expect(mock).toHaveBeenCalledWith(2, 0);
+    });
+  });
+});
+```
+
+:::
+
+Run the tests. If everything is done correctly, there will be no errors in the tests.
+
+```bash
+npm run test
+
+> gophertalk-backend-express@0.1.0 test
+> node --experimental-vm-modules node_modules/jest/bin/jest.js
+
+(node:95533) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ PASS  __tests__/services/postService.test.js
+ PASS  __tests__/services/authService.test.js
+ PASS  __tests__/services/userService.test.js
+ PASS  __tests__/repositories/userRepository.test.js
+ PASS  __tests__/repositories/postRepository.test.js
+
+Test Suites: 5 passed, 5 total
+Tests:       54 passed, 54 total
+Snapshots:   0 total
+Time:        0.568 s, estimated 1 s
+Ran all test suites.
+```
+
+## Section Summary
+
+In this study question, we developed a business logic layer for three main entities: users, posts, and authentication.
+Each service was implemented through a corresponding repository and performed its tasks without direct interaction with the database.
+
+- `AuthService` is responsible for registering and authenticating users, creating a pair of tokens (access and refresh), and checking the password.
+
+- `UserService` provides work with users: getting a list of all users, getting a user by ID, updating data and deleting users.
+
+- `PostService` manages the creation, deletion, viewing of posts and user actions (like, dislike).
+
+A clean architecture was followed:
+
+- Repositories encapsulate work with the database.
+
+- Services execute business logic and validate data.
+
+- Interaction between layers occurs through interfaces and DTO structures.
+
+Also, for each service, Jest tests were developed and adapted, which check both positive and negative scenarios for executing methods. This made it possible to verify the correctness of the business logic before the stage of integration with the real database.
+
+Thus, the implemented structure lays a reliable foundation for further scaling and expansion of the project.
 
 # Developing the Controller Layer of a Web Application
