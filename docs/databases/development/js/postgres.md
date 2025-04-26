@@ -2459,4 +2459,82 @@ Also, for each service, Jest tests were developed and adapted, which check both 
 
 Thus, the implemented structure lays a reliable foundation for further scaling and expansion of the project.
 
-# Developing the Controller Layer of a Web Application
+## Developing the Controller Layer of a Web Application
+
+Before we can define routes in an Express application, we need to set up some middleware to handle user authentication.
+Middleware in Express is functions that handle requests before passing them to final routes.
+
+Create a `middleware` folder in the `src` folder, and in it an `auth.js` file, and place the following code in it:
+
+```js
+import jwt from "jsonwebtoken";
+
+export function requestAuth(secret) {
+  return function (req, res, next) {
+    const authHeader = req.headers["authorization"];
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return res.sendStatus(401);
+    }
+
+    const token = authHeader.substring(7);
+    try {
+      const claims = jwt.verify(token, secret);
+      req.user = claims;
+      next();
+    } catch (err) {
+      return res.sendStatus(401);
+    }
+  };
+}
+
+export function requestAuthSameId(secret) {
+  return function (req, res, next) {
+    const authHeader = req.headers["authorization"];
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return res.sendStatus(401);
+    }
+
+    const token = authHeader.substring(7);
+    try {
+      const claims = jwt.verify(token, secret);
+      const paramId = req.params.id;
+
+      if (!paramId || isNaN(paramId)) {
+        return next();
+      }
+
+      if (paramId !== claims.sub) {
+        return res.sendStatus(401);
+      }
+
+      req.user = claims;
+      next();
+    } catch (err) {
+      return res.sendStatus(401);
+    }
+  };
+}
+```
+
+Our middleware performs a check for the JWT token in the request header:
+
+- `requestAuth` — checks that the user is authenticated and signed with the correct token. If the check is successful, the user data is added to the request object (`req.user`).
+
+- `requestAuthSameId` — additionally checks that the ID in the request parameters matches the ID embedded in the token, to protect against changing other people's data.
+
+```mermaid
+flowchart TD
+  A[Client sends request] --> B{Is there an Authorization header?}
+  B -- No --> C[Response 401 Unauthorized]
+  B -- Yes --> D[Verify token]
+  D -- Invalid token --> C
+  D -- Valid token --> E{Middleware}
+
+  E -- requestAuth --> F[Add req.user and pass to route]
+  E -- requestAuthSameId --> G{ID in URL = ID in token?}
+
+  G -- No --> C
+  G -- Yes --> F
+```
+
+This middleware will help to centrally and securely check user access rights to protected routes.

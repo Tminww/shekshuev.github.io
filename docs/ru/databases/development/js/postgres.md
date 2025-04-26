@@ -2452,4 +2452,82 @@ Ran all test suites.
 
 Таким образом, реализованная структура закладывает надёжную основу для дальнейшего масштабирования и расширения проекта.
 
-# Разработка слоя контроллеров web-приложения
+## Разработка слоя контроллеров web-приложения
+
+Перед тем как переходить к определению маршрутов в Express-приложении, нам нужно подготовить middleware для обработки авторизации пользователей.
+Middleware в Express — это функции, которые обрабатывают запросы до передачи их в конечные маршруты.
+
+Создайте в папке `src` папку `middleware`, а в ней файл `auth.js`, и поместите в него следующий код:
+
+```js
+import jwt from "jsonwebtoken";
+
+export function requestAuth(secret) {
+  return function (req, res, next) {
+    const authHeader = req.headers["authorization"];
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return res.sendStatus(401);
+    }
+
+    const token = authHeader.substring(7);
+    try {
+      const claims = jwt.verify(token, secret);
+      req.user = claims;
+      next();
+    } catch (err) {
+      return res.sendStatus(401);
+    }
+  };
+}
+
+export function requestAuthSameId(secret) {
+  return function (req, res, next) {
+    const authHeader = req.headers["authorization"];
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return res.sendStatus(401);
+    }
+
+    const token = authHeader.substring(7);
+    try {
+      const claims = jwt.verify(token, secret);
+      const paramId = req.params.id;
+
+      if (!paramId || isNaN(paramId)) {
+        return next();
+      }
+
+      if (paramId !== claims.sub) {
+        return res.sendStatus(401);
+      }
+
+      req.user = claims;
+      next();
+    } catch (err) {
+      return res.sendStatus(401);
+    }
+  };
+}
+```
+
+Наше middleware выполняет проверку JWT-токена в заголовке запроса:
+
+- `requestAuth` — проверяет, что пользователь аутентифицирован и подписан корректным токеном. Если проверка проходит успешно, в объект запроса (`req.user`) добавляются данные о пользователе.
+
+- `requestAuthSameId` — дополнительно проверяет, что ID в параметрах запроса совпадает с ID, зашитым в токене, для защиты от изменения чужих данных.
+
+```mermaid
+flowchart TD
+  A[Клиент отправляет запрос] --> B{Есть Authorization заголовок?}
+  B -- Нет --> C[Ответ 401 Unauthorized]
+  B -- Да --> D[Проверка токена]
+  D -- Некорректный токен --> C
+  D -- Валидный токен --> E{Middleware}
+
+  E -- requestAuth --> F[Добавить req.user и передать в роут]
+  E -- requestAuthSameId --> G{ID в URL = ID в токене?}
+
+  G -- Нет --> C
+  G -- Да --> F
+```
+
+Эти middleware помогут централизованно и безопасно проверять права доступа пользователей к защищённым маршрутам.
