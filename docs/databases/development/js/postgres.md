@@ -42,13 +42,13 @@ erDiagram
     TIMESTAMP created_at
   }
 
-  users ||--o{ posts : "has many"
-  users ||--o{ likes : "likes"
-  users ||--o{ views : "views"
+  users ||--o{ posts : ""
+  users ||--o{ likes : ""
+  users ||--o{ views : ""
 
-  posts ||--o{ likes : "liked in"
-  posts ||--o{ views : "viewed in"
-  posts ||--o| posts : "replies to"
+  posts ||--o{ likes : ""
+  posts ||--o{ views : ""
+  posts ||--o{ posts : ""
 
 ```
 
