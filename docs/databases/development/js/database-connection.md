@@ -198,6 +198,7 @@ gophertalk-backend-express/
 │   ├── packages/          # Downloaded packages with dependencies
 │   ├── config/            # Project configuration
 │   ├── utils/             # Utility functions
+│   ├── validators/        # Input data validators
 │   └── app.js             # Application entry point
 ├── __tests__              # unit tests
 │   ├── controllers/
@@ -225,7 +226,10 @@ Place the following content into the `package.json` file:
   "dependencies": {
     "dotenv": "file:packages/dotenv-16.4.7.tgz",
     "express": "file:packages/express-4.21.2.tgz",
-    "pg": "file:packages/pg-8.14.1.tgz"
+    "pg": "file:packages/pg-8.14.1.tgz",
+    "jsonwebtoken": "file:packages/jsonwebtoken-9.0.2.tgz",
+    "bcrypt": "file:packages/bcrypt-5.1.1.tgz",
+    "zod": "file:packages/zod-3.24.3.tgz"
   },
   "devDependencies": {
     "nodemon": "file:packages/nodemon-3.1.9.tgz",
@@ -253,14 +257,7 @@ The `package.json` file contains a JSON object with the following fields:
 
 6. `"dependencies"` – Main runtime dependencies. All packages are installed locally via file references (`file:packages/...`) instead of from the internet. This is useful in offline environments or when using a local package repository.
 
-   - `dotenv` – Loads environment variables from `.env` into `process.env`.
-   - `express` – Main framework for building REST APIs.
-   - `pg` – Official PostgreSQL client library for Node.js.
-
 7. `"devDependencies"` – Development-only dependencies. These are not included in the production build.
-
-   - `nodemon` – Automatically restarts the server on file changes.
-   - `jest` – A testing framework for unit and integration tests.
 
 Place the following packages into the `src/packages` folder:
 
@@ -271,6 +268,7 @@ Place the following packages into the `src/packages` folder:
 - <a target="_blank" href="/databases/pg-8.14.1.tgz">pg</a>
 - <a target="_blank" href="/databases/bcrypt-5.1.1.tgz">bcrypt</a>
 - <a target="_blank" href="/databases/jsonwebtoken-9.0.2.tgz">jsonwebtoken</a>
+- <a target="_blank" href="/databases/zod-3.24.3.tgz">zod</a>
 
 After that, run the following command from the root of the project inside the `gophertalk-backend-express` directory:
 

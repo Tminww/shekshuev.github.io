@@ -201,6 +201,7 @@ gophertalk-backend-express/
 │   ├── packages/          # скачанные пакеты с зависимостями
 │   ├── config/            # Конфигурация проекта
 │   ├── utils/             # Вспомогательные функции
+│   ├── validators/        # Валидаторы входных данных
 │   └── app.js             # Инициализация приложения
 ├── __tests__              # unit тесты
 │   ├── controllers/
@@ -228,7 +229,10 @@ gophertalk-backend-express/
   "dependencies": {
     "dotenv": "file:packages/dotenv-16.4.7.tgz",
     "express": "file:packages/express-4.21.2.tgz",
-    "pg": "file:packages/pg-8.14.1.tgz"
+    "pg": "file:packages/pg-8.14.1.tgz",
+    "jsonwebtoken": "file:packages/jsonwebtoken-9.0.2.tgz",
+    "bcrypt": "file:packages/bcrypt-5.1.1.tgz",
+    "zod": "file:packages/zod-3.24.3.tgz"
   },
   "devDependencies": {
     "nodemon": "file:packages/nodemon-3.1.9.tgz",
@@ -250,14 +254,7 @@ gophertalk-backend-express/
 
 6. `"dependencies"` - Основные зависимости проекта. Все пакеты установлены локально через файл (`file:packages/...`), а не из интернета. Это бывает нужно в офлайн-среде или при использовании локального репозитория.
 
-   - `dotenv` — загружает переменные из `.env` в `process.env`;
-   - `express` — основной фреймворк для создания `REST API`;
-   - `pg` — официальная библиотека PostgreSQL для Node.js.
-
 7. `"devDependencies"` - Зависимости только для разработки. Эти зависимости не попадают в продакшен-сборку.
-
-   - `nodemon` — перезапускает сервер при изменении файлов;
-   - `jest` — фреймворк для тестирования.
 
 Поместите в папку `src/packages` пакеты:
 
@@ -268,6 +265,7 @@ gophertalk-backend-express/
 - <a target="_blank" href="/databases/pg-8.14.1.tgz">pg</a>
 - <a target="_blank" href="/databases/bcrypt-5.1.1.tgz">bcrypt</a>
 - <a target="_blank" href="/databases/jsonwebtoken-9.0.2.tgz">jsonwebtoken</a>
+- <a target="_blank" href="/databases/zod-3.24.3.tgz">zod</a>
 
 После этого в корне проекта в каталоге `gophertalk-backend-express` выполнить команду:
 
