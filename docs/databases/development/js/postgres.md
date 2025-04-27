@@ -2908,23 +2908,23 @@ Server is running on port 3000
 
 To make sure everything works, let's try registering a user and then logging in.
 
-![Postman Collection](./../../../../assets/databases/postman-collection.png)
+![Postman Collection](./../../../assets/databases/postman-collection.png)
 
 In Postman, open the `register` request in the `auth` directory. We can test validation first. Let's remove the `first_name` field and add numbers to the `last_name` field.
 
-![Invalid registration request](./../../../../assets/databases/postman-incorrect-register-request.png)
+![Invalid registration request](./../../../assets/databases/postman-incorrect-register-request.png)
 
 If we send a correct request, we will receive a pair of `access_token` and `refresh_token` in response.
 
-![Valid registration request](./../../../../assets/databases/postman-correct-register-request.png)
+![Valid registration request](./../../../assets/databases/postman-correct-register-request.png)
 
 Open the `Scripts` tab in the request panel in Postman.
 
-![Scripts executed after a request](./../../../../assets/databases/postman-post-response-scripts.png)
+![Scripts executed after a request](./../../../assets/databases/postman-post-response-scripts.png)
 
 This script reads the response from the server and sets variables from the Postman environment. That is, Postman "remembers" the tokens and can use them in other requests. You can see this if you open any request that requires authorization and go to the `Authorizaton` tab.
 
-![Postman Authorization Tab](./../../../../assets/databases/postman-authorization-tab.png)
+![Postman Authorization Tab](./../../../assets/databases/postman-authorization-tab.png)
 
 Here it is specified that Postman will substitute a line with our `Bearer <access_token>` in the `Authorization` header. Note that the `src/middleware/auth` file checks for the `Authorization` header with the value `Bearer <access_token>`.
 
