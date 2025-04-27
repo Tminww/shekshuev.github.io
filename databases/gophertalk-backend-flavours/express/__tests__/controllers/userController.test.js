@@ -11,11 +11,7 @@ app.use(express.json());
 
 app.get("/api/users", UserController.getAllUsers);
 app.get("/api/users/:id", UserController.getUserById);
-app.put(
-  "/api/users/:id",
-  validate(updateUserValidator),
-  UserController.updateUser
-);
+app.put("/api/users/:id", validate(updateUserValidator), UserController.updateUser);
 app.delete("/api/users/:id", UserController.deleteUserById);
 
 describe("UserController", () => {
@@ -28,9 +24,7 @@ describe("UserController", () => {
       const users = [{ id: 1, user_name: "test_user" }];
       jest.spyOn(UserService, "getAllUsers").mockResolvedValueOnce(users);
 
-      const res = await request(app)
-        .get("/api/users?limit=10&offset=0")
-        .set("Authorization", "Bearer mockToken");
+      const res = await request(app).get("/api/users?limit=10&offset=0").set("Authorization", "Bearer mockToken");
 
       expect(res.status).toBe(200);
       expect(res.body).toEqual(users);
@@ -38,13 +32,9 @@ describe("UserController", () => {
     });
 
     it("should return 400 if service fails", async () => {
-      jest
-        .spyOn(UserService, "getAllUsers")
-        .mockRejectedValueOnce(new Error("Service error"));
+      jest.spyOn(UserService, "getAllUsers").mockRejectedValueOnce(new Error("Service error"));
 
-      const res = await request(app)
-        .get("/api/users?limit=10&offset=0")
-        .set("Authorization", "Bearer mockToken");
+      const res = await request(app).get("/api/users?limit=10&offset=0").set("Authorization", "Bearer mockToken");
 
       expect(res.status).toBe(400);
     });
@@ -55,9 +45,7 @@ describe("UserController", () => {
       const user = { id: 1, user_name: "test_user" };
       jest.spyOn(UserService, "getUserById").mockResolvedValueOnce(user);
 
-      const res = await request(app)
-        .get("/api/users/1")
-        .set("Authorization", "Bearer mockToken");
+      const res = await request(app).get("/api/users/1").set("Authorization", "Bearer mockToken");
 
       expect(res.status).toBe(200);
       expect(res.body).toEqual(user);
@@ -65,21 +53,15 @@ describe("UserController", () => {
     });
 
     it("should return 404 if id is invalid", async () => {
-      const res = await request(app)
-        .get("/api/users/abc")
-        .set("Authorization", "Bearer mockToken");
+      const res = await request(app).get("/api/users/abc").set("Authorization", "Bearer mockToken");
 
       expect(res.status).toBe(404);
     });
 
     it("should return 404 if user not found", async () => {
-      jest
-        .spyOn(UserService, "getUserById")
-        .mockRejectedValueOnce(new Error("Not found"));
+      jest.spyOn(UserService, "getUserById").mockRejectedValueOnce(new Error("Not found"));
 
-      const res = await request(app)
-        .get("/api/users/2")
-        .set("Authorization", "Bearer mockToken");
+      const res = await request(app).get("/api/users/2").set("Authorization", "Bearer mockToken");
 
       expect(res.status).toBe(404);
     });
@@ -91,10 +73,7 @@ describe("UserController", () => {
       const updatedUser = { id: 1, user_name: "updated_user" };
       jest.spyOn(UserService, "updateUser").mockResolvedValueOnce(updatedUser);
 
-      const res = await request(app)
-        .put("/api/users/1")
-        .set("Authorization", "Bearer mockToken")
-        .send(updateDto);
+      const res = await request(app).put("/api/users/1").set("Authorization", "Bearer mockToken").send(updateDto);
 
       expect(res.status).toBe(200);
       expect(res.body).toEqual(updatedUser);
@@ -102,10 +81,7 @@ describe("UserController", () => {
     });
 
     it("should return 404 if id is invalid", async () => {
-      const res = await request(app)
-        .put("/api/users/abc")
-        .set("Authorization", "Bearer mockToken")
-        .send({});
+      const res = await request(app).put("/api/users/abc").set("Authorization", "Bearer mockToken").send({});
 
       expect(res.status).toBe(404);
     });
@@ -113,24 +89,16 @@ describe("UserController", () => {
     it("should return 422 if validation fails", async () => {
       const invalidDto = { user_name: "test" };
 
-      const res = await request(app)
-        .put("/api/users/1")
-        .set("Authorization", "Bearer mockToken")
-        .send(invalidDto);
+      const res = await request(app).put("/api/users/1").set("Authorization", "Bearer mockToken").send(invalidDto);
 
       expect(res.status).toBe(422);
     });
 
     it("should return 400 on service error", async () => {
       const updateDto = { first_name: "Updated", last_name: "User" };
-      jest
-        .spyOn(UserService, "updateUser")
-        .mockRejectedValueOnce(new Error("Service error"));
+      jest.spyOn(UserService, "updateUser").mockRejectedValueOnce(new Error("Service error"));
 
-      const res = await request(app)
-        .put("/api/users/1")
-        .set("Authorization", "Bearer mockToken")
-        .send(updateDto);
+      const res = await request(app).put("/api/users/1").set("Authorization", "Bearer mockToken").send(updateDto);
 
       expect(res.status).toBe(400);
     });
@@ -140,30 +108,22 @@ describe("UserController", () => {
     it("should return 204 if user deleted", async () => {
       jest.spyOn(UserService, "deleteUser").mockResolvedValueOnce();
 
-      const res = await request(app)
-        .delete("/api/users/1")
-        .set("Authorization", "Bearer mockToken");
+      const res = await request(app).delete("/api/users/1").set("Authorization", "Bearer mockToken");
 
       expect(res.status).toBe(204);
       expect(UserService.deleteUser).toHaveBeenCalledWith(1);
     });
 
     it("should return 404 if id is invalid", async () => {
-      const res = await request(app)
-        .delete("/api/users/abc")
-        .set("Authorization", "Bearer mockToken");
+      const res = await request(app).delete("/api/users/abc").set("Authorization", "Bearer mockToken");
 
       expect(res.status).toBe(404);
     });
 
     it("should return 404 if user not found", async () => {
-      jest
-        .spyOn(UserService, "deleteUser")
-        .mockRejectedValueOnce(new Error("Not found"));
+      jest.spyOn(UserService, "deleteUser").mockRejectedValueOnce(new Error("Not found"));
 
-      const res = await request(app)
-        .delete("/api/users/2")
-        .set("Authorization", "Bearer mockToken");
+      const res = await request(app).delete("/api/users/2").set("Authorization", "Bearer mockToken");
 
       expect(res.status).toBe(404);
     });

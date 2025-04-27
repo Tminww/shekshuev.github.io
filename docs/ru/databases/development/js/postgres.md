@@ -3204,7 +3204,7 @@ Server is running on port 3000
 
 В каталоге `__tests__/controllers` создайте файл `userController.test.js` и поместите в него следующий код:
 
-::: details Unit тесты authController
+::: details Unit тесты userController
 
 ```js
 import { expect, jest } from "@jest/globals";
@@ -3366,3 +3366,419 @@ Snapshots:   0 total
 Time:        1.367 s
 Ran all test suites.
 ```
+
+## Разработка контроллера постов
+
+Осталось разработать последний контроллер - `postController`.
+
+В каталоге `src/controllers` создадим файл в `postController.js` и поместим в него следующий код:
+
+```js
+import { PostService } from "../services/postService.js";
+
+export class PostController {
+  static async getAllPosts(req, res) {
+    try {
+      const userId = req.user.sub;
+      const { limit = 10, offset = 0, reply_to_id = 0, owner_id = 0, search = "" } = req.query;
+
+      const filterDTO = {
+        user_id: Number(userId),
+        limit: Number(limit),
+        offset: Number(offset),
+        reply_to_id: Number(reply_to_id),
+        owner_id: Number(owner_id),
+        search,
+      };
+
+      const posts = await PostService.getAllPosts(filterDTO);
+      res.status(200).json(posts);
+    } catch (err) {
+      res.status(400).json({ message: err.message });
+    }
+  }
+
+  static async createPost(req, res) {
+    try {
+      const userId = req.user.sub;
+      const dto = req.body;
+      dto.user_id = Number(userId);
+
+      const post = await PostService.createPost(dto);
+      res.status(201).json(post);
+    } catch (err) {
+      res.status(400).json({ message: err.message });
+    }
+  }
+
+  static async deletePost(req, res) {
+    try {
+      const postId = Number(req.params.id);
+      const userId = Number(req.user.sub);
+
+      await PostService.deletePost(postId, userId);
+      res.status(204).send();
+    } catch (err) {
+      res.status(404).json({ message: err.message });
+    }
+  }
+
+  static async viewPost(req, res) {
+    try {
+      const postId = Number(req.params.id);
+      const userId = Number(req.user.sub);
+
+      await PostService.viewPost(postId, userId);
+      res.status(201).send();
+    } catch (err) {
+      res.status(404).json({ message: err.message });
+    }
+  }
+
+  static async likePost(req, res) {
+    try {
+      const postId = Number(req.params.id);
+      const userId = Number(req.user.sub);
+
+      await PostService.likePost(postId, userId);
+      res.status(201).send();
+    } catch (err) {
+      res.status(404).json({ message: err.message });
+    }
+  }
+
+  static async dislikePost(req, res) {
+    try {
+      const postId = Number(req.params.id);
+      const userId = Number(req.user.sub);
+
+      await PostService.dislikePost(postId, userId);
+      res.status(204).send();
+    } catch (err) {
+      res.status(404).json({ message: err.message });
+    }
+  }
+}
+```
+
+В каталоге `src/validators` создайте файл `postValidators.js` и поместите туда код:
+
+```js
+import { z } from "zod";
+
+export const createPostValidator = z.object({
+  text: z.string().min(1).max(280),
+  reply_to_id: z
+    .number()
+    .optional()
+    .nullable()
+    .refine(val => val === undefined || val > 0, {
+      message: "ReplyToID must be greater than 0",
+    }),
+});
+
+export const filterPostValidator = z.object({
+  search: z.string().optional(),
+  owner_id: z.string().regex(/^\d+$/).optional(),
+  user_id: z.string().regex(/^\d+$/).optional(),
+  reply_to_id: z.string().regex(/^\d+$/).optional(),
+  limit: z.string().regex(/^\d+$/).optional(),
+  offset: z.string().regex(/^\d+$/).optional(),
+});
+```
+
+Далее добавим маршруты. В каталоге `src/routes` создайте файл `postRoutes.js` и поместите туда код:
+
+```js
+import express from "express";
+import { PostController } from "../controllers/postController.js";
+import { validate } from "../middleware/validate.js";
+import { requestAuth, requestAuthSameId } from "../middleware/auth.js";
+import { createPostValidator } from "../validators/postValidators.js";
+
+const router = express.Router();
+
+router.get("/", requestAuth(process.env.ACCESS_TOKEN_SECRET), PostController.getAllPosts);
+
+router.post(
+  "/",
+  requestAuth(process.env.ACCESS_TOKEN_SECRET),
+  validate(createPostValidator),
+  PostController.createPost
+);
+
+router.delete("/:id", requestAuthSameId(process.env.ACCESS_TOKEN_SECRET), PostController.deletePost);
+
+router.post("/:id/view", requestAuth(process.env.ACCESS_TOKEN_SECRET), PostController.viewPost);
+
+router.post("/:id/like", requestAuth(process.env.ACCESS_TOKEN_SECRET), PostController.likePost);
+
+router.post("/:id/dislike", requestAuth(process.env.ACCESS_TOKEN_SECRET), PostController.dislikePost);
+
+export default router;
+```
+
+Далее необходимо обновить `app.js`, добавив две строки (выделены зеленым цветом):
+
+```js
+import dotenv from "dotenv";
+import express from "express";
+import { pool } from "./config/db.js";
+import authRoutes from "./routes/authRoutes.js";
+import postRoutes from "./routes/postRoutes.js"; // [!code ++]
+import userRoutes from "./routes/userRoutes.js";
+
+dotenv.config();
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+app.use(express.json());
+
+app.use("/api/auth", authRoutes);
+app.use("/api/posts", postRoutes); // [!code ++]
+app.use("/api/users", userRoutes);
+
+app.get("/api/health-check", async (req, res) => {
+  try {
+    await pool.query("SELECT 1");
+    res.status(200).send("OK");
+  } catch (err) {
+    res.status(500).send("DB connection failed");
+  }
+});
+
+app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
+});
+```
+
+После этого нужно запустить сервер. Если все сделано правильно, он запустится без ошибок:
+
+```bash
+npm run dev
+
+> gophertalk-backend-express@0.1.0 dev
+> nodemon src/app.js
+
+[nodemon] 3.1.9
+[nodemon] to restart at any time, enter `rs`
+[nodemon] watching path(s): *.*
+[nodemon] watching extensions: js,mjs,cjs,json
+[nodemon] starting `node src/app.js`
+Server is running on port 3000
+```
+
+Самостоятельно проверьте эндпоинты из папки `users` в Postman:
+
+- `get all` - получить все посты
+- `delete` - удалить пост (можно удалить только свой пост; проверьте, что произойдет с записью поста в базе данных)
+- `create` - создать пост
+- `like` - поставить лайк
+- `dislike` - удалить лайк
+- `view` - просмотреть пост
+
+## Тестирование контроллера постов
+
+В каталоге `__tests__/controllers` создайте файл `postController.test.js` и поместите в него следующий код:
+
+::: details Unit тесты postController
+
+```js
+import { expect, jest } from "@jest/globals";
+import dotenv from "dotenv";
+import express from "express";
+import jwt from "jsonwebtoken";
+import request from "supertest";
+import { PostController } from "../../src/controllers/postController.js";
+import { requestAuth } from "../../src/middleware/auth.js";
+import { validate } from "../../src/middleware/validate.js";
+import { PostService } from "../../src/services/postService.js";
+import { createPostValidator } from "../../src/validators/postValidators.js";
+
+dotenv.config();
+
+const app = express();
+app.use(express.json());
+
+app.use((req, res, next) => {
+  const token = jwt.sign({ sub: "1" }, process.env.ACCESS_TOKEN_SECRET);
+  req.headers.authorization = `Bearer ${token}`;
+  requestAuth(process.env.ACCESS_TOKEN_SECRET)(req, res, next);
+});
+
+app.get("/api/posts", PostController.getAllPosts);
+app.post("/api/posts", validate(createPostValidator), PostController.createPost);
+app.delete("/api/posts/:id", PostController.deletePost);
+app.post("/api/posts/:id/view", PostController.viewPost);
+app.post("/api/posts/:id/like", PostController.likePost);
+app.delete("/api/posts/:id/like", PostController.dislikePost);
+
+describe("PostController", () => {
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  describe("GET /api/posts", () => {
+    it("should fetch posts successfully", async () => {
+      const posts = [{ id: 1, text: "Test post" }];
+      jest.spyOn(PostService, "getAllPosts").mockResolvedValueOnce(posts);
+
+      const res = await request(app).get("/api/posts?limit=10&offset=0");
+
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual(posts);
+      expect(PostService.getAllPosts).toHaveBeenCalled();
+    });
+
+    it("should handle service error", async () => {
+      jest.spyOn(PostService, "getAllPosts").mockRejectedValueOnce(new Error("Service error"));
+
+      const res = await request(app).get("/api/posts?limit=10&offset=0");
+
+      expect(res.status).toBe(400);
+      expect(PostService.getAllPosts).toHaveBeenCalled();
+    });
+  });
+
+  describe("POST /api/posts", () => {
+    it("should create a post successfully", async () => {
+      const post = { id: 1, text: "New post" };
+      jest.spyOn(PostService, "createPost").mockResolvedValueOnce(post);
+
+      const res = await request(app).post("/api/posts").send({ text: "New post" });
+
+      expect(res.status).toBe(201);
+      expect(res.body).toEqual(post);
+      expect(PostService.createPost).toHaveBeenCalled();
+    });
+
+    it("should handle validation error", async () => {
+      const res = await request(app).post("/api/posts").send({});
+
+      expect(res.status).toBe(422);
+    });
+
+    it("should handle service error", async () => {
+      jest.spyOn(PostService, "createPost").mockRejectedValueOnce(new Error("Service error"));
+
+      const res = await request(app).post("/api/posts").send({ text: "New post" });
+
+      expect(res.status).toBe(400);
+      expect(PostService.createPost).toHaveBeenCalled();
+    });
+  });
+
+  describe("DELETE /api/posts/:id", () => {
+    it("should delete post successfully", async () => {
+      jest.spyOn(PostService, "deletePost").mockResolvedValueOnce();
+
+      const res = await request(app).delete("/api/posts/1");
+
+      expect(res.status).toBe(204);
+      expect(PostService.deletePost).toHaveBeenCalled();
+    });
+
+    it("should handle invalid id", async () => {
+      const res = await request(app).delete("/api/posts/abc");
+
+      expect(res.status).toBe(404);
+    });
+  });
+
+  describe("POST /api/posts/:id/view", () => {
+    it("should view post successfully", async () => {
+      jest.spyOn(PostService, "viewPost").mockResolvedValueOnce();
+
+      const res = await request(app).post("/api/posts/1/view");
+
+      expect(res.status).toBe(201);
+      expect(PostService.viewPost).toHaveBeenCalled();
+    });
+
+    it("should handle invalid id", async () => {
+      const res = await request(app).post("/api/posts/abc/view");
+
+      expect(res.status).toBe(404);
+    });
+  });
+
+  describe("POST /api/posts/:id/like", () => {
+    it("should like post successfully", async () => {
+      jest.spyOn(PostService, "likePost").mockResolvedValueOnce();
+
+      const res = await request(app).post("/api/posts/1/like");
+
+      expect(res.status).toBe(201);
+      expect(PostService.likePost).toHaveBeenCalled();
+    });
+
+    it("should handle invalid id", async () => {
+      const res = await request(app).post("/api/posts/abc/like");
+
+      expect(res.status).toBe(404);
+    });
+  });
+
+  describe("DELETE /api/posts/:id/like", () => {
+    it("should dislike post successfully", async () => {
+      jest.spyOn(PostService, "dislikePost").mockResolvedValueOnce();
+
+      const res = await request(app).delete("/api/posts/1/like");
+
+      expect(res.status).toBe(204);
+      expect(PostService.dislikePost).toHaveBeenCalled();
+    });
+
+    it("should handle invalid id", async () => {
+      const res = await request(app).delete("/api/posts/abc/like");
+
+      expect(res.status).toBe(404);
+    });
+  });
+});
+```
+
+:::
+
+Если все сделано правильно, тесты выполнятся успешно:
+
+```bash
+npm run test
+
+> gophertalk-backend-express@0.1.0 test
+> node --experimental-vm-modules node_modules/jest/bin/jest.js
+
+(node:47799) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ PASS  __tests__/controllers/postController.test.js
+ PASS  __tests__/services/authService.test.js
+ PASS  __tests__/controllers/userController.test.js
+ PASS  __tests__/services/userService.test.js
+ PASS  __tests__/controllers/authController.test.js
+ PASS  __tests__/repositories/postRepository.test.js
+ PASS  __tests__/repositories/userRepository.test.js
+ PASS  __tests__/services/postService.test.js
+
+Test Suites: 8 passed, 8 total
+Tests:       83 passed, 83 total
+Snapshots:   0 total
+Time:        0.967 s, estimated 1 s
+Ran all test suites.
+```
+
+# Заключение
+
+В рамках занятия была разработана прикладная программа — серверное приложение на Express, моделирующее работу социальной сети GopherTalk. В процессе работы особое внимание уделялось прикладному применению баз данных: создание, использование, чтение и изменение данных происходили через сервисы, а взаимодействие с базой осуществлялось через продуманную структуру контроллеров, сервисов и репозиториев. Благодаря этому стало наглядно понятно, какое место занимают базы данных в архитектуре информационных систем и как строится взаимодействие между различными слоями приложения.
+
+Разработанная архитектура получилась корректной, логичной и легко расширяемой: добавление новых сущностей, новых маршрутов или правил валидации не требует существенных изменений в уже существующем коде. Проект разделён на слои: контроллеры отвечают за обработку HTTP-запросов, сервисы — за бизнес-логику, репозитории — за доступ к данным. Валидация данных перед выполнением бизнес-операций осуществляется через middleware, что делает API надёжным и устойчивым к ошибкам на уровне входных данных.
+
+Пути дальнейшего развития приложения включают:
+
+- Оптимизацию SQL-запросов для повышения производительности, особенно при работе с большим объёмом данных (например, добавление индексов, пересмотр фильтраций и джойнов).
+- Реализацию кеширования часто запрашиваемых данных (например, через Redis) для разгрузки базы данных.
+- Введение асинхронных задач для фоновой обработки событий (например, обработка лайков или просмотров).
+- Улучшение логирования запросов и ошибок для удобства сопровождения системы.
+- Развитие тестовой инфраструктуры: добавление интеграционных тестов с реальной базой данных в Docker-контейнерах.
+
+Таким образом, выполненная работа не только углубила понимание баз данных, но и дала практический опыт построения реальных, масштабируемых серверных приложений.
