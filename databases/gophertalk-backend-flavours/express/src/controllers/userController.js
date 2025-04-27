@@ -15,6 +15,9 @@ export class UserController {
   static async getUserById(req, res) {
     try {
       const id = parseInt(req.params.id, 10);
+      if (isNaN(id)) {
+        return res.status(404).json({ message: "Invalid ID" });
+      }
       const user = await UserService.getUserById(id);
       res.status(200).json(user);
     } catch (err) {
@@ -25,6 +28,9 @@ export class UserController {
   static async updateUser(req, res) {
     try {
       const id = parseInt(req.params.id, 10);
+      if (isNaN(id)) {
+        return res.status(404).json({ message: "Invalid ID" });
+      }
       const dto = req.body;
       const updatedUser = await UserService.updateUser(id, dto);
       res.status(200).json(updatedUser);
@@ -36,6 +42,9 @@ export class UserController {
   static async deleteUserById(req, res) {
     try {
       const id = parseInt(req.params.id, 10);
+      if (isNaN(id)) {
+        return res.status(404).json({ message: "Invalid ID" });
+      }
       await UserService.deleteUser(id);
       res.status(204).send();
     } catch (err) {

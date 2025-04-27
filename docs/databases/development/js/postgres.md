@@ -3207,3 +3207,409 @@ Snapshots:   0 total
 Time:        1.141 s
 Ran all test suites.
 ```
+
+## Developing a user controller
+
+We will perform all actions in exactly the same way as `authController`.
+
+In the `src/controllers` directory, create a file in `userController.js` and place the following code in it:
+
+```js
+import { UserService } from "../services/userService.js";
+
+export class UserController {
+  static async getAllUsers(req, res) {
+    try {
+      const limit = parseInt(req.query.limit, 10) || 10;
+      const offset = parseInt(req.query.offset, 10) || 0;
+      const users = await UserService.getAllUsers(limit, offset);
+      res.status(200).json(users);
+    } catch (err) {
+      res.status(400).json({ message: err.message });
+    }
+  }
+
+  static async getUserById(req, res) {
+    try {
+      const id = parseInt(req.params.id, 10);
+      if (isNaN(id)) {
+        return res.status(404).json({ message: "Invalid ID" });
+      }
+      const user = await UserService.getUserById(id);
+      res.status(200).json(user);
+    } catch (err) {
+      res.status(404).json({ message: err.message });
+    }
+  }
+
+  static async updateUser(req, res) {
+    try {
+      const id = parseInt(req.params.id, 10);
+      if (isNaN(id)) {
+        return res.status(404).json({ message: "Invalid ID" });
+      }
+      const dto = req.body;
+      const updatedUser = await UserService.updateUser(id, dto);
+      res.status(200).json(updatedUser);
+    } catch (err) {
+      res.status(400).json({ message: err.message });
+    }
+  }
+
+  static async deleteUserById(req, res) {
+    try {
+      const id = parseInt(req.params.id, 10);
+      if (isNaN(id)) {
+        return res.status(404).json({ message: "Invalid ID" });
+      }
+      await UserService.deleteUser(id);
+      res.status(204).send();
+    } catch (err) {
+      res.status(404).json({ message: err.message });
+    }
+  }
+}
+```
+
+In the `src/validators` directory, create a `userValidators.js` file and put the following code in there:
+
+```js
+import { z } from "zod";
+
+const usernameSchema = z
+  .string()
+  .min(5)
+  .max(30)
+  .regex(/^[a-zA-Z0-9_]+$/, "Must be alphanumeric or underscore")
+  .regex(/^[^0-9]/, "Must start with a letter");
+
+const passwordSchema = z
+  .string()
+  .min(5)
+  .max(30)
+  .regex(
+    /^(?=.*[a-zA-Z])(?=.*\d)(?=.*[@$!%*?&])/,
+    "Must contain letter, number and special character"
+  );
+
+export const updateUserValidator = z
+  .object({
+    user_name: usernameSchema.optional(),
+    password: passwordSchema.optional(),
+    password_confirm: passwordSchema.optional(),
+    first_name: z
+      .string()
+      .min(1)
+      .max(30)
+      .regex(/^[\p{L}]+$/u, "Only letters allowed")
+      .optional(),
+    last_name: z
+      .string()
+      .min(1)
+      .max(30)
+      .regex(/^[\p{L}]+$/u, "Only letters allowed")
+      .optional(),
+  })
+  .refine(
+    (data) => {
+      if (data.password || data.password_confirm) {
+        return data.password === data.password_confirm;
+      }
+      return true;
+    },
+    {
+      message: "Passwords must match",
+      path: ["password_confirm"],
+    }
+  );
+```
+
+Next, let's add routes. In the `src/routes` directory, create a `userRoutes.js` file and put the code there:
+
+```js
+import express from "express";
+import { UserController } from "../controllers/userController.js";
+import { validate } from "../middleware/validate.js";
+import { updateUserValidator } from "../validators/userValidators.js";
+import { requestAuth, requestAuthSameId } from "../middleware/auth.js";
+
+const router = express.Router();
+
+// Only authorized users
+router.get("/", requestAuth, UserController.getAllUsers);
+router.get("/:id", requestAuth, UserController.getUserById);
+
+// The user can only update or delete himself.
+router.put(
+  "/:id",
+  requestAuthSameId,
+  validate(updateUserValidator),
+  UserController.updateUser
+);
+router.delete("/:id", requestAuthSameId, UserController.deleteUserById);
+
+export default router;
+```
+
+Next, you need to update `app.js` by adding two lines (highlighted in green):
+
+```js
+import dotenv from "dotenv";
+import express from "express";
+import { pool } from "./config/db.js";
+import authRoutes from "./routes/authRoutes.js";
+import userRoutes from "./routes/userRoutes.js"; // [!code ++]
+
+dotenv.config();
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+app.use(express.json());
+
+app.use("/api/auth", authRoutes);
+app.use("/api/users", userRoutes); // [!code ++]
+
+app.get("/api/health-check", async (req, res) => {
+  try {
+    await pool.query("SELECT 1");
+    res.status(200).send("OK");
+  } catch (err) {
+    res.status(500).send("DB connection failed");
+  }
+});
+
+app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
+});
+```
+
+After that, you need to start the server. If everything is done correctly, it will start without errors:
+
+```bash
+npm run dev
+
+> gophertalk-backend-express@0.1.0 dev
+> nodemon src/app.js
+
+[nodemon] 3.1.9
+[nodemon] to restart at any time, enter `rs`
+[nodemon] watching path(s): *.*
+[nodemon] watching extensions: js,mjs,cjs,json
+[nodemon] starting `node src/app.js`
+Server is running on port 3000
+```
+
+Check the endpoints from the `users` folder in Postman yourself:
+
+- `get all` - get all users
+- `get by id` - get user info by `id`
+- `delete` - delete user (you can only delete yourself; check what happens to the user record in the database)
+- `update` - update user data (you can only update your own data)
+
+## Testing the user controller
+
+In the `__tests__/controllers` directory, create a file `userController.test.js` and put the following code in it:
+
+::: details Unit tests authController
+
+```js
+import { expect, jest } from "@jest/globals";
+import express from "express";
+import request from "supertest";
+import { UserController } from "../../src/controllers/userController.js";
+import { validate } from "../../src/middleware/validate.js";
+import { UserService } from "../../src/services/userService.js";
+import { updateUserValidator } from "../../src/validators/userValidators.js";
+
+const app = express();
+app.use(express.json());
+
+app.get("/api/users", UserController.getAllUsers);
+app.get("/api/users/:id", UserController.getUserById);
+app.put(
+  "/api/users/:id",
+  validate(updateUserValidator),
+  UserController.updateUser
+);
+app.delete("/api/users/:id", UserController.deleteUserById);
+
+describe("UserController", () => {
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  describe("GET /api/users", () => {
+    it("should return 200 and list of users", async () => {
+      const users = [{ id: 1, user_name: "test_user" }];
+      jest.spyOn(UserService, "getAllUsers").mockResolvedValueOnce(users);
+
+      const res = await request(app)
+        .get("/api/users?limit=10&offset=0")
+        .set("Authorization", "Bearer mockToken");
+
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual(users);
+      expect(UserService.getAllUsers).toHaveBeenCalled();
+    });
+
+    it("should return 400 if service fails", async () => {
+      jest
+        .spyOn(UserService, "getAllUsers")
+        .mockRejectedValueOnce(new Error("Service error"));
+
+      const res = await request(app)
+        .get("/api/users?limit=10&offset=0")
+        .set("Authorization", "Bearer mockToken");
+
+      expect(res.status).toBe(400);
+    });
+  });
+
+  describe("GET /api/users/:id", () => {
+    it("should return 200 and a user", async () => {
+      const user = { id: 1, user_name: "test_user" };
+      jest.spyOn(UserService, "getUserById").mockResolvedValueOnce(user);
+
+      const res = await request(app)
+        .get("/api/users/1")
+        .set("Authorization", "Bearer mockToken");
+
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual(user);
+      expect(UserService.getUserById).toHaveBeenCalledWith(1);
+    });
+
+    it("should return 404 if id is invalid", async () => {
+      const res = await request(app)
+        .get("/api/users/abc")
+        .set("Authorization", "Bearer mockToken");
+
+      expect(res.status).toBe(404);
+    });
+
+    it("should return 404 if user not found", async () => {
+      jest
+        .spyOn(UserService, "getUserById")
+        .mockRejectedValueOnce(new Error("Not found"));
+
+      const res = await request(app)
+        .get("/api/users/2")
+        .set("Authorization", "Bearer mockToken");
+
+      expect(res.status).toBe(404);
+    });
+  });
+
+  describe("PUT /api/users/:id", () => {
+    it("should return 200 and updated user", async () => {
+      const updateDto = { first_name: "Updated", last_name: "User" };
+      const updatedUser = { id: 1, user_name: "updated_user" };
+      jest.spyOn(UserService, "updateUser").mockResolvedValueOnce(updatedUser);
+
+      const res = await request(app)
+        .put("/api/users/1")
+        .set("Authorization", "Bearer mockToken")
+        .send(updateDto);
+
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual(updatedUser);
+      expect(UserService.updateUser).toHaveBeenCalledWith(1, updateDto);
+    });
+
+    it("should return 404 if id is invalid", async () => {
+      const res = await request(app)
+        .put("/api/users/abc")
+        .set("Authorization", "Bearer mockToken")
+        .send({});
+
+      expect(res.status).toBe(404);
+    });
+
+    it("should return 422 if validation fails", async () => {
+      const invalidDto = { user_name: "test" };
+
+      const res = await request(app)
+        .put("/api/users/1")
+        .set("Authorization", "Bearer mockToken")
+        .send(invalidDto);
+
+      expect(res.status).toBe(422);
+    });
+
+    it("should return 400 on service error", async () => {
+      const updateDto = { first_name: "Updated", last_name: "User" };
+      jest
+        .spyOn(UserService, "updateUser")
+        .mockRejectedValueOnce(new Error("Service error"));
+
+      const res = await request(app)
+        .put("/api/users/1")
+        .set("Authorization", "Bearer mockToken")
+        .send(updateDto);
+
+      expect(res.status).toBe(400);
+    });
+  });
+
+  describe("DELETE /api/users/:id", () => {
+    it("should return 204 if user deleted", async () => {
+      jest.spyOn(UserService, "deleteUser").mockResolvedValueOnce();
+
+      const res = await request(app)
+        .delete("/api/users/1")
+        .set("Authorization", "Bearer mockToken");
+
+      expect(res.status).toBe(204);
+      expect(UserService.deleteUser).toHaveBeenCalledWith(1);
+    });
+
+    it("should return 404 if id is invalid", async () => {
+      const res = await request(app)
+        .delete("/api/users/abc")
+        .set("Authorization", "Bearer mockToken");
+
+      expect(res.status).toBe(404);
+    });
+
+    it("should return 404 if user not found", async () => {
+      jest
+        .spyOn(UserService, "deleteUser")
+        .mockRejectedValueOnce(new Error("Not found"));
+
+      const res = await request(app)
+        .delete("/api/users/2")
+        .set("Authorization", "Bearer mockToken");
+
+      expect(res.status).toBe(404);
+    });
+  });
+});
+```
+
+:::
+
+If everything is done correctly, the tests will run successfully:
+
+```bash
+npm run test
+
+> gophertalk-backend-express@0.1.0 test
+> node --experimental-vm-modules node_modules/jest/bin/jest.js
+
+(node:109419) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ PASS  __tests__/controllers/authController.test.js
+ PASS  __tests__/controllers/userController.test.js
+ PASS  __tests__/services/authService.test.js
+ PASS  __tests__/services/userService.test.js
+ PASS  __tests__/repositories/userRepository.test.js
+ PASS  __tests__/repositories/postRepository.test.js
+ PASS  __tests__/services/postService.test.js
+
+Test Suites: 7 passed, 7 total
+Tests:       70 passed, 70 total
+Snapshots:   0 total
+Time:        1.367 s
+Ran all test suites.
+```
