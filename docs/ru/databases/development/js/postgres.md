@@ -3164,3 +3164,193 @@ Snapshots:   0 total
 Time:        1.141 s
 Ran all test suites.
 ```
+
+## Разработка контроллера пользователей
+
+Полностью аналогично `authController` выполним все действия.
+
+В каталоге `src/controllers` создадим файл в `userController.js` и поместим в него следующий код:
+
+```js
+import { UserService } from "../services/userService.js";
+
+export class UserController {
+  static async getAllUsers(req, res) {
+    try {
+      const limit = parseInt(req.query.limit, 10) || 10;
+      const offset = parseInt(req.query.offset, 10) || 0;
+      const users = await UserService.getAllUsers(limit, offset);
+      res.status(200).json(users);
+    } catch (err) {
+      res.status(400).json({ message: err.message });
+    }
+  }
+
+  static async getUserById(req, res) {
+    try {
+      const id = parseInt(req.params.id, 10);
+      const user = await UserService.getUserById(id);
+      res.status(200).json(user);
+    } catch (err) {
+      res.status(404).json({ message: err.message });
+    }
+  }
+
+  static async updateUser(req, res) {
+    try {
+      const id = parseInt(req.params.id, 10);
+      const dto = req.body;
+      const updatedUser = await UserService.updateUser(id, dto);
+      res.status(200).json(updatedUser);
+    } catch (err) {
+      res.status(400).json({ message: err.message });
+    }
+  }
+
+  static async deleteUserById(req, res) {
+    try {
+      const id = parseInt(req.params.id, 10);
+      await UserService.deleteUser(id);
+      res.status(204).send();
+    } catch (err) {
+      res.status(404).json({ message: err.message });
+    }
+  }
+}
+```
+
+В каталоге `src/validators` создайте файл `userValidators.js` и поместите туда код:
+
+```js
+import { z } from "zod";
+
+const usernameSchema = z
+  .string()
+  .min(5)
+  .max(30)
+  .regex(/^[a-zA-Z0-9_]+$/, "Must be alphanumeric or underscore")
+  .regex(/^[^0-9]/, "Must start with a letter");
+
+const passwordSchema = z
+  .string()
+  .min(5)
+  .max(30)
+  .regex(
+    /^(?=.*[a-zA-Z])(?=.*\d)(?=.*[@$!%*?&])/,
+    "Must contain letter, number and special character"
+  );
+
+export const updateUserValidator = z
+  .object({
+    user_name: usernameSchema.optional(),
+    password: passwordSchema.optional(),
+    password_confirm: passwordSchema.optional(),
+    first_name: z
+      .string()
+      .min(1)
+      .max(30)
+      .regex(/^[\p{L}]+$/u, "Only letters allowed")
+      .optional(),
+    last_name: z
+      .string()
+      .min(1)
+      .max(30)
+      .regex(/^[\p{L}]+$/u, "Only letters allowed")
+      .optional(),
+  })
+  .refine(
+    (data) => {
+      if (data.password || data.password_confirm) {
+        return data.password === data.password_confirm;
+      }
+      return true;
+    },
+    {
+      message: "Passwords must match",
+      path: ["password_confirm"],
+    }
+  );
+```
+
+Далее добавим маршруты. В каталоге `src/routes` создайте файл `userRoutes.js` и поместите туда код:
+
+```js
+import express from "express";
+import { UserController } from "../controllers/userController.js";
+import { validate } from "../middleware/validate.js";
+import { updateUserValidator } from "../validators/userValidators.js";
+import { requestAuth, requestAuthSameId } from "../middleware/auth.js";
+
+const router = express.Router();
+
+// Только авторизованные пользователи
+router.get("/", requestAuth, UserController.getAllUsers);
+router.get("/:id", requestAuth, UserController.getUserById);
+
+// Обновить или удалить пользователь может только себя
+router.put(
+  "/:id",
+  requestAuthSameId,
+  validate(updateUserValidator),
+  UserController.updateUser
+);
+router.delete("/:id", requestAuthSameId, UserController.deleteUserById);
+
+export default router;
+```
+
+Далее необходимо обновить `app.js`, добавив две строки (выделены зеленым цветом):
+
+```js
+import dotenv from "dotenv";
+import express from "express";
+import { pool } from "./config/db.js";
+import authRoutes from "./routes/authRoutes.js";
+import userRoutes from "./routes/userRoutes.js"; // [!code ++]
+
+dotenv.config();
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+app.use(express.json());
+
+app.use("/api/auth", authRoutes);
+app.use("/api/users", userRoutes); // [!code ++]
+
+app.get("/api/health-check", async (req, res) => {
+  try {
+    await pool.query("SELECT 1");
+    res.status(200).send("OK");
+  } catch (err) {
+    res.status(500).send("DB connection failed");
+  }
+});
+
+app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
+});
+```
+
+После этого нужно запустить сервер. Если все сделано правильно, он запустится без ошибок:
+
+```bash
+npm run dev
+
+> gophertalk-backend-express@0.1.0 dev
+> nodemon src/app.js
+
+[nodemon] 3.1.9
+[nodemon] to restart at any time, enter `rs`
+[nodemon] watching path(s): *.*
+[nodemon] watching extensions: js,mjs,cjs,json
+[nodemon] starting `node src/app.js`
+Server is running on port 3000
+```
+
+Самостоятельно проверьте эндпоинты из папки `users` в Postman:
+
+- `get all` - получить всех пользователей
+- `get by id` - получить информацию о пользователе по `id`
+- `delete` - удалить пользователя (можно удалить только себя; проверьте, что произойдет с записью пользователя в базе данных)
+- `update` - обновить данные пользователя (можно обновить только свои данные)
