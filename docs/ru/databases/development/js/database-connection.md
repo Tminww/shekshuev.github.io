@@ -266,6 +266,7 @@ gophertalk-backend-express/
 - <a target="_blank" href="/databases/bcrypt-5.1.1.tgz">bcrypt</a>
 - <a target="_blank" href="/databases/jsonwebtoken-9.0.2.tgz">jsonwebtoken</a>
 - <a target="_blank" href="/databases/zod-3.24.3.tgz">zod</a>
+- <a target="_blank" href="/databases/supertest-7.1.0.tgz">supertest</a>
 
 После этого в корне проекта в каталоге `gophertalk-backend-express` выполнить команду:
 

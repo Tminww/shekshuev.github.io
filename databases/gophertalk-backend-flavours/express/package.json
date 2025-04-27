@@ -17,6 +17,7 @@
   },
   "devDependencies": {
     "nodemon": "file:packages/nodemon-3.1.9.tgz",
-    "jest": "file:packages/jest-29.7.0.tgz"
+    "jest": "file:packages/jest-29.7.0.tgz",
+    "supertest": "file:packages/supertest-7.1.0.tgz"
   }
 }

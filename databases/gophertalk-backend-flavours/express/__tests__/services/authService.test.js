@@ -29,21 +29,17 @@ describe("AuthService", () => {
       jest.spyOn(bcrypt, "compare").mockResolvedValue(true);
       jest.spyOn(jwt, "sign").mockReturnValue("mocked_token");
 
-      const config = {
-        ACCESS_TOKEN_SECRET: "access_secret",
-        ACCESS_TOKEN_EXPIRES: "1h",
-        REFRESH_TOKEN_SECRET: "refresh_secret",
-        REFRESH_TOKEN_EXPIRES: "7d",
-      };
-
-      const result = await AuthService.login(dto, config);
+      const result = await AuthService.login(dto);
 
       expect(result).toEqual({
         access_token: "mocked_token",
         refresh_token: "mocked_token",
       });
 
-      expect(bcrypt.compare).toHaveBeenCalledWith(dto.password, user.password_hash);
+      expect(bcrypt.compare).toHaveBeenCalledWith(
+        dto.password,
+        user.password_hash
+      );
     });
 
     it("throws error if user not found", async () => {
@@ -54,7 +50,9 @@ describe("AuthService", () => {
 
       jest.spyOn(UserRepository, "getUserByUserName").mockResolvedValue(null);
 
-      await expect(AuthService.login(dto, {})).rejects.toThrow("User not found");
+      await expect(AuthService.login(dto, {})).rejects.toThrow(
+        "User not found"
+      );
     });
 
     it("throws error if password is wrong", async () => {
@@ -72,7 +70,9 @@ describe("AuthService", () => {
       jest.spyOn(UserRepository, "getUserByUserName").mockResolvedValue(user);
       jest.spyOn(bcrypt, "compare").mockResolvedValue(false);
 
-      await expect(AuthService.login(dto, {})).rejects.toThrow("Wrong password");
+      await expect(AuthService.login(dto, {})).rejects.toThrow(
+        "Wrong password"
+      );
     });
   });
 
@@ -97,14 +97,7 @@ describe("AuthService", () => {
       jest.spyOn(UserRepository, "createUser").mockResolvedValue(user);
       jest.spyOn(jwt, "sign").mockReturnValue("mocked_token");
 
-      const config = {
-        ACCESS_TOKEN_SECRET: "access_secret",
-        ACCESS_TOKEN_EXPIRES: "1h",
-        REFRESH_TOKEN_SECRET: "refresh_secret",
-        REFRESH_TOKEN_EXPIRES: "7d",
-      };
-
-      const result = await AuthService.register(dto, config);
+      const result = await AuthService.register(dto);
 
       expect(result).toEqual({
         access_token: "mocked_token",

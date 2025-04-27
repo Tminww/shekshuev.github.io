@@ -269,6 +269,7 @@ Place the following packages into the `src/packages` folder:
 - <a target="_blank" href="/databases/bcrypt-5.1.1.tgz">bcrypt</a>
 - <a target="_blank" href="/databases/jsonwebtoken-9.0.2.tgz">jsonwebtoken</a>
 - <a target="_blank" href="/databases/zod-3.24.3.tgz">zod</a>
+- <a target="_blank" href="/databases/supertest-7.1.0.tgz">supertest</a>
 
 After that, run the following command from the root of the project inside the `gophertalk-backend-express` directory:
 

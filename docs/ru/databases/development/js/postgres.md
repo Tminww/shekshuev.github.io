@@ -1920,7 +1920,7 @@ export const AuthService = {
 
 #### Описание методов
 
-**`login(dto, config)`**
+**`login(dto)`**
 
 - Ищет пользователя по имени.
 
@@ -1928,7 +1928,7 @@ export const AuthService = {
 
 - Возвращает токены, если всё корректно.
 
-**`register(dto, config)`**
+**`register(dto)`**
 
 - Хеширует пароль.
 
@@ -1936,7 +1936,7 @@ export const AuthService = {
 
 - Возвращает токены для нового пользователя.
 
-**`generateTokenPair(user, config)`**
+**`generateTokenPair(user)`**
 
 - Генерирует два токена:
 
@@ -2006,14 +2006,7 @@ describe("AuthService", () => {
       jest.spyOn(bcrypt, "compare").mockResolvedValue(true);
       jest.spyOn(jwt, "sign").mockReturnValue("mocked_token");
 
-      const config = {
-        ACCESS_TOKEN_SECRET: "access_secret",
-        ACCESS_TOKEN_EXPIRES: "1h",
-        REFRESH_TOKEN_SECRET: "refresh_secret",
-        REFRESH_TOKEN_EXPIRES: "7d",
-      };
-
-      const result = await AuthService.login(dto, config);
+      const result = await AuthService.login(dto);
 
       expect(result).toEqual({
         access_token: "mocked_token",
@@ -2081,14 +2074,7 @@ describe("AuthService", () => {
       jest.spyOn(UserRepository, "createUser").mockResolvedValue(user);
       jest.spyOn(jwt, "sign").mockReturnValue("mocked_token");
 
-      const config = {
-        ACCESS_TOKEN_SECRET: "access_secret",
-        ACCESS_TOKEN_EXPIRES: "1h",
-        REFRESH_TOKEN_SECRET: "refresh_secret",
-        REFRESH_TOKEN_EXPIRES: "7d",
-      };
-
-      const result = await AuthService.register(dto, config);
+      const result = await AuthService.register(dto);
 
       expect(result).toEqual({
         access_token: "mocked_token",
@@ -2726,7 +2712,7 @@ export class AuthController {
   static async login(req, res) {
     try {
       const dto = req.body;
-      const tokens = await AuthService.login(dto, process.env);
+      const tokens = await AuthService.login(dto);
       res.status(200).json(tokens);
     } catch (err) {
       res.status(401).json({ message: err.message });
@@ -2736,7 +2722,7 @@ export class AuthController {
   static async register(req, res) {
     try {
       const dto = req.body;
-      const tokens = await AuthService.register(dto, process.env);
+      const tokens = await AuthService.register(dto);
       res.status(201).json(tokens);
     } catch (err) {
       res.status(401).json({ message: err.message });
@@ -3053,3 +3039,128 @@ Server is running on port 3000
 Тут указано, что Postman будет подставлять в заголовок `Authorization` строку с нашим `Bearer <access_token>`. Обратите внимание, что в файле `src/middleware/auth` как раз проверяется наличие заголовка `Authorization` со значением `Bearer <access_token>`.
 
 Попробуйте самостоятельно авторизоваться в системе - через Postman выполнить запрос `/login`.
+
+## Тестирование контроллера авторизации
+
+В каталоге `__tests__` создайте каталог `controllers`, а в нем файл `authController.test.js`, и поместите туда код:
+
+::: details Unit тесты authController
+
+```js
+import { expect, jest } from "@jest/globals";
+import express from "express";
+import request from "supertest";
+import { AuthController } from "../../src/controllers/authController.js";
+import { AuthService } from "../../src/services/authService.js";
+
+const app = express();
+app.use(express.json());
+app.post("/api/auth/login", AuthController.login);
+app.post("/api/auth/register", AuthController.register);
+
+describe("AuthController", () => {
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  describe("POST /api/auth/login", () => {
+    it("should successfully login", async () => {
+      const tokens = { access_token: "access", refresh_token: "refresh" };
+      const loginDTO = { user_name: "test_user", password: "test123!" };
+
+      jest.spyOn(AuthService, "login").mockResolvedValueOnce(tokens);
+
+      const res = await request(app).post("/api/auth/login").send(loginDTO);
+
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual(tokens);
+      expect(AuthService.login).toHaveBeenCalledWith(loginDTO);
+    });
+
+    it("should return 401 if login fails", async () => {
+      const loginDTO = { user_name: "test_user", password: "wrongpassword" };
+
+      jest
+        .spyOn(AuthService, "login")
+        .mockRejectedValueOnce(new Error("Wrong password"));
+
+      const res = await request(app).post("/api/auth/login").send(loginDTO);
+
+      expect(res.status).toBe(401);
+      expect(res.body.message).toBe("Wrong password");
+      expect(AuthService.login).toHaveBeenCalledWith(loginDTO);
+    });
+  });
+
+  describe("POST /api/auth/register", () => {
+    it("should successfully register", async () => {
+      const tokens = { access_token: "access", refresh_token: "refresh" };
+      const registerDTO = {
+        user_name: "test_user",
+        password: "test123!",
+        password_confirm: "test123!",
+        first_name: "John",
+        last_name: "Doe",
+      };
+
+      jest.spyOn(AuthService, "register").mockResolvedValueOnce(tokens);
+
+      const res = await request(app)
+        .post("/api/auth/register")
+        .send(registerDTO);
+
+      expect(res.status).toBe(201);
+      expect(res.body).toEqual(tokens);
+      expect(AuthService.register).toHaveBeenCalledWith(registerDTO);
+    });
+
+    it("should return 401 if registration fails", async () => {
+      const registerDTO = {
+        user_name: "test_user",
+        password: "test123!",
+        password_confirm: "test123!",
+        first_name: "John",
+        last_name: "Doe",
+      };
+
+      jest
+        .spyOn(AuthService, "register")
+        .mockRejectedValueOnce(new Error("User already exists"));
+
+      const res = await request(app)
+        .post("/api/auth/register")
+        .send(registerDTO);
+
+      expect(res.status).toBe(401);
+      expect(res.body.message).toBe("User already exists");
+      expect(AuthService.register).toHaveBeenCalledWith(registerDTO);
+    });
+  });
+});
+```
+
+:::
+
+Если все сделано правильно, тесты выполнятся успешно:
+
+```bash
+npm run test
+
+> gophertalk-backend-express@0.1.0 test
+> node --experimental-vm-modules node_modules/jest/bin/jest.js
+
+(node:90459) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ PASS  __tests__/services/authService.test.js
+ PASS  __tests__/controllers/authController.test.js
+ PASS  __tests__/services/userService.test.js
+ PASS  __tests__/repositories/postRepository.test.js
+ PASS  __tests__/repositories/userRepository.test.js
+ PASS  __tests__/services/postService.test.js
+
+Test Suites: 6 passed, 6 total
+Tests:       58 passed, 58 total
+Snapshots:   0 total
+Time:        1.141 s
+Ran all test suites.
+```
