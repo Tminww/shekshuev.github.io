@@ -1,4 +1,4 @@
-import { pool } from "../config/db";
+import { pool } from "../config/db.js";
 
 export const UserRepository = {
   async createUser(dto) {
@@ -7,7 +7,12 @@ export const UserRepository = {
       VALUES ($1, $2, $3, $4)
       RETURNING id, user_name, password_hash, status;
     `;
-    const values = [dto.user_name, dto.first_name, dto.last_name, dto.password_hash];
+    const values = [
+      dto.user_name,
+      dto.first_name,
+      dto.last_name,
+      dto.password_hash,
+    ];
     const res = await pool.query(query, values);
     return res.rows[0];
   },

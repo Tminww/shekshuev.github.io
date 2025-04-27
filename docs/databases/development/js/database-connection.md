@@ -295,10 +295,16 @@ DB_PORT=5432
 DB_USER=postgres
 DB_PASSWORD=postgres
 DB_NAME=postgres
+ACCESS_TOKEN_EXPIRES=1h
+REFRESH_TOKEN_EXPIRES=24h
+ACCESS_TOKEN_SECRET=super_secret_access_token_key
+REFRESH_TOKEN_SECRET=super_secret_refresh_token_key
 ```
 
 You should provide your own values.
 You’ll need a running PostgreSQL server, a database inside it, and a user account with access to that database.
+
+Do not change the values ​​of the variables `ACCESS_TOKEN_EXPIRES`, `REFRESH_TOKEN_EXPIRES`, `ACCESS_TOKEN_SECRET` and `REFRESH_TOKEN_SECRET`, they will be needed later.
 
 ## Configuring the PostgreSQL Connection
 

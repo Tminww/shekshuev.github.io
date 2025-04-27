@@ -1,4 +1,4 @@
-import { pool } from "../config/db";
+import { pool } from "../config/db.js";
 
 export const PostRepository = {
   async createPost(dto) {
@@ -56,7 +56,9 @@ export const PostRepository = {
     }
 
     if (dto.reply_to_id) {
-      query += ` AND p.reply_to_id = $${params.length + 1} ORDER BY p.created_at ASC`;
+      query += ` AND p.reply_to_id = $${
+        params.length + 1
+      } ORDER BY p.created_at ASC`;
       params.push(dto.reply_to_id);
     } else {
       query += ` AND p.reply_to_id IS NULL ORDER BY p.created_at DESC`;
@@ -67,7 +69,7 @@ export const PostRepository = {
 
     const res = await pool.query(query, params);
 
-    return res.rows.map(row => ({
+    return res.rows.map((row) => ({
       id: row.id,
       text: row.text,
       reply_to_id: row.reply_to_id,

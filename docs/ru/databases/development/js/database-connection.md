@@ -292,9 +292,15 @@ DB_PORT=5432
 DB_USER=postgres
 DB_PASSWORD=postgres
 DB_NAME=postgres
+ACCESS_TOKEN_EXPIRES=1h
+REFRESH_TOKEN_EXPIRES=24h
+ACCESS_TOKEN_SECRET=super_secret_access_token_key
+REFRESH_TOKEN_SECRET=super_secret_refresh_token_key
 ```
 
 Значения переменных установите сами. Вам нужен сервер PostgreSQL, база данных в нем и учетная запись с правами в этой БД.
+
+Значения переменных `ACCESS_TOKEN_EXPIRES`, `REFRESH_TOKEN_EXPIRES`, `ACCESS_TOKEN_SECRET` и `REFRESH_TOKEN_SECRET` не изменяйте, они понадобятся в дальнейшем.
 
 ## Настройка подключения к PostgreSQL
 

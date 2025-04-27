@@ -1880,7 +1880,7 @@ import jwt from "jsonwebtoken";
 import { UserRepository } from "../repositories/userRepository.js";
 
 export const AuthService = {
-  async login(dto, config) {
+  async login(dto) {
     const user = await UserRepository.getUserByUserName(dto.user_name);
     if (!user) {
       throw new Error("User not found");
@@ -1889,10 +1889,10 @@ export const AuthService = {
     if (!valid) {
       throw new Error("Wrong password");
     }
-    return this.generateTokenPair(user, config);
+    return this.generateTokenPair(user);
   },
 
-  async register(dto, config) {
+  async register(dto) {
     const hashedPassword = await bcrypt.hash(dto.password, 10);
     const newUserDTO = {
       user_name: dto.user_name,
@@ -1901,17 +1901,21 @@ export const AuthService = {
       last_name: dto.last_name,
     };
     const user = await UserRepository.createUser(newUserDTO);
-    return this.generateTokenPair(user, config);
+    return this.generateTokenPair(user);
   },
 
-  generateTokenPair(user, config) {
+  generateTokenPair(user) {
     const id = user.id.toString();
-    const accessToken = jwt.sign({ sub: id }, config.ACCESS_TOKEN_SECRET, {
-      expiresIn: config.ACCESS_TOKEN_EXPIRES,
+    const accessToken = jwt.sign({ sub: id }, process.env.ACCESS_TOKEN_SECRET, {
+      expiresIn: process.env.ACCESS_TOKEN_EXPIRES,
     });
-    const refreshToken = jwt.sign({ sub: id }, config.REFRESH_TOKEN_SECRET, {
-      expiresIn: config.REFRESH_TOKEN_EXPIRES,
-    });
+    const refreshToken = jwt.sign(
+      { sub: id },
+      process.env.REFRESH_TOKEN_SECRET,
+      {
+        expiresIn: process.env.REFRESH_TOKEN_EXPIRES,
+      }
+    );
     return {
       access_token: accessToken,
       refresh_token: refreshToken,
@@ -1947,6 +1951,36 @@ export const AuthService = {
   - refresh token — to refresh the access token without re-login.
 
 - Uses secrets and token lifetime from the configuration.
+
+- Генерирует два токена:
+
+  - access token — для быстрой аутентификации;
+
+  - refresh token — для обновления access token без повторного входа.
+
+- Использует секреты и время жизни токенов из конфигурации.
+
+The authorization service (`AuthService`) uses environment variables to create JWT tokens. They allow you to flexibly configure security settings without changing the application code.
+
+| Variable                | Current value                    | Example of another value    | Description                                                                                               |
+| :---------------------- | :------------------------------- | :-------------------------- | :-------------------------------------------------------------------------------------------------------- |
+| `ACCESS_TOKEN_EXPIRES`  | `1h`                             | `15m`, `2h`, `7d`           | Access token expiration date (lifetime). Specified in time format: minutes (`m`), hours (`h`), days (`d`) |
+| `REFRESH_TOKEN_EXPIRES` | `24h`                            | `7d`, `30d`                 | Refresh token expiration date. Usually longer than access token                                           |
+| `ACCESS_TOKEN_SECRET`   | `super_secret_access_token_key`  | `any_random_secure_key`     | Secret string for signing access tokens                                                                   |
+| `REFRESH_TOKEN_SECRET`  | `super_secret_refresh_token_key` | `another_random_secure_key` | Secret string for signing refresh tokens                                                                  |
+
+By default, the jsonwebtoken library uses the HS256 (HMAC + SHA-256) algorithm.
+This is a symmetric algorithm: the same secret key is used to sign and verify the token.
+
+Secret key requirements (`ACCESS_TOKEN_SECRET`, `REFRESH_TOKEN_SECRET`):
+
+- The secret must be long and random enough to ensure security.
+
+- The recommended length is at least 32 characters.
+
+- You cannot use simple words like password or 12345.
+
+- A good practice is to generate the secret using special generators (for example, openssl rand -hex 32).
 
 ## Testing the authorization service
 
@@ -2894,18 +2928,19 @@ Additional check via `.refine()`:
 This validator will be run via middleware. In the `src/middleware` folder, create a `validate.js` file and put the following code in it:
 
 ```js
-export function validate(schema) {
-  return (req, res, next) => {
-    try {
-      schema.parse(req.body);
-      next();
-    } catch (err) {
-      res
-        .status(422)
-        .json({ message: "Validation failed", errors: err.errors });
-    }
-  };
-}
+export const validate = (schema) => (req, res, next) => {
+  try {
+    schema.parse(req.body);
+    next();
+  } catch (err) {
+    return res.status(422).json({
+      errors: err.errors.map((e) => ({
+        path: e.path.join("."),
+        message: e.message,
+      })),
+    });
+  }
+};
 ```
 
 We've added a second middleware. Let's see how the incoming HTTP request will be processed now:
@@ -2938,3 +2973,126 @@ flowchart TD
   B -- Validation failed --> C[Response 422 Unprocessable Entity]
   B -- Validation successful --> D[Passing request to controller]
 ```
+
+How do we connect all this? How will the express server understand that the client wants to log in and needs to validate the input data? In the previous lesson, in the `app.js` file, we specified our first endpoint for checking the connection to the database:
+
+```js
+...
+app.get("/api/health-check", async (req, res) => {
+  try {
+    await pool.query("SELECT 1");
+    res.status(200).send("OK");
+  } catch (err) {
+    res.status(500).send("DB connection failed");
+  }
+});
+...
+```
+
+You can follow the same path and write the rest of the routes in `app.js`. However, if the application grows, it will be a mess. Therefore, it is considered good practice to move the definition of routes to a separate file, which is what we will do.
+
+In the `src` directory, create a `routes` folder, and in it a file `authRoutes.js`, and put the following code there:
+
+```js
+import express from "express";
+import { AuthController } from "../controllers/authController.js";
+import { validate } from "../middleware/validate.js";
+import {
+  loginValidator,
+  registerValidator,
+} from "../validators/authValidators.js";
+
+const router = express.Router();
+
+router.post("/login", validate(loginValidator), AuthController.login);
+router.post("/register", validate(registerValidator), AuthController.register);
+
+export default router;
+```
+
+Next, you need to update `app.js` by adding two lines (highlighted in green):
+
+```js
+import dotenv from "dotenv";
+import express from "express";
+import { pool } from "./config/db.js";
+import authRoutes from "./routes/authRoutes.js"; // [!code ++]
+
+dotenv.config();
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+app.use(express.json());
+
+app.use("/api/auth", authRoutes); // [!code ++]
+
+app.get("/api/health-check", async (req, res) => {
+  try {
+    await pool.query("SELECT 1");
+    res.status(200).send("OK");
+  } catch (err) {
+    res.status(500).send("DB connection failed");
+  }
+});
+
+app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
+});
+```
+
+After that, you need to start the server. If everything is done correctly, it will start without errors:
+
+```bash
+npm run dev
+
+> gophertalk-backend-express@0.1.0 dev
+> nodemon src/app.js
+
+[nodemon] 3.1.9
+[nodemon] to restart at any time, enter `rs`
+[nodemon] watching path(s): *.*
+[nodemon] watching extensions: js,mjs,cjs,json
+[nodemon] starting `node src/app.js`
+Server is running on port 3000
+```
+
+После этого нужно запустить сервер. Если все сделано правильно, он запустится без ошибок:
+
+```bash
+npm run dev
+
+> gophertalk-backend-express@0.1.0 dev
+> nodemon src/app.js
+
+[nodemon] 3.1.9
+[nodemon] to restart at any time, enter `rs`
+[nodemon] watching path(s): *.*
+[nodemon] watching extensions: js,mjs,cjs,json
+[nodemon] starting `node src/app.js`
+Server is running on port 3000
+```
+
+To make sure everything works, let's try registering a user and then logging in.
+
+![Postman Collection](./../../../../assets/databases/postman-collection.png)
+
+In Postman, open the `register` request in the `auth` directory. We can test validation first. Let's remove the `first_name` field and add numbers to the `last_name` field.
+
+![Invalid registration request](./../../../../assets/databases/postman-incorrect-register-request.png)
+
+If we send a correct request, we will receive a pair of `access_token` and `refresh_token` in response.
+
+![Valid registration request](./../../../../assets/databases/postman-correct-register-request.png)
+
+Open the `Scripts` tab in the request panel in Postman.
+
+![Scripts executed after a request](./../../../../assets/databases/postman-post-response-scripts.png)
+
+This script reads the response from the server and sets variables from the Postman environment. That is, Postman "remembers" the tokens and can use them in other requests. You can see this if you open any request that requires authorization and go to the `Authorizaton` tab.
+
+![Postman Authorization Tab](./../../../../assets/databases/postman-authorization-tab.png)
+
+Here it is specified that Postman will substitute a line with our `Bearer <access_token>` in the `Authorization` header. Note that the `src/middleware/auth` file checks for the `Authorization` header with the value `Bearer <access_token>`.
+
+Try to log in to the system yourself - via Postman, execute the `/login` request.

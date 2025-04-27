@@ -3,7 +3,7 @@ import jwt from "jsonwebtoken";
 import { UserRepository } from "../repositories/userRepository.js";
 
 export const AuthService = {
-  async login(dto, config) {
+  async login(dto) {
     const user = await UserRepository.getUserByUserName(dto.user_name);
     if (!user) {
       throw new Error("User not found");
@@ -12,10 +12,10 @@ export const AuthService = {
     if (!valid) {
       throw new Error("Wrong password");
     }
-    return this.generateTokenPair(user, config);
+    return this.generateTokenPair(user);
   },
 
-  async register(dto, config) {
+  async register(dto) {
     const hashedPassword = await bcrypt.hash(dto.password, 10);
     const newUserDTO = {
       user_name: dto.user_name,
@@ -24,15 +24,21 @@ export const AuthService = {
       last_name: dto.last_name,
     };
     const user = await UserRepository.createUser(newUserDTO);
-    return this.generateTokenPair(user, config);
+    return this.generateTokenPair(user);
   },
 
-  generateTokenPair(user, config) {
+  generateTokenPair(user) {
     const id = user.id.toString();
-    const accessToken = jwt.sign({ sub: id }, config.ACCESS_TOKEN_SECRET, { expiresIn: config.ACCESS_TOKEN_EXPIRES });
-    const refreshToken = jwt.sign({ sub: id }, config.REFRESH_TOKEN_SECRET, {
-      expiresIn: config.REFRESH_TOKEN_EXPIRES,
+    const accessToken = jwt.sign({ sub: id }, process.env.ACCESS_TOKEN_SECRET, {
+      expiresIn: process.env.ACCESS_TOKEN_EXPIRES,
     });
+    const refreshToken = jwt.sign(
+      { sub: id },
+      process.env.REFRESH_TOKEN_SECRET,
+      {
+        expiresIn: process.env.REFRESH_TOKEN_EXPIRES,
+      }
+    );
     return {
       access_token: accessToken,
       refresh_token: refreshToken,

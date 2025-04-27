@@ -1874,7 +1874,7 @@ import jwt from "jsonwebtoken";
 import { UserRepository } from "../repositories/userRepository.js";
 
 export const AuthService = {
-  async login(dto, config) {
+  async login(dto) {
     const user = await UserRepository.getUserByUserName(dto.user_name);
     if (!user) {
       throw new Error("User not found");
@@ -1883,10 +1883,10 @@ export const AuthService = {
     if (!valid) {
       throw new Error("Wrong password");
     }
-    return this.generateTokenPair(user, config);
+    return this.generateTokenPair(user);
   },
 
-  async register(dto, config) {
+  async register(dto) {
     const hashedPassword = await bcrypt.hash(dto.password, 10);
     const newUserDTO = {
       user_name: dto.user_name,
@@ -1895,17 +1895,21 @@ export const AuthService = {
       last_name: dto.last_name,
     };
     const user = await UserRepository.createUser(newUserDTO);
-    return this.generateTokenPair(user, config);
+    return this.generateTokenPair(user);
   },
 
-  generateTokenPair(user, config) {
+  generateTokenPair(user) {
     const id = user.id.toString();
-    const accessToken = jwt.sign({ sub: id }, config.ACCESS_TOKEN_SECRET, {
-      expiresIn: config.ACCESS_TOKEN_EXPIRES,
+    const accessToken = jwt.sign({ sub: id }, process.env.ACCESS_TOKEN_SECRET, {
+      expiresIn: process.env.ACCESS_TOKEN_EXPIRES,
     });
-    const refreshToken = jwt.sign({ sub: id }, config.REFRESH_TOKEN_SECRET, {
-      expiresIn: config.REFRESH_TOKEN_EXPIRES,
-    });
+    const refreshToken = jwt.sign(
+      { sub: id },
+      process.env.REFRESH_TOKEN_SECRET,
+      {
+        expiresIn: process.env.REFRESH_TOKEN_EXPIRES,
+      }
+    );
     return {
       access_token: accessToken,
       refresh_token: refreshToken,
@@ -1941,6 +1945,28 @@ export const AuthService = {
   - refresh token — для обновления access token без повторного входа.
 
 - Использует секреты и время жизни токенов из конфигурации.
+
+В сервисе авторизации (`AuthService`) для создания JWT-токенов используются переменные окружения. Они позволяют гибко настраивать параметры безопасности без изменения кода приложения.
+
+| Переменная              | Текущее значение                 | Пример другого значения     | Описание                                                                                                      |
+| :---------------------- | :------------------------------- | :-------------------------- | :------------------------------------------------------------------------------------------------------------ |
+| `ACCESS_TOKEN_EXPIRES`  | `1h`                             | `15m`, `2h`, `7d`           | Срок действия access-токена (время жизни). Указывается в формате времени: минуты (`m`), часы (`h`), дни (`d`) |
+| `REFRESH_TOKEN_EXPIRES` | `24h`                            | `7d`, `30d`                 | Срок действия refresh-токена. Обычно длиннее, чем у access-токена                                             |
+| `ACCESS_TOKEN_SECRET`   | `super_secret_access_token_key`  | `any_random_secure_key`     | Секретная строка для подписания access-токенов                                                                |
+| `REFRESH_TOKEN_SECRET`  | `super_secret_refresh_token_key` | `another_random_secure_key` | Секретная строка для подписания refresh-токенов                                                               |
+
+По умолчанию библиотека jsonwebtoken использует алгоритм HS256 (HMAC + SHA-256).
+Это симметричный алгоритм: для подписи и проверки токена используется один и тот же секретный ключ.
+
+Требования к секретному ключу (`ACCESS_TOKEN_SECRET`, `REFRESH_TOKEN_SECRET`):
+
+- Секрет должен быть достаточно длинным и случайным, чтобы обеспечить безопасность.
+
+- Рекомендуемая длина — не менее 32 символов.
+
+- Нельзя использовать простые слова вроде password или 12345.
+
+- Хорошая практика: генерировать секрет через специальные генераторы (например, openssl rand -hex 32).
 
 ## Тестирование сервиса авторизации
 
@@ -2874,18 +2900,19 @@ export const registerValidator = z
 Этот валидатор будет запускаться через middleware. В папке `src/middleware` создайте файл `validate.js` и поместите в него код:
 
 ```js
-export function validate(schema) {
-  return (req, res, next) => {
-    try {
-      schema.parse(req.body);
-      next();
-    } catch (err) {
-      res
-        .status(422)
-        .json({ message: "Validation failed", errors: err.errors });
-    }
-  };
-}
+export const validate = (schema) => (req, res, next) => {
+  try {
+    schema.parse(req.body);
+    next();
+  } catch (err) {
+    return res.status(422).json({
+      errors: err.errors.map((e) => ({
+        path: e.path.join("."),
+        message: e.message,
+      })),
+    });
+  }
+};
 ```
 
 Мы добавили второй middleware. Посмотрим, как теперь будет обрабатываться входящий HTTP-запрос:
@@ -2918,3 +2945,111 @@ flowchart TD
   B -- Ошибка валидации --> C[Ответ 422 Unprocessable Entity]
   B -- Успешная валидация --> D[Передача запроса в контроллер]
 ```
+
+Как же все это соединить? Как сервер express поймет, что клиент хочет авторизоваться и нужно провалидировать входные данные? В прошлом уроке в файле `app.js` мы указали наш первый эндпоинт для проверки соединения с БД:
+
+```js
+...
+app.get("/api/health-check", async (req, res) => {
+  try {
+    await pool.query("SELECT 1");
+    res.status(200).send("OK");
+  } catch (err) {
+    res.status(500).send("DB connection failed");
+  }
+});
+...
+```
+
+Можно пойти тем же путем и в `app.js` прописать остальные маршруты. Однако, если приложение разрастется, будет бардак. ПОэтому хорошей практикой считается выносить определение маршрутов в отдельный файл, что мы и сделаем.
+
+В каталоге `src` создайте папку `routes`, а в ней файл `authRoutes.js`, и поместите туда следующий код:
+
+```js
+import express from "express";
+import { AuthController } from "../controllers/authController.js";
+import { validate } from "../middleware/validate.js";
+import {
+  loginValidator,
+  registerValidator,
+} from "../validators/authValidators.js";
+
+const router = express.Router();
+
+router.post("/login", validate(loginValidator), AuthController.login);
+router.post("/register", validate(registerValidator), AuthController.register);
+
+export default router;
+```
+
+Далее необходимо обновить `app.js`, добавив две строки (выделены зеленым цветом):
+
+```js
+import dotenv from "dotenv";
+import express from "express";
+import { pool } from "./config/db.js";
+import authRoutes from "./routes/authRoutes.js"; // [!code ++]
+
+dotenv.config();
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+app.use(express.json());
+
+app.use("/api/auth", authRoutes); // [!code ++]
+
+app.get("/api/health-check", async (req, res) => {
+  try {
+    await pool.query("SELECT 1");
+    res.status(200).send("OK");
+  } catch (err) {
+    res.status(500).send("DB connection failed");
+  }
+});
+
+app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
+});
+```
+
+После этого нужно запустить сервер. Если все сделано правильно, он запустится без ошибок:
+
+```bash
+npm run dev
+
+> gophertalk-backend-express@0.1.0 dev
+> nodemon src/app.js
+
+[nodemon] 3.1.9
+[nodemon] to restart at any time, enter `rs`
+[nodemon] watching path(s): *.*
+[nodemon] watching extensions: js,mjs,cjs,json
+[nodemon] starting `node src/app.js`
+Server is running on port 3000
+```
+
+Чтобы убедится, что все работает, давайте попробуем зарегистрировать пользователя и затем авторизоваться.
+
+![Коллекция Postman](./../../../../assets/databases/postman-collection.png)
+
+В Postman откройте запрос `register` в каталоге `auth`. Для начала можно проверить валидацию. Давайте удалим поле `first_name` и добавим в поле `last_name` цифры.
+
+![Невалидный запрос на регистрацию](./../../../../assets/databases/postman-incorrect-register-request.png)
+
+Если же мы отправим корректный запрос, то в ответ получим пару `access_token` и `refresh_token`.
+
+![Валидный запрос на регистрацию](./../../../../assets/databases/postman-correct-register-request.png)
+
+Откройте вкладку `Scripts` на панели запроса в Postman.
+
+![Скрипты, выполняемые после запроса](./../../../../assets/databases/postman-post-response-scripts.png)
+
+Этот скрипт читает ответ от сервера и устанавливает переменные из окружения Postman. То есть Postman "запоминает" токены, и может их использовать в других запросах.
+Это можно увидеть, еслди открыть любой запрос, требующий авторизации, и перейти на вкладку `Authorizaton`.
+
+![Вкладка авторизации Postman](./../../../../assets/databases/postman-authorization-tab.png)
+
+Тут указано, что Postman будет подставлять в заголовок `Authorization` строку с нашим `Bearer <access_token>`. Обратите внимание, что в файле `src/middleware/auth` как раз проверяется наличие заголовка `Authorization` со значением `Bearer <access_token>`.
+
+Попробуйте самостоятельно авторизоваться в системе - через Postman выполнить запрос `/login`.
