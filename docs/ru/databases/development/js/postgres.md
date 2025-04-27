@@ -135,12 +135,7 @@ export const UserRepository = {
       VALUES ($1, $2, $3, $4)
       RETURNING id, user_name, password_hash, status;
     `;
-    const values = [
-      dto.user_name,
-      dto.first_name,
-      dto.last_name,
-      dto.password_hash,
-    ];
+    const values = [dto.user_name, dto.first_name, dto.last_name, dto.password_hash];
     const res = await pool.query(query, values);
     return res.rows[0];
   },
@@ -241,12 +236,7 @@ export const UserRepository = {
 - Подготовка значений для запроса:
 
   ```js
-  const values = [
-    dto.user_name,
-    dto.first_name,
-    dto.last_name,
-    dto.password_hash,
-  ];
+  const values = [dto.user_name, dto.first_name, dto.last_name, dto.password_hash];
   ```
 
   Значения берутся из входного объекта `dto` и передаются в том порядке, в котором указаны в SQL-запросе.
@@ -291,12 +281,7 @@ export const UserRepository = {
       VALUES ($1, $2, $3, $4)
       RETURNING id, user_name, password_hash, status;
     `;
-    const values = [
-      dto.user_name,
-      dto.first_name,
-      dto.last_name,
-      dto.password_hash,
-    ];
+    const values = [dto.user_name, dto.first_name, dto.last_name, dto.password_hash];
     const res = await pool.query(query, values);
     return res.rows[0];
   },
@@ -328,12 +313,7 @@ export const UserRepository = {
       VALUES ($1, $2, $3, $4)
       RETURNING id, user_name, password_hash, status;
     `;
-    const values = [
-      dto.user_name,
-      dto.first_name,
-      dto.last_name,
-      dto.password_hash,
-    ];
+    const values = [dto.user_name, dto.first_name, dto.last_name, dto.password_hash];
     const res = await pool.query(query, values);
     return res.rows[0];
   },
@@ -538,18 +518,9 @@ describe("UserRepository", () => {
       expect(result).toEqual(expected);
       const [sql, params] = mock.mock.calls[0];
       const normalizedSQL = normalizeSQL(sql);
-      expect(normalizedSQL).toContain(
-        "insert into users (user_name, first_name, last_name, password_hash)"
-      );
-      expect(normalizedSQL).toContain(
-        "returning id, user_name, password_hash, status"
-      );
-      expect(params).toEqual([
-        dto.user_name,
-        dto.first_name,
-        dto.last_name,
-        dto.password_hash,
-      ]);
+      expect(normalizedSQL).toContain("insert into users (user_name, first_name, last_name, password_hash)");
+      expect(normalizedSQL).toContain("returning id, user_name, password_hash, status");
+      expect(params).toEqual([dto.user_name, dto.first_name, dto.last_name, dto.password_hash]);
     });
 
     it("error on user insert", async () => {
@@ -565,21 +536,12 @@ describe("UserRepository", () => {
       const fakeError = new Error("insert failed");
       mock.mockRejectedValueOnce(fakeError);
 
-      await expect(UserRepository.createUser(dto)).rejects.toThrow(
-        "insert failed"
-      );
+      await expect(UserRepository.createUser(dto)).rejects.toThrow("insert failed");
 
       const [sql, params] = mock.mock.calls[0];
       const normalizedSQL = normalizeSQL(sql);
-      expect(normalizedSQL).toContain(
-        "insert into users (user_name, first_name, last_name, password_hash)"
-      );
-      expect(params).toEqual([
-        dto.user_name,
-        dto.first_name,
-        dto.last_name,
-        dto.password_hash,
-      ]);
+      expect(normalizedSQL).toContain("insert into users (user_name, first_name, last_name, password_hash)");
+      expect(params).toEqual([dto.user_name, dto.first_name, dto.last_name, dto.password_hash]);
     });
   });
 
@@ -631,9 +593,7 @@ describe("UserRepository", () => {
       const mock = jest.spyOn(pool, "query");
       mock.mockRejectedValueOnce(new Error("SQL error"));
 
-      await expect(UserRepository.getAllUsers(100, 0)).rejects.toThrow(
-        "SQL error"
-      );
+      await expect(UserRepository.getAllUsers(100, 0)).rejects.toThrow("SQL error");
 
       const [sql, params] = mock.mock.calls[0];
       const normalizedSQL = normalizeSQL(sql);
@@ -665,9 +625,7 @@ describe("UserRepository", () => {
 
       const [sql, params] = mock.mock.calls[0];
       const normalizedSQL = normalizeSQL(sql);
-      expect(normalizedSQL).toContain(
-        "from users where id = $1 and deleted_at is null"
-      );
+      expect(normalizedSQL).toContain("from users where id = $1 and deleted_at is null");
       expect(params).toEqual([1]);
     });
 
@@ -675,15 +633,11 @@ describe("UserRepository", () => {
       const mock = jest.spyOn(pool, "query");
       mock.mockResolvedValueOnce({ rows: [], rowCount: 0 });
 
-      await expect(UserRepository.getUserById(2)).rejects.toThrow(
-        "User not found"
-      );
+      await expect(UserRepository.getUserById(2)).rejects.toThrow("User not found");
 
       const [sql, params] = mock.mock.calls[0];
       const normalizedSQL = normalizeSQL(sql);
-      expect(normalizedSQL).toContain(
-        "from users where id = $1 and deleted_at is null"
-      );
+      expect(normalizedSQL).toContain("from users where id = $1 and deleted_at is null");
       expect(params).toEqual([2]);
     });
   });
@@ -707,9 +661,7 @@ describe("UserRepository", () => {
 
       const [sql, params] = mock.mock.calls[0];
       const normalizedSQL = normalizeSQL(sql);
-      expect(normalizedSQL).toContain(
-        "from users where user_name = $1 and deleted_at is null"
-      );
+      expect(normalizedSQL).toContain("from users where user_name = $1 and deleted_at is null");
       expect(params).toEqual(["john"]);
     });
 
@@ -717,15 +669,11 @@ describe("UserRepository", () => {
       const mock = jest.spyOn(pool, "query");
       mock.mockResolvedValueOnce({ rows: [], rowCount: 0 });
 
-      await expect(
-        UserRepository.getUserByUserName("notfound")
-      ).rejects.toThrow("User not found");
+      await expect(UserRepository.getUserByUserName("notfound")).rejects.toThrow("User not found");
 
       const [sql, params] = mock.mock.calls[0];
       const normalizedSQL = normalizeSQL(sql);
-      expect(normalizedSQL).toContain(
-        "from users where user_name = $1 and deleted_at is null"
-      );
+      expect(normalizedSQL).toContain("from users where user_name = $1 and deleted_at is null");
       expect(params).toEqual(["notfound"]);
     });
   });
@@ -764,9 +712,7 @@ describe("UserRepository", () => {
       const normalizedSQL = normalizeSQL(sql);
       expect(normalizedSQL).toContain("update users set");
       expect(normalizedSQL).toContain("where id = $");
-      expect(normalizedSQL).toContain(
-        "returning id, user_name, first_name, last_name, status"
-      );
+      expect(normalizedSQL).toContain("returning id, user_name, first_name, last_name, status");
       expect(params).toContain(dto.user_name);
       expect(params).toContain(dto.password_hash);
       expect(params).toContain(dto.first_name);
@@ -775,9 +721,7 @@ describe("UserRepository", () => {
     });
 
     it("returns error if no fields to update", async () => {
-      await expect(UserRepository.updateUser(1, {})).rejects.toThrow(
-        "No fields to update"
-      );
+      await expect(UserRepository.updateUser(1, {})).rejects.toThrow("No fields to update");
     });
 
     it("returns error if user not found", async () => {
@@ -789,9 +733,7 @@ describe("UserRepository", () => {
 
       mock.mockResolvedValueOnce({ rows: [], rowCount: 0 });
 
-      await expect(UserRepository.updateUser(999, dto)).rejects.toThrow(
-        "User not found"
-      );
+      await expect(UserRepository.updateUser(999, dto)).rejects.toThrow("User not found");
 
       const [sql, params] = mock.mock.calls[0];
       const normalizedSQL = normalizeSQL(sql);
@@ -821,9 +763,7 @@ describe("UserRepository", () => {
 
       mock.mockResolvedValueOnce({ rowCount: 0 });
 
-      await expect(UserRepository.deleteUser(2)).rejects.toThrow(
-        "User not found"
-      );
+      await expect(UserRepository.deleteUser(2)).rejects.toThrow("User not found");
 
       const [sql, params] = mock.mock.calls[0];
       const normalizedSQL = normalizeSQL(sql);
@@ -1395,9 +1335,7 @@ describe("PostRepository", () => {
       const fakeError = new Error("insert failed");
       mock.mockRejectedValueOnce(fakeError);
 
-      await expect(PostRepository.createPost(dto)).rejects.toThrow(
-        "insert failed"
-      );
+      await expect(PostRepository.createPost(dto)).rejects.toThrow("insert failed");
 
       const [sql, params] = mock.mock.calls[0];
       const normalizedSQL = normalizeSQL(sql);
@@ -1482,9 +1420,7 @@ describe("PostRepository", () => {
 
       mock.mockRejectedValueOnce(new Error("query failed"));
 
-      await expect(PostRepository.getAllPosts(dto)).rejects.toThrow(
-        "query failed"
-      );
+      await expect(PostRepository.getAllPosts(dto)).rejects.toThrow("query failed");
 
       const [sql, params] = mock.mock.calls[0];
       const normalized = normalizeSQL(sql);
@@ -1547,9 +1483,7 @@ describe("PostRepository", () => {
       const mock = jest.spyOn(pool, "query");
       mock.mockResolvedValueOnce({ rows: [], rowCount: 0 });
 
-      await expect(PostRepository.getPostById(999, 1)).rejects.toThrow(
-        "Post not found"
-      );
+      await expect(PostRepository.getPostById(999, 1)).rejects.toThrow("Post not found");
 
       const [sql, params] = mock.mock.calls[0];
       expect(normalizeSQL(sql)).toContain("select");
@@ -1565,9 +1499,7 @@ describe("PostRepository", () => {
       const mock = jest.spyOn(pool, "query");
       mock.mockResolvedValueOnce({ rowCount: 1 });
 
-      await expect(
-        PostRepository.deletePost(postId, ownerId)
-      ).resolves.toBeUndefined();
+      await expect(PostRepository.deletePost(postId, ownerId)).resolves.toBeUndefined();
 
       const [sql, params] = mock.mock.calls[0];
       const normalizedSQL = normalizeSQL(sql);
@@ -1583,9 +1515,7 @@ describe("PostRepository", () => {
       const mock = jest.spyOn(pool, "query");
       mock.mockResolvedValueOnce({ rowCount: 0 });
 
-      await expect(PostRepository.deletePost(postId, ownerId)).rejects.toThrow(
-        "Post not found or already deleted"
-      );
+      await expect(PostRepository.deletePost(postId, ownerId)).rejects.toThrow("Post not found or already deleted");
 
       const [sql, params] = mock.mock.calls[0];
       const normalizedSQL = normalizeSQL(sql);
@@ -1602,9 +1532,7 @@ describe("PostRepository", () => {
       const mock = jest.spyOn(pool, "query");
       mock.mockResolvedValueOnce({ rowCount: 1 });
 
-      await expect(
-        PostRepository.viewPost(postId, userId)
-      ).resolves.toBeUndefined();
+      await expect(PostRepository.viewPost(postId, userId)).resolves.toBeUndefined();
 
       const [sql, params] = mock.mock.calls[0];
       const normalizedSQL = normalizeSQL(sql);
@@ -1619,9 +1547,7 @@ describe("PostRepository", () => {
       const mock = jest.spyOn(pool, "query");
       mock.mockRejectedValueOnce(new Error("insert failed"));
 
-      await expect(PostRepository.viewPost(postId, userId)).rejects.toThrow(
-        "insert failed"
-      );
+      await expect(PostRepository.viewPost(postId, userId)).rejects.toThrow("insert failed");
 
       const [sql, params] = mock.mock.calls[0];
       const normalizedSQL = normalizeSQL(sql);
@@ -1634,13 +1560,9 @@ describe("PostRepository", () => {
       const userId = 1;
 
       const mock = jest.spyOn(pool, "query");
-      mock.mockRejectedValueOnce(
-        new Error('duplicate key value violates unique constraint "pk__views"')
-      );
+      mock.mockRejectedValueOnce(new Error('duplicate key value violates unique constraint "pk__views"'));
 
-      await expect(PostRepository.viewPost(postId, userId)).rejects.toThrow(
-        "Post already viewed"
-      );
+      await expect(PostRepository.viewPost(postId, userId)).rejects.toThrow("Post already viewed");
     });
   });
 
@@ -1652,9 +1574,7 @@ describe("PostRepository", () => {
       const mock = jest.spyOn(pool, "query");
       mock.mockResolvedValueOnce({ rowCount: 1 });
 
-      await expect(
-        PostRepository.likePost(postId, userId)
-      ).resolves.toBeUndefined();
+      await expect(PostRepository.likePost(postId, userId)).resolves.toBeUndefined();
 
       const [sql, params] = mock.mock.calls[0];
       const normalizedSQL = normalizeSQL(sql);
@@ -1669,9 +1589,7 @@ describe("PostRepository", () => {
       const mock = jest.spyOn(pool, "query");
       mock.mockRejectedValueOnce(new Error("insert failed"));
 
-      await expect(PostRepository.likePost(postId, userId)).rejects.toThrow(
-        "insert failed"
-      );
+      await expect(PostRepository.likePost(postId, userId)).rejects.toThrow("insert failed");
 
       const [sql, params] = mock.mock.calls[0];
       const normalizedSQL = normalizeSQL(sql);
@@ -1684,13 +1602,9 @@ describe("PostRepository", () => {
       const userId = 1;
 
       const mock = jest.spyOn(pool, "query");
-      mock.mockRejectedValueOnce(
-        new Error('duplicate key value violates unique constraint "pk__likes"')
-      );
+      mock.mockRejectedValueOnce(new Error('duplicate key value violates unique constraint "pk__likes"'));
 
-      await expect(PostRepository.likePost(postId, userId)).rejects.toThrow(
-        "Post already liked"
-      );
+      await expect(PostRepository.likePost(postId, userId)).rejects.toThrow("Post already liked");
     });
   });
 
@@ -1702,15 +1616,11 @@ describe("PostRepository", () => {
       const mock = jest.spyOn(pool, "query");
       mock.mockResolvedValueOnce({ rowCount: 1 });
 
-      await expect(
-        PostRepository.dislikePost(postId, userId)
-      ).resolves.toBeUndefined();
+      await expect(PostRepository.dislikePost(postId, userId)).resolves.toBeUndefined();
 
       const [sql, params] = mock.mock.calls[0];
       const normalizedSQL = normalizeSQL(sql);
-      expect(normalizedSQL).toContain(
-        "delete from likes where post_id = $1 and user_id = $2"
-      );
+      expect(normalizedSQL).toContain("delete from likes where post_id = $1 and user_id = $2");
       expect(params).toEqual([postId, userId]);
     });
 
@@ -1721,15 +1631,11 @@ describe("PostRepository", () => {
       const mock = jest.spyOn(pool, "query");
       mock.mockRejectedValueOnce(new Error("delete failed"));
 
-      await expect(PostRepository.dislikePost(postId, userId)).rejects.toThrow(
-        "delete failed"
-      );
+      await expect(PostRepository.dislikePost(postId, userId)).rejects.toThrow("delete failed");
 
       const [sql, params] = mock.mock.calls[0];
       const normalizedSQL = normalizeSQL(sql);
-      expect(normalizedSQL).toContain(
-        "delete from likes where post_id = $1 and user_id = $2"
-      );
+      expect(normalizedSQL).toContain("delete from likes where post_id = $1 and user_id = $2");
       expect(params).toEqual([postId, userId]);
     });
 
@@ -1740,15 +1646,11 @@ describe("PostRepository", () => {
       const mock = jest.spyOn(pool, "query");
       mock.mockResolvedValueOnce({ rowCount: 0 });
 
-      await expect(PostRepository.dislikePost(postId, userId)).rejects.toThrow(
-        "Post not found"
-      );
+      await expect(PostRepository.dislikePost(postId, userId)).rejects.toThrow("Post not found");
 
       const [sql, params] = mock.mock.calls[0];
       const normalizedSQL = normalizeSQL(sql);
-      expect(normalizedSQL).toContain(
-        "delete from likes where post_id = $1 and user_id = $2"
-      );
+      expect(normalizedSQL).toContain("delete from likes where post_id = $1 and user_id = $2");
       expect(params).toEqual([postId, userId]);
     });
   });
@@ -1903,13 +1805,9 @@ export const AuthService = {
     const accessToken = jwt.sign({ sub: id }, process.env.ACCESS_TOKEN_SECRET, {
       expiresIn: process.env.ACCESS_TOKEN_EXPIRES,
     });
-    const refreshToken = jwt.sign(
-      { sub: id },
-      process.env.REFRESH_TOKEN_SECRET,
-      {
-        expiresIn: process.env.REFRESH_TOKEN_EXPIRES,
-      }
-    );
+    const refreshToken = jwt.sign({ sub: id }, process.env.REFRESH_TOKEN_SECRET, {
+      expiresIn: process.env.REFRESH_TOKEN_EXPIRES,
+    });
     return {
       access_token: accessToken,
       refresh_token: refreshToken,
@@ -2013,10 +1911,7 @@ describe("AuthService", () => {
         refresh_token: "mocked_token",
       });
 
-      expect(bcrypt.compare).toHaveBeenCalledWith(
-        dto.password,
-        user.password_hash
-      );
+      expect(bcrypt.compare).toHaveBeenCalledWith(dto.password, user.password_hash);
     });
 
     it("throws error if user not found", async () => {
@@ -2027,9 +1922,7 @@ describe("AuthService", () => {
 
       jest.spyOn(UserRepository, "getUserByUserName").mockResolvedValue(null);
 
-      await expect(AuthService.login(dto, {})).rejects.toThrow(
-        "User not found"
-      );
+      await expect(AuthService.login(dto, {})).rejects.toThrow("User not found");
     });
 
     it("throws error if password is wrong", async () => {
@@ -2047,9 +1940,7 @@ describe("AuthService", () => {
       jest.spyOn(UserRepository, "getUserByUserName").mockResolvedValue(user);
       jest.spyOn(bcrypt, "compare").mockResolvedValue(false);
 
-      await expect(AuthService.login(dto, {})).rejects.toThrow(
-        "Wrong password"
-      );
+      await expect(AuthService.login(dto, {})).rejects.toThrow("Wrong password");
     });
   });
 
@@ -2134,10 +2025,7 @@ export const UserService = {
     const updateFields = { ...userDto };
     if (updateFields.password) {
       const saltRounds = 10;
-      updateFields.password_hash = await bcrypt.hash(
-        updateFields.password,
-        saltRounds
-      );
+      updateFields.password_hash = await bcrypt.hash(updateFields.password, saltRounds);
       delete updateFields.password;
     }
     return await UserRepository.updateUser(id, updateFields);
@@ -2226,9 +2114,7 @@ describe("UserService", () => {
 
       mock.mockRejectedValueOnce(new Error("SQL error"));
 
-      await expect(UserService.getAllUsers(100, 0)).rejects.toThrow(
-        "SQL error"
-      );
+      await expect(UserService.getAllUsers(100, 0)).rejects.toThrow("SQL error");
       expect(mock).toHaveBeenCalledWith(100, 0);
     });
   });
@@ -2261,9 +2147,7 @@ describe("UserService", () => {
 
       mock.mockRejectedValueOnce(new Error("User not found"));
 
-      await expect(UserService.getUserById(2)).rejects.toThrow(
-        "User not found"
-      );
+      await expect(UserService.getUserById(2)).rejects.toThrow("User not found");
       expect(mock).toHaveBeenCalledWith(2);
     });
   });
@@ -2304,9 +2188,7 @@ describe("UserService", () => {
 
       mockUpdate.mockRejectedValueOnce(new Error("Update failed"));
 
-      await expect(
-        UserService.updateUser(2, { user_name: "ghost" })
-      ).rejects.toThrow("Update failed");
+      await expect(UserService.updateUser(2, { user_name: "ghost" })).rejects.toThrow("Update failed");
     });
   });
 
@@ -2436,9 +2318,7 @@ describe("PostService", () => {
         { id: 1, text: "post1" },
         { id: 2, text: "post2" },
       ];
-      const mock = jest
-        .spyOn(PostRepository, "getAllPosts")
-        .mockResolvedValue(posts);
+      const mock = jest.spyOn(PostRepository, "getAllPosts").mockResolvedValue(posts);
 
       const result = await PostService.getAllPosts({
         user_id: 1,
@@ -2450,13 +2330,9 @@ describe("PostService", () => {
     });
 
     it("throws error on failure", async () => {
-      const mock = jest
-        .spyOn(PostRepository, "getAllPosts")
-        .mockRejectedValue(new Error("DB error"));
+      const mock = jest.spyOn(PostRepository, "getAllPosts").mockRejectedValue(new Error("DB error"));
 
-      await expect(
-        PostService.getAllPosts({ user_id: 1, limit: 100, offset: 0 })
-      ).rejects.toThrow("DB error");
+      await expect(PostService.getAllPosts({ user_id: 1, limit: 100, offset: 0 })).rejects.toThrow("DB error");
       expect(mock).toHaveBeenCalledTimes(1);
     });
   });
@@ -2464,9 +2340,7 @@ describe("PostService", () => {
   describe("createPost", () => {
     it("successfully creates a post", async () => {
       const post = { id: 1, text: "new post" };
-      const mock = jest
-        .spyOn(PostRepository, "createPost")
-        .mockResolvedValue(post);
+      const mock = jest.spyOn(PostRepository, "createPost").mockResolvedValue(post);
 
       const result = await PostService.createPost({
         text: "new post",
@@ -2477,13 +2351,9 @@ describe("PostService", () => {
     });
 
     it("throws error on insert failure", async () => {
-      const mock = jest
-        .spyOn(PostRepository, "createPost")
-        .mockRejectedValue(new Error("Insert error"));
+      const mock = jest.spyOn(PostRepository, "createPost").mockRejectedValue(new Error("Insert error"));
 
-      await expect(
-        PostService.createPost({ text: "new post", user_id: 1 })
-      ).rejects.toThrow("Insert error");
+      await expect(PostService.createPost({ text: "new post", user_id: 1 })).rejects.toThrow("Insert error");
       expect(mock).toHaveBeenCalledTimes(1);
     });
   });
@@ -2497,13 +2367,9 @@ describe("PostService", () => {
     });
 
     it("throws error on delete failure", async () => {
-      const mock = jest
-        .spyOn(PostRepository, "deletePost")
-        .mockRejectedValue(new Error("Delete error"));
+      const mock = jest.spyOn(PostRepository, "deletePost").mockRejectedValue(new Error("Delete error"));
 
-      await expect(PostService.deletePost(2, 0)).rejects.toThrow(
-        "Delete error"
-      );
+      await expect(PostService.deletePost(2, 0)).rejects.toThrow("Delete error");
       expect(mock).toHaveBeenCalledWith(2, 0);
     });
   });
@@ -2517,9 +2383,7 @@ describe("PostService", () => {
     });
 
     it("throws error on view failure", async () => {
-      const mock = jest
-        .spyOn(PostRepository, "viewPost")
-        .mockRejectedValue(new Error("View error"));
+      const mock = jest.spyOn(PostRepository, "viewPost").mockRejectedValue(new Error("View error"));
 
       await expect(PostService.viewPost(2, 0)).rejects.toThrow("View error");
       expect(mock).toHaveBeenCalledWith(2, 0);
@@ -2535,9 +2399,7 @@ describe("PostService", () => {
     });
 
     it("throws error on like failure", async () => {
-      const mock = jest
-        .spyOn(PostRepository, "likePost")
-        .mockRejectedValue(new Error("Like error"));
+      const mock = jest.spyOn(PostRepository, "likePost").mockRejectedValue(new Error("Like error"));
 
       await expect(PostService.likePost(2, 0)).rejects.toThrow("Like error");
       expect(mock).toHaveBeenCalledWith(2, 0);
@@ -2546,22 +2408,16 @@ describe("PostService", () => {
 
   describe("dislikePost", () => {
     it("successfully dislikes a post", async () => {
-      const mock = jest
-        .spyOn(PostRepository, "dislikePost")
-        .mockResolvedValue();
+      const mock = jest.spyOn(PostRepository, "dislikePost").mockResolvedValue();
 
       await expect(PostService.dislikePost(1, 0)).resolves.toBeUndefined();
       expect(mock).toHaveBeenCalledWith(1, 0);
     });
 
     it("throws error on dislike failure", async () => {
-      const mock = jest
-        .spyOn(PostRepository, "dislikePost")
-        .mockRejectedValue(new Error("Dislike error"));
+      const mock = jest.spyOn(PostRepository, "dislikePost").mockRejectedValue(new Error("Dislike error"));
 
-      await expect(PostService.dislikePost(2, 0)).rejects.toThrow(
-        "Dislike error"
-      );
+      await expect(PostService.dislikePost(2, 0)).rejects.toThrow("Dislike error");
       expect(mock).toHaveBeenCalledWith(2, 0);
     });
   });
@@ -2769,10 +2625,7 @@ const passwordSchema = z
   .string()
   .min(5)
   .max(30)
-  .regex(
-    /^(?=.*[a-zA-Z])(?=.*\d)(?=.*[@$!%*?&])/,
-    "Must contain letter, number and special character"
-  );
+  .regex(/^(?=.*[a-zA-Z])(?=.*\d)(?=.*[@$!%*?&])/, "Must contain letter, number and special character");
 
 export const loginValidator = z.object({
   user_name: usernameSchema,
@@ -2795,7 +2648,7 @@ export const registerValidator = z
       .max(30)
       .regex(/^[\p{L}]+$/u, "Only letters allowed"),
   })
-  .refine((data) => data.password === data.password_confirm, {
+  .refine(data => data.password === data.password_confirm, {
     message: "Passwords must match",
     path: ["password_confirm"],
   });
@@ -2825,10 +2678,7 @@ const passwordSchema = z
   .string()
   .min(5)
   .max(30)
-  .regex(
-    /^(?=.*[a-zA-Z])(?=.*\d)(?=.*[@$!%*?&])/,
-    "Must contain letter, number and special character"
-  );
+  .regex(/^(?=.*[a-zA-Z])(?=.*\d)(?=.*[@$!%*?&])/, "Must contain letter, number and special character");
 ```
 
 - Строка длиной от `5` до `30` символов.
@@ -2867,7 +2717,7 @@ export const registerValidator = z
       .max(30)
       .regex(/^[\p{L}]+$/u, "Only letters allowed"),
   })
-  .refine((data) => data.password === data.password_confirm, {
+  .refine(data => data.password === data.password_confirm, {
     message: "Passwords must match",
     path: ["password_confirm"],
   });
@@ -2886,13 +2736,13 @@ export const registerValidator = z
 Этот валидатор будет запускаться через middleware. В папке `src/middleware` создайте файл `validate.js` и поместите в него код:
 
 ```js
-export const validate = (schema) => (req, res, next) => {
+export const validate = schema => (req, res, next) => {
   try {
     schema.parse(req.body);
     next();
   } catch (err) {
     return res.status(422).json({
-      errors: err.errors.map((e) => ({
+      errors: err.errors.map(e => ({
         path: e.path.join("."),
         message: e.message,
       })),
@@ -2955,10 +2805,7 @@ app.get("/api/health-check", async (req, res) => {
 import express from "express";
 import { AuthController } from "../controllers/authController.js";
 import { validate } from "../middleware/validate.js";
-import {
-  loginValidator,
-  registerValidator,
-} from "../validators/authValidators.js";
+import { loginValidator, registerValidator } from "../validators/authValidators.js";
 
 const router = express.Router();
 
@@ -3080,9 +2927,7 @@ describe("AuthController", () => {
     it("should return 401 if login fails", async () => {
       const loginDTO = { user_name: "test_user", password: "wrongpassword" };
 
-      jest
-        .spyOn(AuthService, "login")
-        .mockRejectedValueOnce(new Error("Wrong password"));
+      jest.spyOn(AuthService, "login").mockRejectedValueOnce(new Error("Wrong password"));
 
       const res = await request(app).post("/api/auth/login").send(loginDTO);
 
@@ -3105,9 +2950,7 @@ describe("AuthController", () => {
 
       jest.spyOn(AuthService, "register").mockResolvedValueOnce(tokens);
 
-      const res = await request(app)
-        .post("/api/auth/register")
-        .send(registerDTO);
+      const res = await request(app).post("/api/auth/register").send(registerDTO);
 
       expect(res.status).toBe(201);
       expect(res.body).toEqual(tokens);
@@ -3123,13 +2966,9 @@ describe("AuthController", () => {
         last_name: "Doe",
       };
 
-      jest
-        .spyOn(AuthService, "register")
-        .mockRejectedValueOnce(new Error("User already exists"));
+      jest.spyOn(AuthService, "register").mockRejectedValueOnce(new Error("User already exists"));
 
-      const res = await request(app)
-        .post("/api/auth/register")
-        .send(registerDTO);
+      const res = await request(app).post("/api/auth/register").send(registerDTO);
 
       expect(res.status).toBe(401);
       expect(res.body.message).toBe("User already exists");
@@ -3244,10 +3083,7 @@ const passwordSchema = z
   .string()
   .min(5)
   .max(30)
-  .regex(
-    /^(?=.*[a-zA-Z])(?=.*\d)(?=.*[@$!%*?&])/,
-    "Must contain letter, number and special character"
-  );
+  .regex(/^(?=.*[a-zA-Z])(?=.*\d)(?=.*[@$!%*?&])/, "Must contain letter, number and special character");
 
 export const updateUserValidator = z
   .object({
@@ -3268,7 +3104,7 @@ export const updateUserValidator = z
       .optional(),
   })
   .refine(
-    (data) => {
+    data => {
       if (data.password || data.password_confirm) {
         return data.password === data.password_confirm;
       }
@@ -3293,17 +3129,17 @@ import { requestAuth, requestAuthSameId } from "../middleware/auth.js";
 const router = express.Router();
 
 // Только авторизованные пользователи
-router.get("/", requestAuth, UserController.getAllUsers);
-router.get("/:id", requestAuth, UserController.getUserById);
+router.get("/", requestAuth(process.env.ACCESS_TOKEN_SECRET), UserController.getAllUsers);
+router.get("/:id", requestAuth(process.env.ACCESS_TOKEN_SECRET), UserController.getUserById);
 
 // Обновить или удалить пользователь может только себя
 router.put(
   "/:id",
-  requestAuthSameId,
+  requestAuthSameId(process.env.ACCESS_TOKEN_SECRET),
   validate(updateUserValidator),
   UserController.updateUser
 );
-router.delete("/:id", requestAuthSameId, UserController.deleteUserById);
+router.delete("/:id", requestAuthSameId(process.env.ACCESS_TOKEN_SECRET), UserController.deleteUserById);
 
 export default router;
 ```
@@ -3384,11 +3220,7 @@ app.use(express.json());
 
 app.get("/api/users", UserController.getAllUsers);
 app.get("/api/users/:id", UserController.getUserById);
-app.put(
-  "/api/users/:id",
-  validate(updateUserValidator),
-  UserController.updateUser
-);
+app.put("/api/users/:id", validate(updateUserValidator), UserController.updateUser);
 app.delete("/api/users/:id", UserController.deleteUserById);
 
 describe("UserController", () => {
@@ -3401,9 +3233,7 @@ describe("UserController", () => {
       const users = [{ id: 1, user_name: "test_user" }];
       jest.spyOn(UserService, "getAllUsers").mockResolvedValueOnce(users);
 
-      const res = await request(app)
-        .get("/api/users?limit=10&offset=0")
-        .set("Authorization", "Bearer mockToken");
+      const res = await request(app).get("/api/users?limit=10&offset=0").set("Authorization", "Bearer mockToken");
 
       expect(res.status).toBe(200);
       expect(res.body).toEqual(users);
@@ -3411,13 +3241,9 @@ describe("UserController", () => {
     });
 
     it("should return 400 if service fails", async () => {
-      jest
-        .spyOn(UserService, "getAllUsers")
-        .mockRejectedValueOnce(new Error("Service error"));
+      jest.spyOn(UserService, "getAllUsers").mockRejectedValueOnce(new Error("Service error"));
 
-      const res = await request(app)
-        .get("/api/users?limit=10&offset=0")
-        .set("Authorization", "Bearer mockToken");
+      const res = await request(app).get("/api/users?limit=10&offset=0").set("Authorization", "Bearer mockToken");
 
       expect(res.status).toBe(400);
     });
@@ -3428,9 +3254,7 @@ describe("UserController", () => {
       const user = { id: 1, user_name: "test_user" };
       jest.spyOn(UserService, "getUserById").mockResolvedValueOnce(user);
 
-      const res = await request(app)
-        .get("/api/users/1")
-        .set("Authorization", "Bearer mockToken");
+      const res = await request(app).get("/api/users/1").set("Authorization", "Bearer mockToken");
 
       expect(res.status).toBe(200);
       expect(res.body).toEqual(user);
@@ -3438,21 +3262,15 @@ describe("UserController", () => {
     });
 
     it("should return 404 if id is invalid", async () => {
-      const res = await request(app)
-        .get("/api/users/abc")
-        .set("Authorization", "Bearer mockToken");
+      const res = await request(app).get("/api/users/abc").set("Authorization", "Bearer mockToken");
 
       expect(res.status).toBe(404);
     });
 
     it("should return 404 if user not found", async () => {
-      jest
-        .spyOn(UserService, "getUserById")
-        .mockRejectedValueOnce(new Error("Not found"));
+      jest.spyOn(UserService, "getUserById").mockRejectedValueOnce(new Error("Not found"));
 
-      const res = await request(app)
-        .get("/api/users/2")
-        .set("Authorization", "Bearer mockToken");
+      const res = await request(app).get("/api/users/2").set("Authorization", "Bearer mockToken");
 
       expect(res.status).toBe(404);
     });
@@ -3464,10 +3282,7 @@ describe("UserController", () => {
       const updatedUser = { id: 1, user_name: "updated_user" };
       jest.spyOn(UserService, "updateUser").mockResolvedValueOnce(updatedUser);
 
-      const res = await request(app)
-        .put("/api/users/1")
-        .set("Authorization", "Bearer mockToken")
-        .send(updateDto);
+      const res = await request(app).put("/api/users/1").set("Authorization", "Bearer mockToken").send(updateDto);
 
       expect(res.status).toBe(200);
       expect(res.body).toEqual(updatedUser);
@@ -3475,10 +3290,7 @@ describe("UserController", () => {
     });
 
     it("should return 404 if id is invalid", async () => {
-      const res = await request(app)
-        .put("/api/users/abc")
-        .set("Authorization", "Bearer mockToken")
-        .send({});
+      const res = await request(app).put("/api/users/abc").set("Authorization", "Bearer mockToken").send({});
 
       expect(res.status).toBe(404);
     });
@@ -3486,24 +3298,16 @@ describe("UserController", () => {
     it("should return 422 if validation fails", async () => {
       const invalidDto = { user_name: "test" };
 
-      const res = await request(app)
-        .put("/api/users/1")
-        .set("Authorization", "Bearer mockToken")
-        .send(invalidDto);
+      const res = await request(app).put("/api/users/1").set("Authorization", "Bearer mockToken").send(invalidDto);
 
       expect(res.status).toBe(422);
     });
 
     it("should return 400 on service error", async () => {
       const updateDto = { first_name: "Updated", last_name: "User" };
-      jest
-        .spyOn(UserService, "updateUser")
-        .mockRejectedValueOnce(new Error("Service error"));
+      jest.spyOn(UserService, "updateUser").mockRejectedValueOnce(new Error("Service error"));
 
-      const res = await request(app)
-        .put("/api/users/1")
-        .set("Authorization", "Bearer mockToken")
-        .send(updateDto);
+      const res = await request(app).put("/api/users/1").set("Authorization", "Bearer mockToken").send(updateDto);
 
       expect(res.status).toBe(400);
     });
@@ -3513,30 +3317,22 @@ describe("UserController", () => {
     it("should return 204 if user deleted", async () => {
       jest.spyOn(UserService, "deleteUser").mockResolvedValueOnce();
 
-      const res = await request(app)
-        .delete("/api/users/1")
-        .set("Authorization", "Bearer mockToken");
+      const res = await request(app).delete("/api/users/1").set("Authorization", "Bearer mockToken");
 
       expect(res.status).toBe(204);
       expect(UserService.deleteUser).toHaveBeenCalledWith(1);
     });
 
     it("should return 404 if id is invalid", async () => {
-      const res = await request(app)
-        .delete("/api/users/abc")
-        .set("Authorization", "Bearer mockToken");
+      const res = await request(app).delete("/api/users/abc").set("Authorization", "Bearer mockToken");
 
       expect(res.status).toBe(404);
     });
 
     it("should return 404 if user not found", async () => {
-      jest
-        .spyOn(UserService, "deleteUser")
-        .mockRejectedValueOnce(new Error("Not found"));
+      jest.spyOn(UserService, "deleteUser").mockRejectedValueOnce(new Error("Not found"));
 
-      const res = await request(app)
-        .delete("/api/users/2")
-        .set("Authorization", "Bearer mockToken");
+      const res = await request(app).delete("/api/users/2").set("Authorization", "Bearer mockToken");
 
       expect(res.status).toBe(404);
     });

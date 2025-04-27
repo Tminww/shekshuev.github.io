@@ -7,16 +7,16 @@ import { updateUserValidator } from "../validators/userValidators.js";
 const router = express.Router();
 
 // Только авторизованные пользователи
-router.get("/", requestAuth, UserController.getAllUsers);
-router.get("/:id", requestAuth, UserController.getUserById);
+router.get("/", requestAuth(process.env.ACCESS_TOKEN_SECRET), UserController.getAllUsers);
+router.get("/:id", requestAuth(process.env.ACCESS_TOKEN_SECRET), UserController.getUserById);
 
 // Обновить или удалить пользователь может только себя
 router.put(
   "/:id",
-  requestAuthSameId,
+  requestAuthSameId(process.env.ACCESS_TOKEN_SECRET),
   validate(updateUserValidator),
   UserController.updateUser
 );
-router.delete("/:id", requestAuthSameId, UserController.deleteUserById);
+router.delete("/:id", requestAuthSameId(process.env.ACCESS_TOKEN_SECRET), UserController.deleteUserById);
 
 export default router;
