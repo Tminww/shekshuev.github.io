@@ -128,3 +128,158 @@ DBeaver is a versatile tool with a graphical interface for working with various 
      - Database (database name)
      - Username and password
    - Configure SSL/TLS for secure connection if necessary
+
+## Creating tables in ClickHouse
+
+As with most databases, ClickHouse logically groups tables into databases. Use the `CREATE DATABASE` command to create a new database in ClickHouse:
+
+```sql
+CREATE DATABASE IF NOT EXISTS helloworld
+```
+
+Similarly, use `CREATE TABLE` to define a new table. (If you do not specify a database name, the table will be in the `default` database.) The following table is called `my_first_table` in the 'helloworld` database:
+
+```sql
+CREATE TABLE helloworld.my_first_table
+(
+    user_id UInt32,
+    message String,
+    timestamp DateTime,
+    metric Float32
+)
+ENGINE = MergeTree()
+PRIMARY KEY (user_id, timestamp)
+```
+
+In the example above, `my_first_table` is a `MergeTree` table with four columns:
+
+- `user_id': 32-bit unsigned integer
+
+- `message': string data type `String`
+
+- `timestamp': the `DateTime` value that represents a point in time
+
+- `metric`: 32-bit floating point number
+
+### A brief introduction to primary keys
+
+Before proceeding, it is important to understand how primary keys work in ClickHouse (the implementation of primary keys may seem unexpected!):
+
+> [!CAUTION] Attention
+> Primary keys in ClickHouse **are not unique** for each row in the table
+
+The primary key of the ClickHouse table determines how the data is sorted when writing to disk. Every 8,192 rows or 10 MB of data (called the `index granularity') creates an entry in the primary key index file. This concept of granularity creates a sparse index that fits easily into memory, and the granules are a strip of the smallest amount of column data that is processed during `SELECT`queries.
+
+The primary key can be determined using the 'PRIMARY KEY`parameter. If you define a table without the specified`PRIMARY KEY', then the key becomes the tuple specified in the `ORDER BY` clause. If you specify both `PRIMARY KEY` and `ORDER BY', the primary key must be a prefix of the sort order.
+
+The primary key is also a sorting key, which is a tuple of `(user_id, timestamp)'. Thus, the data stored in each column file will be sorted by `user_id', then by `timestamp'.
+
+## Inserting data into ClickHouse
+
+You can use the familiar `INSERT INTO TABLE` command from ClickHouse. Let's insert some data into the created table.
+
+```sql
+INSERT INTO helloworld.my_first_table (user_id, message, timestamp, metric) VALUES
+    (101, 'Hello, ClickHouse!',                                 now(),       -1.0    ),
+    (102, 'Insert a lot of rows per batch',                     yesterday(), 1.41421 ),
+    (102, 'Sort your data based on your commonly-used queries', today(),     2.718   ),
+    (101, 'Granules are the smallest chunks of data read',      now() + 5,   3.14159 )
+```
+
+To make sure that everything worked, we will run the following `SELECT` query:
+
+```sql
+SELECT * FROM helloworld.my_first_table
+```
+
+ClickHouse is **OLAP (Online Analytical Processing)** A system specifically designed for analytics and processing of large amounts of data with high speed and scalability. Due to its architecture, ClickHouse is capable of processing millions of line inserts per second. This high level of performance is achieved through parallel data processing and efficient column compression. However, unlike classic transactional databases, ClickHouse does not guarantee immediate data consistency: the system is focused on **eventual consistency** (consistency over time) and is optimized for operations involving primarily the addition of new data.
+
+In contrast, **OLTP (Online Transaction Processing)** Databases such as PostgreSQL are designed to work with transactions and provide strict ACID guarantees. PostgreSQL, for example, implements the **MVCC (Multi-Version Concurrency Control)** mechanism, which allows processing parallel transactions and maintaining multiple versions of data simultaneously. Such databases are great for scenarios where instant data consistency and support for complex modification operations are important, but because of this, data insertion can be slower, especially with large volumes.
+
+To maximize performance when inserting data into ClickHouse, it is important to take into account its features and adhere to certain recommendations. Following these rules allows you to avoid typical errors that may occur when trying to use ClickHouse in the same way as transactional OLTP databases, and to build an insertion process that is optimal for analytical workloads.
+
+### Best practices for inserting data into ClickHouse
+
+- **Insert in large batches**  
+  Each `INSERT` creates a separate piece of data, so it is better to send fewer large batches (from 1,000 to 100,000 rows at a time) than many small ones. This reduces the load on the file system and improves performance.
+
+- **Use asynchronous inserts for small batches**  
+  If it is not possible to collect large batches on the client side (for example, in monitoring systems), use asynchronous ClickHouse inserts. In this mode, data is first buffered and then dumped into storage in one piece, which allows efficient aggregation of small inserts on the server.
+
+- **Ensure that repeated inserts are idempotent**  
+  ClickHouse inserts are idempotent by default: resending the same data does not lead to duplication if the order and content match. This is important for reliability in case of network failures.
+
+- **Insert directly into MergeTree or replicated tables**  
+  It is best to insert data immediately into MergeTree tables (or their replicated versions), distributing the load across sharded nodes. For distributed tables, it is recommended to enable `internal_replication=true'.
+
+- **Use the native format for maximum performance**
+  For the fastest inserts, use the ClickHouse native data format, which minimizes the overhead of parsing and conversion. The alternative is `RowBinary' (optimal for string format), and `JSONEachRow' - for fast integration, but with high parsing costs.
+
+- **Use the official ClickHouse client**
+  Official clients for popular languages support optimal insertion modes, including asynchronous inserts.
+
+- **Use the HTTP interface if necessary**
+  ClickHouse supports an HTTP interface for inserting and reading data, which is convenient for load balancing and integration with external systems. However, the native protocol is usually a bit faster.
+
+- **Know the limitations of asynchronous inserts**  
+  The data in the buffer is unavailable for requests until it is flushed to the main storage. Buffer reset parameters can be configured.
+
+## Data sampling
+
+ClickHouse supports similar SELECT queries that you are already familiar with. For example:
+
+```sql
+SELECT *
+FROM helloworld.my_first_table
+ORDER BY timestamp
+```
+
+## Data update
+
+Use the `ALTER TABLE' command...UPDATE` to update the rows in the table:
+
+```sql
+ALTER TABLE [<database>.]<table> UPDATE <column> = <expression> WHERE <filter_expr>
+```
+
+`<expression>` is the new value for the column for which `<filter_expr>` is executed. The `<expression>` must have the same data type as the column, or be converted to the same data type using the 'CAST` operator. '<filter_expr>` should return the value `UInt8' (zero or not zero) for each row of data. Multiple 'UPDATE` `<column>` statements can be combined in a single `ALTER TABLE` command, separated by commas.
+
+Example:
+
+```sql
+ALTER TABLE helloworld.my_first_table
+UPDATE message = 'Updated message', metric = metric * 2
+WHERE user_id = 102
+```
+
+## Deleting data
+
+Use the `ALTER TABLE` command to delete rows:
+
+```sql
+ALTER TABLE [<database>.]<table> DELETE WHERE <filter_expr>
+```
+
+'<filter_expr>` should return the UInt8 value for each row of data.
+
+Example:
+
+```sql
+ALTER TABLE helloworld.my_first_table
+DELETE WHERE user_id = 101
+```
+
+## Easy removals
+
+Another option to delete lines is to use the `DELETE FROM` command, which is called easy deletion. Deleted rows are immediately marked as deleted and automatically filtered from all subsequent queries, so you don't have to wait for parts to merge or use the `FINAL` keyword. Data cleanup occurs asynchronously in the background.
+
+```sql
+DELETE FROM [db.]table [ON CLUSTER cluster] [WHERE expr]
+```
+
+Example:
+
+```sql
+DELETE FROM helloworld.my_first_table
+WHERE user_id = 102
+```
