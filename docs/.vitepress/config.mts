@@ -107,8 +107,25 @@ export default withMermaid(
                       link: "/databases/nosql/essentials",
                     },
                     {
-                      text: "Clickhouse essentials",
-                      link: "/databases/nosql/clickhouse",
+                      text: "Clickhouse",
+                      items: [
+                        {
+                          text: "Essentials",
+                          link: "/databases/nosql/clickhouse/essentials",
+                        },
+                        {
+                          text: "Database structure",
+                          link: "/databases/nosql/clickhouse/structure",
+                        },
+                        {
+                          text: "Database design",
+                          link: "/databases/nosql/clickhouse/design",
+                        },
+                        {
+                          text: "Data flows",
+                          link: "/databases/nosql/clickhouse/dataflows",
+                        },
+                      ],
                     },
                     {
                       text: "HBase essentials",
@@ -272,8 +289,25 @@ export default withMermaid(
                       link: "/ru/databases/nosql/essentials",
                     },
                     {
-                      text: "Работа с колоночной СУБД Clickhouse",
-                      link: "/ru/databases/nosql/clickhouse",
+                      text: "Clickhouse",
+                      items: [
+                        {
+                          text: "Основы",
+                          link: "/databases/nosql/clickhouse/essentials",
+                        },
+                        {
+                          text: "Структура базы данных",
+                          link: "/databases/nosql/clickhouse/structure",
+                        },
+                        {
+                          text: "Проектирование структуры базы данных",
+                          link: "/databases/nosql/clickhouse/design",
+                        },
+                        {
+                          text: "Потоки данных",
+                          link: "/databases/nosql/clickhouse/dataflows",
+                        },
+                      ],
                     },
                     {
                       text: "Работа с колоночной СУБД Hbase",
