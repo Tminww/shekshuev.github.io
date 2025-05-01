@@ -8,7 +8,9 @@ export default withMermaid(
     description: "Open source database and web development courses",
     themeConfig: {
       i18nRouting: true,
-      socialLinks: [{ icon: "github", link: "https://github.com/vuejs/vitepress" }],
+      socialLinks: [
+        { icon: "github", link: "https://github.com/vuejs/vitepress" },
+      ],
     },
     locales: {
       root: {
@@ -293,19 +295,19 @@ export default withMermaid(
                       items: [
                         {
                           text: "Основы",
-                          link: "/databases/nosql/clickhouse/essentials",
+                          link: "/ru/databases/nosql/clickhouse/essentials",
                         },
                         {
                           text: "Структура базы данных",
-                          link: "/databases/nosql/clickhouse/structure",
+                          link: "/ru/databases/nosql/clickhouse/structure",
                         },
                         {
                           text: "Проектирование структуры базы данных",
-                          link: "/databases/nosql/clickhouse/design",
+                          link: "/ru/databases/nosql/clickhouse/design",
                         },
                         {
                           text: "Потоки данных",
-                          link: "/databases/nosql/clickhouse/dataflows",
+                          link: "/ru/databases/nosql/clickhouse/dataflows",
                         },
                       ],
                     },
@@ -375,7 +377,7 @@ export default withMermaid(
     vue: {
       template: {
         compilerOptions: {
-          isCustomElement: tag => tag.startsWith("pglite-"),
+          isCustomElement: (tag) => tag.startsWith("pglite-"),
         },
       },
     },
