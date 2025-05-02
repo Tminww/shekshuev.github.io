@@ -120,12 +120,8 @@ export default withMermaid(
                           link: "/databases/nosql/clickhouse/structure",
                         },
                         {
-                          text: "Database design",
-                          link: "/databases/nosql/clickhouse/design",
-                        },
-                        {
-                          text: "Data flows",
-                          link: "/databases/nosql/clickhouse/dataflows",
+                          text: "Comparing to PostgreSQL",
+                          link: "/databases/nosql/postgres-compare/design",
                         },
                       ],
                     },
@@ -302,12 +298,8 @@ export default withMermaid(
                           link: "/ru/databases/nosql/clickhouse/structure",
                         },
                         {
-                          text: "Проектирование структуры базы данных",
-                          link: "/ru/databases/nosql/clickhouse/design",
-                        },
-                        {
-                          text: "Потоки данных",
-                          link: "/ru/databases/nosql/clickhouse/dataflows",
+                          text: "Сравнение с PostgreSQL",
+                          link: "/ru/databases/nosql/clickhouse/postgres-compare",
                         },
                       ],
                     },
