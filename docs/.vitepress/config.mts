@@ -121,7 +121,7 @@ export default withMermaid(
                         },
                         {
                           text: "Comparing to PostgreSQL",
-                          link: "/databases/nosql/postgres-compare/design",
+                          link: "/databases/nosql/clickhouse/postgres-compare",
                         },
                       ],
                     },
@@ -130,8 +130,25 @@ export default withMermaid(
                       link: "/databases/nosql/hbase",
                     },
                     {
-                      text: "Mongodb essentials",
-                      link: "/databases/nosql/mongodb",
+                      text: "MongoDB",
+                      items: [
+                        {
+                          text: "Essentials",
+                          link: "/databases/nosql/mongodb/essentials",
+                        },
+                        {
+                          text: "CRUD and indexes",
+                          link: "/databases/nosql/mongodb/crud-and-indexes",
+                        },
+                        {
+                          text: "Transactions",
+                          link: "/databases/nosql/mongodb/transactions",
+                        },
+                        {
+                          text: "Comparing to PostgreSQL",
+                          link: "/databases/nosql/mongodb/postgres-compare",
+                        },
+                      ],
                     },
                     {
                       text: "SQL and NoSQL systems with large amount of data",
@@ -308,8 +325,25 @@ export default withMermaid(
                       link: "/ru/databases/nosql/hbase",
                     },
                     {
-                      text: "Работа с документной СУБД Mongodb",
-                      link: "/ru/databases/nosql/mongodb",
+                      text: "Работа с документной СУБД MongoDB",
+                      items: [
+                        {
+                          text: "Основы",
+                          link: "/ru/databases/nosql/mongodb/essentials",
+                        },
+                        {
+                          text: "Создание, редактирование и удаление данных. Индексы",
+                          link: "/ru/databases/nosql/mongodb/crud-and-indexes",
+                        },
+                        {
+                          text: "Транзакции",
+                          link: "/ru/databases/nosql/mongodb/transactions",
+                        },
+                        {
+                          text: "Сравнение с PostgreSQL",
+                          link: "/ru/databases/nosql/mongodb/postgres-compare",
+                        },
+                      ],
                     },
                     {
                       text: "Работа с большими объемами данных в реляционных и нереляционных СУБД",
