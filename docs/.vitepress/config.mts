@@ -164,12 +164,34 @@ export default withMermaid(
                   text: "Python",
                   items: [
                     {
-                      text: "Разработка web-приложения на Python",
-                      link: "/databases/development/python/database-connection",
+                      text: "Проектирование web-приложения для доступа к базе данных",
+                      items: [
+                        {
+                          text: "Установка библиотек и подключение базы данных к приложению",
+                          link: "/databases/development/python/design/database-connection",
+                        },
+                        {
+                          text: "Основы работы в ПО Postman",
+                          link: "/databases/development/python/design/postman",
+                        },
+                      ],
                     },
                     {
-                      text: "Вставка, редактирование и выборка данных в БД PostgreSQL из Python",
-                      link: "/databases/development/python/postgres",
+                      text: "Разработка web-приложения для доступа к базе данных",
+                      items: [
+                        {
+                          text: "Разработка слоя репозиториев web-приложения",
+                          link: "/databases/development/python/coding/repository",
+                        },
+                        {
+                          text: "Разработка функционального слоя web-приложения",
+                          link: "/databases/development/python/coding/service",
+                        },
+                        {
+                          text: "Разработка слоя контроллеров web-приложения",
+                          link: "/databases/development/python/coding/controller",
+                        },
+                      ],
                     },
                   ],
                 },
@@ -177,12 +199,34 @@ export default withMermaid(
                   text: "JavaScript",
                   items: [
                     {
-                      text: "Разработка web-приложения на JavaScript",
-                      link: "/databases/development/js/database-connection",
+                      text: "Проектирование web-приложения для доступа к базе данных",
+                      items: [
+                        {
+                          text: "Установка библиотек и подключение базы данных к приложению",
+                          link: "/databases/development/js/design/database-connection",
+                        },
+                        {
+                          text: "Основы работы в ПО Postman",
+                          link: "/databases/development/js/design/postman",
+                        },
+                      ],
                     },
                     {
-                      text: "Вставка, редактирование и выборка данных в БД PostgreSQL из JavaScript",
-                      link: "/databases/development/js/postgres",
+                      text: "Разработка web-приложения для доступа к базе данных",
+                      items: [
+                        {
+                          text: "Разработка слоя репозиториев web-приложения",
+                          link: "/databases/development/js/coding/repository",
+                        },
+                        {
+                          text: "Разработка функционального слоя web-приложения",
+                          link: "/databases/development/js/coding/service",
+                        },
+                        {
+                          text: "Разработка слоя контроллеров web-приложения",
+                          link: "/databases/development/js/coding/controller",
+                        },
+                      ],
                     },
                   ],
                 },
