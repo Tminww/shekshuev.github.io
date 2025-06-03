@@ -3,10 +3,10 @@
 layout: home
 
 hero:
-  name: "Code | Ed"
-  text: "Open source database and web development courses"
+  name: "CS Docs"
+  text: "Открытые занятия по компьютерным наукам"
   actions:
     - theme: brand
-      text: Databases
+      text: Базы данных
       link: /databases/essentials/introduction
 ---

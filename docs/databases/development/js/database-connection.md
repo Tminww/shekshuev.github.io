@@ -1,41 +1,43 @@
-## Introduction
+# Установка библиотек и подключение базы данных PostgreSQL к приложению
 
-In this course, we will develop a web application using Node.js and a PostgreSQL database.
-To interact with the database from our application, we will use the official [`pg`](https://www.npmjs.com/package/pg) library.
+## Введение
 
-`node-postgres` (or simply `pg`) is a collection of Node.js modules designed for working with PostgreSQL.
-It provides convenient tools for executing SQL queries, managing connections, and handling query results.
+В рамках этого учебного курса мы будем разрабатывать **веб-приложение с использованием Node.js и базы данных PostgreSQL**.
+Для взаимодействия между приложением и базой данных мы будем использовать официальную библиотеку [`pg`](https://www.npmjs.com/package/pg).
 
-The library supports:
+**`node-postgres` (или просто `pg`)** — это набор модулей для Node.js, предназначенных для работы с PostgreSQL.
+Она предоставляет удобные инструменты для выполнения SQL-запросов, управления подключениями и обработки результатов.
 
-- callbacks, promises, and `async/await`;
-- connection pooling;
-- prepared statements;
-- cursors;
-- streaming query results;
-- integration with C/C++;
-- advanced PostgreSQL type parsing.
+Библиотека поддерживает:
 
-Just like PostgreSQL itself, `pg` offers a rich set of features. Its documentation helps you get started quickly and also includes guides for more advanced or edge-case scenarios.
-Thanks to this, we’ll be able to leverage the full power of PostgreSQL directly from Node.js code — efficiently, flexibly, and without relying on an ORM.
+- колбэки, промисы и `async/await`;
+- пул подключений (connection pooling);
+- подготовленные запросы (prepared statements);
+- курсоры;
+- потоковую обработку данных (streaming results);
+- интеграцию с C/C++;
+- расширенный парсинг типов данных PostgreSQL.
 
-## Basics of the `pg` Library API
+Как и сама PostgreSQL, `pg` предлагает широкий набор возможностей. Документация к библиотеке помогает быстро начать работу, а также содержит материалы по более сложным и специализированным темам.
+Благодаря этому мы сможем использовать **всю мощь PostgreSQL прямо из кода на Node.js** — просто, эффективно и без необходимости использовать ORM.
 
-The `pg` library provides several key interfaces for working with PostgreSQL.
-In this section, we will cover three main components:
+## Основы API библиотеки `pg`
 
-1. `Client` — direct connection to the database;
-2. `Pool` — connection pool (the most commonly used option);
-3. `Result` — the data structure returned after executing an SQL query.
+Библиотека `pg` предоставляет несколько ключевых интерфейсов для работы с PostgreSQL.
+В этом разделе мы рассмотрим три основных компонента:
+
+1. `Client` — прямое подключение к базе данных;
+2. `Pool` — пул подключений (наиболее часто используемый вариант);
+3. `Result` — структура данных, возвращаемая после выполнения SQL-запроса.
 
 ---
 
-### 1. `Client`: direct connection
+### 1. `Client`: подключение напрямую
 
-The `Client` object allows you to establish a single explicit connection to a PostgreSQL database.
-It is a low-level interface, useful for executing small one-time operations or manually managing transactions.
+Объект `Client` позволяет установить **одно явное соединение** с базой данных PostgreSQL.
+Это базовый интерфейс, полезный для выполнения небольших одноразовых операций или настройки транзакций вручную.
 
-#### Example:
+#### Пример:
 
 ```js
 import { Client } from "pg";
@@ -56,40 +58,39 @@ console.log(res.rows[0]);
 await client.end();
 ```
 
-#### Features:
+#### Особенности:
 
-- Each connection is manually established using `connect()` and closed using `end()`.
+- Каждое соединение создаётся вручную через `connect()` и закрывается через `end()`.
 
-- Used in scenarios where full control over the connection is required.
+- Используется в ситуациях, когда нужен полный контроль над соединением.
 
-The `Client` object is created using the constructor `new Client(config: Config)`, which accepts the following parameters:
+Объект `Client` создается с помощью конструктора `new Client(config: Config)`, который принимает следующие параметры:
 
 ```js
 type Config = {
-  user?: string, // default process.env.PGUSER || process.env.USER
-  password?: string or function, //default process.env.PGPASSWORD
-  host?: string, // default process.env.PGHOST
-  port?: number, // default process.env.PGPORT
-  database?: string, // default process.env.PGDATABASE || user
-  connectionString?: string, // e.g. postgres://user:password@host:5432/database
-  ssl?: any, // passed directly to node.TLSSocket, supports all tls.connect options
-  types?: any, // custom type parsers
-  statement_timeout?: number, // number of milliseconds before a statement in query will time out, default is no timeout
-  query_timeout?: number, // number of milliseconds before a query call will timeout, default is no timeout
-  lock_timeout?: number, // number of milliseconds a query is allowed to be en lock state before it's cancelled due to lock timeout
-  application_name?: string, // The name of the application that created this Client instance
-  connectionTimeoutMillis?: number, // number of milliseconds to wait for connection, default is no timeout
-  idle_in_transaction_session_timeout?: number // number of milliseconds before terminating any session with an open idle transaction, default is no timeout
+  user?: string, // по умолчанию: process.env.PGUSER или process.env.USER
+  password?: string или function, // по умолчанию: process.env.PGPASSWORD
+  host?: string, // по умолчанию: process.env.PGHOST
+  port?: number, // по умолчанию: process.env.PGPORT
+  database?: string, // по умолчанию: process.env.PGDATABASE или user
+  connectionString?: string, // например: postgres://user:password@host:5432/database
+  ssl?: any, // передаётся напрямую в node.TLSSocket, поддерживает все опции tls.connect
+  types?: any, // пользовательские парсеры типов PostgreSQL
+  statement_timeout?: number, // максимальное время выполнения SQL-оператора в миллисекундах (по умолчанию — без ограничения)
+  query_timeout?: number, // максимальное время выполнения запроса (по умолчанию — без ограничения)
+  lock_timeout?: number, // сколько миллисекунд запрос может находиться в блокировке перед отменой (по умолчанию — без ограничения)
+  application_name?: string, // имя приложения, которое использует этот экземпляр Client
+  connectionTimeoutMillis?: number, // максимальное время ожидания подключения (по умолчанию — без ограничения)
+  idle_in_transaction_session_timeout?: number // время (в мс), после которого будет завершена сессия с открытой, но бездействующей транзакцией
 }
 
 ```
 
-### 2. `Pool`: connection pool (recommended approach)
+### 2. `Pool`: пул подключений (рекомендуемый способ)
 
-The `Pool` object manages multiple connections to the database.
-It is the most efficient and reliable way to connect in real-world web applications.
+Объект `Pool` управляет множеством подключений к базе данных. Это наиболее эффективный и стабильный способ подключения в реальных веб-приложениях.
 
-#### Example:
+#### Пример:
 
 ```js
 import { Pool } from "pg";
@@ -106,63 +107,65 @@ const result = await pool.query("SELECT * FROM users WHERE id = $1", [1]);
 console.log(result.rows[0]);
 ```
 
-#### Advantages:
+#### Преимущества:
 
-- The pool automatically manages connections.
+- Пул автоматически управляет соединениями.
 
-- Reuses already established connections.
+- Повторно использует уже открытые подключения.
 
-- Suitable for high-load applications.
+- Подходит для приложений с высокой нагрузкой.
 
-The connection pool is created using the constructor `new Pool(config: Config)`, which accepts the following parameters:
+Пул соединений создается с помощью конструктора `new Pool(config: Config)`, который принимает следующие параметры:
 
 ```js
 type Config = {
-  // all valid client config options are also valid here
-  // in addition here are the pool specific configuration parameters:
+  // все параметры, допустимые для конфигурации клиента (Client), также допустимы здесь
 
-  // number of milliseconds to wait before timing out when connecting a new client
-  // by default this is 0 which means no timeout
+  // дополнительные параметры, специфичные для пула подключений:
+
+  // количество миллисекунд, в течение которых будет ожидаться подключение нового клиента
+  // по умолчанию 0 — то есть ожидание не ограничено по времени
   connectionTimeoutMillis?: number
 
-  // number of milliseconds a client must sit idle in the pool and not be checked out
-  // before it is disconnected from the backend and discarded
-  // default is 10000 (10 seconds) - set to 0 to disable auto-disconnection of idle clients
+  // количество миллисекунд, которое клиент может находиться в состоянии простоя в пуле,
+  // прежде чем он будет отключён от сервера и удалён из пула
+  // по умолчанию 10000 (10 секунд); установите 0, чтобы отключить автоматическое удаление
   idleTimeoutMillis?: number
 
-  // maximum number of clients the pool should contain
-  // by default this is set to 10.
+  // максимальное количество клиентов, которое может содержать пул
+  // по умолчанию установлено значение 10
   max?: number
 
-  // Default behavior is the pool will keep clients open & connected to the backend
-  // until idleTimeoutMillis expire for each client and node will maintain a ref
-  // to the socket on the client, keeping the event loop alive until all clients are closed
-  // after being idle or the pool is manually shutdown with `pool.end()`.
-  //
-  // Setting `allowExitOnIdle: true` in the config will allow the node event loop to exit
-  // as soon as all clients in the pool are idle, even if their socket is still open
-  // to the postgres server.  This can be handy in scripts & tests
-  // where you don't want to wait for your clients to go idle before your process exits.
+  // По умолчанию пул будет держать клиентов подключёнными к серверу PostgreSQL,
+  // пока не истечёт idleTimeoutMillis, при этом Node.js будет поддерживать ссылку на сокет,
+  // из-за чего event loop (цикл событий) не завершится, пока клиенты не будут закрыты вручную
+  // или не отключатся сами по истечении времени простоя.
+
+  // Если установить параметр `allowExitOnIdle: true`, то цикл событий Node.js завершится
+  // сразу после того, как все клиенты в пуле перейдут в режим ожидания,
+  // даже если сокеты всё ещё остаются открытыми.
+  // Это удобно, например, в скриптах или тестах, где не хочется ждать,
+  // пока все подключения станут неактивными.
   allowExitOnIdle?: boolean
 }
 ```
 
-The pool is initially created empty and will create new clients lazily as they are needed. Every field of the config object is entirely optional. The config passed to the pool is also passed to every client instance within the pool when the pool creates that client.
+Пул изначально создаётся пустым и будет лениво создавать новые подключения (клиенты) по мере необходимости. Каждое поле объекта конфигурации является полностью необязательным. Конфигурация, переданная пулу, также автоматически передаётся каждому клиенту, который создаётся внутри этого пула.
 
-### 3. Result: the result of executing an SQL query
+### 3. Result: результат выполнения SQL-запроса
 
-The `query(...)` method returns a result object with the following structure:
+Метод `query(...)` возвращает объект результата со следующей структурой:
 
 ```js
 {
-  rows: Array<any>,         // array of result rows
-  rowCount: number,         // number of rows
-  command: string,          // type of SQL command (e.g., SELECT, UPDATE)
-  fields: Array<FieldInfo>  // information about columns
+  rows: Array<any>,         // массив строк результата
+  rowCount: number,         // количество строк
+  command: string,          // тип SQL-команды (например, SELECT, UPDATE)
+  fields: Array<FieldInfo>  // информация о колонках
 }
 ```
 
-#### Query example:
+#### Пример запроса:
 
 ```js
 import pg from "pg";
@@ -181,37 +184,37 @@ console.log(result.rows); // [ [ 1, 2 ] ]
 await client.end();
 ```
 
-## Project structure
+## Структура проекта
 
-Create a directory named `gophertalk-backend-express`. Inside it, create a subdirectory called `src`, along with the files `.env`, `package.json`, and `README.md`.  
-Inside the `src` directory, create the folders listed below and an empty `app.js` file.
-Also create `__tests__` directory and its subdirectories.
+Создайте каталог `gophertalk-backend-express`. В нем создайте подкаталог `src`, файлы `.env`, `package.json`, `README.md`.
+В каталоге `src` создайте каталоги, указанные ниже, а также пустой файл `app.js`.
+Также создайте каталог `__tests__` и подкаталоги в нем.
 
 ```bash
 gophertalk-backend-express/
 ├── src/
-│   ├── controllers/       # Handles HTTP requests
-│   ├── services/          # Business logic
-│   ├── repositories/      # Database operations (SQL queries)
-│   ├── routes/            # Route definitions
-│   ├── middlewares/       # Common middlewares
-│   ├── packages/          # Downloaded packages with dependencies
-│   ├── config/            # Project configuration
-│   ├── utils/             # Utility functions
-│   ├── validators/        # Input data validators
-│   └── app.js             # Application entry point
-├── __tests__              # unit tests
+│   ├── controllers/       # Обработка HTTP-запросов
+│   ├── services/          # Бизнес-логика
+│   ├── repositories/      # Работа с БД (SQL-запросы)
+│   ├── routes/            # Определение маршрутов
+│   ├── middlewares/       # Общие мидлвари
+│   ├── packages/          # скачанные пакеты с зависимостями
+│   ├── config/            # Конфигурация проекта
+│   ├── utils/             # Вспомогательные функции
+│   ├── validators/        # Валидаторы входных данных
+│   └── app.js             # Инициализация приложения
+├── __tests__              # unit тесты
 │   ├── controllers/
 │   ├── services/
 │   └── repositories/
-├── .env                   # Environment variables
+├── .env                   # Переменные окружения
 ├── package.json
 └── README.md
 ```
 
-## Initializing the project and installing dependencies
+## Инициализация проекта и установка зависимостей
 
-Place the following content into the `package.json` file:
+В файл `package.json` поместите следующее содержимое:
 
 ```json
 {
@@ -238,28 +241,22 @@ Place the following content into the `package.json` file:
 }
 ```
 
-The `package.json` file contains a JSON object with the following fields:
+Файл `package.json` содержит json-объект со следующими полями:
 
-1. `"name": "gophertalk-backend-express"`- The name of the project. It usually matches the folder name and is used when publishing the package (if the project is published to npm).
+1. `"name": "gophertalk-backend-express"` - Название проекта. Обычно совпадает с названием каталога. Используется при публикации пакета (если проект публикуется в npm).
+2. `"version": "0.1.0",` - Версия проекта в формате SemVer (семантическое версионирование): `major.minor.patch`
+3. `"type": "module"` - Указывает, что проект использует ECMAScript-модули (ESM), а не CommonJS. Благодаря этому можно использовать `import` / `export` вместо `require`.
+4. `"main": "src/app.js"` - Главный файл приложения.
+5. `"scripts"` - раздел скриптов
 
-2. `"version": "0.1.0"` - The project version in SemVer format: `major.minor.patch`.
+   - `"dev": "nodemon src/app.js"` - запускает приложение в режиме разработки с автообновлением при изменениях (с помощью `nodemon`);
+   - `"test": "node --experimental-vm-modules node_modules/jest/bin/jest.js"` - запускает Jest для выполнения тестов. Флаг `--experimental-vm-modules` нужен для поддержки ESM.
 
-3. `"type": "module"` - Specifies that the project uses ECMAScript modules (ESM) instead of CommonJS. This allows using `import` / `export` instead of `require`.
+6. `"dependencies"` - Основные зависимости проекта. Все пакеты установлены локально через файл (`file:packages/...`), а не из интернета. Это бывает нужно в офлайн-среде или при использовании локального репозитория.
 
-4. `"main": "src/app.js"` - The main entry point of the application.
+7. `"devDependencies"` - Зависимости только для разработки. Эти зависимости не попадают в продакшен-сборку.
 
-5. `"scripts"` – Custom scripts:
-
-   - `"dev": "nodemon src/app.js"` - Starts the application in development mode with automatic restarts on file changes (using `nodemon`).
-
-   - `"test": "node --experimental-vm-modules node_modules/jest/bin/jest.js"` - Runs tests using Jest.  
-     The `--experimental-vm-modules` flag enables support for ESM in Jest.
-
-6. `"dependencies"` – Main runtime dependencies. All packages are installed locally via file references (`file:packages/...`) instead of from the internet. This is useful in offline environments or when using a local package repository.
-
-7. `"devDependencies"` – Development-only dependencies. These are not included in the production build.
-
-Place the following packages into the `src/packages` folder:
+Поместите в папку `src/packages` пакеты:
 
 - <a target="_blank" href="/databases/dotenv-16.4.7.tgz">dotenv</a>
 - <a target="_blank" href="/databases/express-4.21.2.tgz">express</a>
@@ -271,23 +268,23 @@ Place the following packages into the `src/packages` folder:
 - <a target="_blank" href="/databases/zod-3.24.3.tgz">zod</a>
 - <a target="_blank" href="/databases/supertest-7.1.0.tgz">supertest</a>
 
-After that, run the following command from the root of the project inside the `gophertalk-backend-express` directory:
+После этого в корне проекта в каталоге `gophertalk-backend-express` выполнить команду:
 
 ```bash
 npm install
 ```
 
-## Setting Environment Variables
+## Установка переменных окружения
 
-Using environment variables in a project allows you to separate sensitive and changeable settings (such as database connection parameters) from the main application code. This is important for several reasons.
+Использование переменных окружения в проекте позволяет отделить конфиденциальные и изменяемые настройки (например, параметры подключения к базе данных) от основного кода приложения. Это важно по нескольким причинам.
 
-First, security: credentials like usernames, passwords, host addresses, and database names should not be included in version control (e.g., Git) to avoid leaking sensitive data when publishing code. Environment variables can be stored in a `.env` file (which should be added to `.gitignore`) or set directly in the runtime environment (e.g., on a server or in CI/CD pipelines).
+Во-первых, безопасность: данные вроде логина, пароля, адреса сервера и имени базы данных не должны попадать в систему контроля версий (например, Git), чтобы избежать утечек при публикации кода. Переменные окружения можно хранить в .env файле, который добавляется в .gitignore, или задавать напрямую в среде запуска (например, на сервере или в CI/CD).
 
-Second, flexibility and ease of configuration: you can deploy the application in different environments — locally, on a test server, or in production — without modifying the source code. It's enough to define environment variables specific to each environment.
+Во-вторых, гибкость и удобство настройки: приложение можно разворачивать в разных средах — локально, на тестовом сервере, в продакшене — без изменения исходного кода. Достаточно задать переменные окружения для каждой среды.
 
-Third, readability and scalability: configuration values are stored in one place, making them easier to change and document. This is especially important in team development and when working with multiple services and databases.
+В-третьих, читаемость и масштабируемость: конфигурационные значения собраны в одном месте, их проще менять и документировать. Это особенно важно в командной разработке и при работе с множеством сервисов и баз данных.
 
-For development convenience, we use the `dotenv` package, which can load environment variables from a `.env` file. An example of such a file is shown below:
+Для удобства разработки мы используем пакет `dotenv`, который умеет считывать переменные из файла `.env`. Пример заполнения этого файла представлен ниже.
 
 ```bash
 PORT=3000
@@ -302,14 +299,13 @@ ACCESS_TOKEN_SECRET=super_secret_access_token_key
 REFRESH_TOKEN_SECRET=super_secret_refresh_token_key
 ```
 
-You should provide your own values.
-You’ll need a running PostgreSQL server, a database inside it, and a user account with access to that database.
+Значения переменных установите сами. Вам нужен сервер PostgreSQL, база данных в нем и учетная запись с правами в этой БД.
 
-Do not change the values ​​of the variables `ACCESS_TOKEN_EXPIRES`, `REFRESH_TOKEN_EXPIRES`, `ACCESS_TOKEN_SECRET` and `REFRESH_TOKEN_SECRET`, they will be needed later.
+Значения переменных `ACCESS_TOKEN_EXPIRES`, `REFRESH_TOKEN_EXPIRES`, `ACCESS_TOKEN_SECRET` и `REFRESH_TOKEN_SECRET` не изменяйте, они понадобятся в дальнейшем.
 
-## Configuring the PostgreSQL Connection
+## Настройка подключения к PostgreSQL
 
-Create a file named `db.js` in the `src/config` directory. Add the following content.
+Создайте файл `db.js` в каталоге `src/config`. Поместите в него следующее содержимое:
 
 ```js
 import pg from "pg";
@@ -328,28 +324,30 @@ export const pool = new Pool({
 });
 ```
 
-Let's break down what this code does.
+Разберем, что происходит в этом коде.
 
-1. Importing libraries
+1. Импорт библиотек
 
    ```js
    import pg from "pg";
    import dotenv from "dotenv";
    ```
 
-   - `pg` – a library for working with PostgreSQL in Node.js.
-   - `dotenv` – a library that loads environment variables from a `.env` file into `process.env`.
+   - pg — библиотека для работы с PostgreSQL в Node.js.
 
-2. Loading environment variables
+   - dotenv — библиотека для загрузки переменных окружения из `.env` файла в `process.env`.
+
+2. Загрузка переменных окружения
 
    ```js
    dotenv.config();
    ```
 
-   - Loads variables from the `.env` file into the global `process.env` object.
-   - After that, you can use variables like `process.env.DB_HOST`.
+   - Загружает переменные из `.env` файла в глобальный объект `process.env`.
 
-3. Creating and exporting the connection pool
+   - После этого можно использовать, например, `process.env.DB_HOST`.
+
+3. Создание пула подключений и его экспорт
 
    ```js
    const { Pool } = pg;
@@ -363,12 +361,13 @@ Let's break down what this code does.
    });
    ```
 
-   - A `pool` object is created and exported, which manages multiple connections to the database.
-   - All configuration parameters are loaded from environment variables.
+   - Создаётся и экспортируется объект pool, который управляет множеством подключений к базе данных.
 
-## Creating the main application file, starting the app, and testing the database connection
+   - Все параметры берутся из переменных окружения
 
-Place the following content into `src/app.js`
+## Создание главного файла приложения, запуск приложения и проверка подключения к БД
+
+Поместите следующее содержимое в `src/app.js`
 
 ```js
 import dotenv from "dotenv";
@@ -396,186 +395,213 @@ app.listen(PORT, () => {
 });
 ```
 
-This code represents a minimal server built with `express` that connects to a PostgreSQL database using `pg`. Let’s break it down:
+Этот код — минимальный сервер на `express`, подключённый к базе данных PostgreSQL через `pg`. Разберем его.
 
-1. Importing libraries
+1.  Импорт библиотек
 
-   ```js
-   import dotenv from "dotenv";
-   import express from "express";
-   import { pool } from "./config/db.js";
-   ```
+    ```js
+    import dotenv from "dotenv";
+    import express from "express";
+    import { pool } from "./config/db.js";
+    ```
 
-   - `dotenv` is used to load environment variables from the `.env` file.
-   - `express` is a framework for building web servers and REST APIs.
-   - `pool` is the imported connection pool for PostgreSQL.
+    - `dotenv` — загружает переменные из `.env` файла.
 
-2. Loading environment variables
+    - `express` — фреймворк для создания веб-сервера и REST API.
 
-   ```js
-   dotenv.config();
-   ```
+    - `pool` — импортированный пул подключений к PostgreSQL.
 
-   It loads variables from the `.env` file into the `process.env` object.
+2.  Загрузка переменных окружения
 
-3. Creating the app and defining the port
+    ```js
+    dotenv.config();
+    ```
 
-   ```js
-   const app = express();
-   const PORT = process.env.PORT || 3000;
-   ```
+    Загружает переменные окружения из `.env` в `process.env`.
 
-   - `app` is an instance of the Express server.
-   - `PORT` is the port the server will listen on (taken from `.env` or defaults to 3000).
+3.  Создание приложения и определение порта
 
-4. Connecting middleware
+    ```js
+    const app = express();
+    const PORT = process.env.PORT || 3000;
+    ```
 
-   ```js
-   app.use(express.json());
-   ```
+    - `app` — экземпляр сервера Express.
 
-   This enables Express to automatically parse the body of incoming JSON requests (`req.body`).
+    - `PORT` — порт, на котором будет работать сервер (берётся из `.env` или по умолчанию 3000).
 
-   ::: details What is middleware
-   A middleware is a function that is executed during the processing of an HTTP request — between receiving the request and sending the response.
+4.  Подключение middleware
 
-   Middleware functions can:
+    ```js
+    app.use(express.json());
+    ```
 
-   - modify the `req` (request) or `res` (response) object,
-   - terminate the request (`res.send()`, etc.),
-   - or pass control to the next middleware using `next()`.
+    Позволяет Express автоматически парсить тело входящих JSON-запросов (`req.body`).
 
-   Middleware is commonly used for:
+    ::: details Что такое middleware
+    Middleware — это функция, которая выполняется при обработке HTTP-запроса, между моментом его получения и отправкой ответа.
 
-   - logging,
-   - authentication,
-   - data validation,
-   - error handling,
-   - JSON and form parsing (`express.json()`, `express.urlencoded()`),
-   - and much more.
+    Middleware-функции могут:
 
-   Let's look at an example:
+    - изменять объект `req` (запроса) или `res` (ответа),
 
-   ```mermaid
-   flowchart TD
-   A[Incoming HTTP request] --> B[Middleware - auth check]
-   B -->|Authorized| C[Route handler]
-   B -->|Unauthorized| D[401 Unauthorized]
-   C --> E[200 OK]
-   ```
+    - завершать обработку запроса (`res.send()` и т.п.),
 
-   First, the client request reaches the middleware, which checks whether the user is authorized.  
-   If authorization succeeds (e.g., the token is valid), the middleware passes control to the route handler, which processes the request and sends a response. In that case, the client receives a `200 OK`.
+    - передавать управление следующей middleware-функции с помощью `next()`.
 
-   If the user is not authorized (e.g., the token is missing or invalid), the middleware doesn't pass control further and immediately returns a `401 Unauthorized` response to indicate that access is denied.
-   :::
+    Они широко используются для:
 
-5. Route `/api/health-check`
+    - логирования,
 
-   - This is a technical `GET` route used to check the health of the server and database.
-   - It sends a simple `SELECT 1` query to the database.
-   - If the database responds, it returns `200 OK`; otherwise, `500 DB connection failed`.
+    - аутентификации,
 
-   ::: details HTTP status codes
-   HTTP status codes are divided into five categories, each with a specific purpose. Here are some of them:
+    - валидации данных,
 
-   ### 🔵 1xx — Informational
+    - обработки ошибок,
 
-   | Code | Description                                                                |
-   | ---- | -------------------------------------------------------------------------- |
-   | 100  | Continue — the server has received the headers and is waiting for the body |
-   | 101  | Switching Protocols — e.g., switching to WebSocket                         |
+    - парсинга JSON и форм (`express.json()`, `express.urlencoded()`),
 
-   -
+    - и многого другого.
 
-   ### 🟢 2xx — Success
+    Рассмотрим пример.
 
-   | Code | Description                                                                 |
-   | ---- | --------------------------------------------------------------------------- |
-   | 200  | OK — the request was successful                                             |
-   | 201  | Created — a new resource was successfully created (typically for POST)      |
-   | 204  | No Content — request succeeded but there is no response body (e.g., DELETE) |
+    ```mermaid
+    flowchart TD
+    A[Входящий HTTP запрос] --> B[Middleware - проверка авторизации]
+    B -->|Авторизован| C[Контроллер обработки запроса]
+    B -->|Не Авторизован| D[401 Unauthorized]
+    C --> E[200 ОК]
+    ```
 
-   -
+    Сначала запрос от клиента попадает в middleware, который проверяет, авторизован ли пользователь. Если авторизация прошла успешно (например, токен валиден), middleware передаёт управление дальше — в контроллер, который обрабатывает запрос и формирует ответ. В этом случае клиент получает успешный ответ `200 OK`.
 
-   ### 🟡 3xx — Redirection
+    Если же пользователь не авторизован (например, отсутствует токен или он недействителен), middleware не передаёт управление контроллеру, а сразу возвращает ответ с ошибкой `401 Unauthorized`, сообщая клиенту, что доступ запрещён.
 
-   | Code | Description                                           |
-   | ---- | ----------------------------------------------------- |
-   | 301  | Moved Permanently — permanent redirection             |
-   | 302  | Found — temporary redirection                         |
-   | 304  | Not Modified — use the cached version of the resource |
+    :::
 
-   -
+5.  Маршрут `/api/health-check`
 
-   ### 🔴 4xx — Client Errors
+    ```js
+    app.get("/api/health-check", async (req, res) => {
+      try {
+        await pool.query("SELECT 1");
+        res.status(200).send("OK");
+      } catch (err) {
+        res.status(500).send("DB connection failed");
+      }
+    });
+    ```
 
-   | Code | Description                                                                            |
-   | ---- | -------------------------------------------------------------------------------------- |
-   | 400  | Bad Request — malformed request                                                        |
-   | 401  | Unauthorized — authentication is required                                              |
-   | 403  | Forbidden — access is denied, even if authenticated                                    |
-   | 404  | Not Found — the requested resource does not exist                                      |
-   | 409  | Conflict — a request conflict, such as trying to create a duplicate                    |
-   | 422  | Unprocessable Entity — valid syntax but semantically invalid (e.g., failed validation) |
+    - Это технический `GET` маршрут для проверки состояния сервера и базы данных.
 
-   -
+    - Он делает простой запрос `SELECT 1` к базе.
 
-   ### 🔴 5xx — Server Errors
+    - Если БД отвечает — возвращает `200 OK`, иначе `500 DB connection failed`.
 
-   | Code | Description                                                          |
-   | ---- | -------------------------------------------------------------------- |
-   | 500  | Internal Server Error — unexpected server-side error                 |
-   | 502  | Bad Gateway — invalid response from an upstream server               |
-   | 503  | Service Unavailable — server is temporarily down (e.g., overloaded)  |
-   | 504  | Gateway Timeout — timeout waiting for a response from another server |
+    ::: details HTTP коды
+    HTTP-статус-коды делятся на 5 категорий, каждая из которых имеет своё назначение. Вот некоторые из них:
 
-   :::
+    ### 🔵 1xx — Информационные (Informational)
 
-   ::: details HTTP Methods
-   HTTP methods define the type of action the client (such as a browser or frontend app) wants to perform on the server at a given URL. They are the foundation of REST APIs and allow for reading, creating, updating, and deleting resources.
+    | Код | Назначение                                                            |
+    | --- | --------------------------------------------------------------------- |
+    | 100 | Продолжайте (Continue) — сервер получил заголовки и ждёт тело запроса |
+    | 101 | Переключение протоколов (Switching Protocols) — например, WebSocket   |
 
-   Each method has its own purpose and semantics, and using them correctly helps build logical, safe, and user-friendly APIs.
+    ***
 
-   | Method  | Description                                                                   | Idempotent | Safe   | Common use in REST       |
-   | ------- | ----------------------------------------------------------------------------- | ---------- | ------ | ------------------------ |
-   | GET     | Retrieve data from the server                                                 | ✅ Yes     | ✅ Yes | Reading resources        |
-   | POST    | Send new data to the server (create a resource)                               | ❌ No      | ❌ No  | Creating resources       |
-   | PUT     | Fully replace a resource                                                      | ✅ Yes     | ❌ No  | Full update of resources |
-   | PATCH   | Partially update a resource                                                   | ❌ No      | ❌ No  | Partial update           |
-   | DELETE  | Delete a resource                                                             | ✅ Yes     | ❌ No  | Deletion                 |
-   | HEAD    | Same as GET, but returns only headers (useful for cache, availability checks) | ✅ Yes     | ✅ Yes | Availability checking    |
-   | OPTIONS | Returns the allowed methods for a resource (commonly used for CORS preflight) | ✅ Yes     | ✅ Yes | Capability discovery     |
+    ### 🟢 2xx — Успешные (Success)
 
-   If a method is idempotent, it means that calling it multiple times will produce the same result. For example:
+    | Код | Назначение                                                                 |
+    | --- | -------------------------------------------------------------------------- |
+    | 200 | OK — успешный запрос                                                       |
+    | 201 | Created — успешно создан ресурс (чаще при POST)                            |
+    | 204 | No Content — запрос успешен, но тело ответа отсутствует (например, DELETE) |
 
-   - `GET /users` will return the same user list every time.
-   - `DELETE /user/5` deletes the user; repeated calls do nothing new if the user is already deleted.
-   - `POST /users` is not idempotent — each call can create a new user.
+    ***
 
-   A safe HTTP method is one that does not alter the state of the server. It is used only to retrieve information and has no side effects like creating or changing data. For example:
+    ### 🟡 3xx — Перенаправление (Redirection)
 
-   - `GET` is safe because it just reads data.
-   - `POST` is not safe because it may create or update data.
-     :::
+    | Код | Назначение                                                |
+    | --- | --------------------------------------------------------- |
+    | 301 | Moved Permanently — постоянное перенаправление            |
+    | 302 | Found — временное перенаправление                         |
+    | 304 | Not Modified — использовать закешированную версию ресурса |
 
-6. Starting the server
+    ***
 
-   ```js
-   app.listen(PORT, () => {
-     console.log(`Server is running on port ${PORT}`);
-   });
-   ```
+    ### 🔴 4xx — Ошибки клиента (Client Errors)
 
-   This starts the server on the specified port and prints a message to the console.
+    | Код | Назначение                                                                        |
+    | --- | --------------------------------------------------------------------------------- |
+    | 400 | Bad Request — некорректный запрос                                                 |
+    | 401 | Unauthorized — требуется авторизация                                              |
+    | 403 | Forbidden — доступ запрещён, даже при наличии авторизации                         |
+    | 404 | Not Found — запрашиваемый ресурс не найден                                        |
+    | 409 | Conflict — конфликт запроса (например, при создании дубликата)                    |
+    | 422 | Unprocessable Entity — ошибка обработки данных (например, ошибка валидации формы) |
 
-To start the application, run the command:
+    ***
+
+    ### 🔴 5xx — Ошибки сервера (Server Errors)
+
+    | Код | Назначение                                                              |
+    | --- | ----------------------------------------------------------------------- |
+    | 500 | Internal Server Error — внутренняя ошибка сервера                       |
+    | 502 | Bad Gateway — неверный ответ от стороннего сервера                      |
+    | 503 | Service Unavailable — сервер временно недоступен (например, перегружен) |
+    | 504 | Gateway Timeout — истекло время ожидания ответа от другого сервиса      |
+
+    :::
+
+    ::: details HTTP методы
+    HTTP-методы определяют тип действия, которое клиент (например, браузер или frontend-приложение) хочет выполнить на сервере по заданному URL. Они являются основой для построения REST API и позволяют реализовывать операции чтения, создания, обновления и удаления ресурсов.
+
+    Каждый метод имеет своё назначение и семантику, и его правильное использование помогает сделать API логичным, безопасным и удобным для использования.
+
+    | Метод   | Назначение                                                                        | Идёмпотентность | Безопасность | Используется в REST для  |
+    | ------- | --------------------------------------------------------------------------------- | --------------- | ------------ | ------------------------ |
+    | GET     | Получение данных с сервера                                                        | ✅ Да           | ✅ Да        | Чтение                   |
+    | POST    | Отправка новых данных на сервер (создание ресурса)                                | ❌ Нет          | ❌ Нет       | Создание                 |
+    | PUT     | Полное обновление ресурса (замена)                                                | ✅ Да           | ❌ Нет       | Обновление               |
+    | PATCH   | Частичное обновление ресурса                                                      | ❌ Нет          | ❌ Нет       | Частичное обновление     |
+    | DELETE  | Удаление ресурса                                                                  | ✅ Да           | ❌ Нет       | Удаление                 |
+    | HEAD    | Как `GET`, но без тела ответа (используется для проверки заголовков, кеша и т.д.) | ✅ Да           | ✅ Да        | Проверка доступности     |
+    | OPTIONS | Возвращает допустимые методы для указанного ресурса (применяется для CORS)        | ✅ Да           | ✅ Да        | Обнаружение возможностей |
+
+    Если метод идемпотентен, это значит, что повторный вызов этого метода не изменит результат. Например:
+
+    - `GET /users` вернёт один и тот же список при каждом вызове;
+
+    - `DELETE /user/5` удалит пользователя, и повторный вызов уже ничего не изменит (если пользователь был удалён в первый раз);
+
+    - `POST /users` не идемпотентен — при каждом вызове может создаваться новый пользователь.
+
+    Безопасный HTTP-метод — это метод, который не изменяет состояние сервера. Он используется только для получения информации, и его выполнение не должно иметь побочных эффектов (например, создавать, изменять или удалять данные). Например:
+
+    - `GET` — безопасен, потому что просто читает данные;
+
+    - `POST` — не безопасен, потому что может создавать ресурсы или выполнять действия.
+
+    :::
+
+6.  Запуск сервера
+
+    ```js
+    app.listen(PORT, () => {
+      console.log(`Server is running on port ${PORT}`);
+    });
+    ```
+
+    Запускает сервер на указанном порту и выводит сообщение в консоль.
+
+Чтобы запустить наше приложение, выполните команду
 
 ```bash
 npm run dev
 ```
 
-If everything is set up correctly, you will see the following output in the console:
+Если все сделано правильно, то в консоли будет вывод:
 
 ```bash
 > gophertalk-backend-express@0.1.0 dev
@@ -589,160 +615,153 @@ If everything is set up correctly, you will see the following output in the cons
 Server is running on port 3000
 ```
 
-To verify that the database connection is successful, send a `GET` request to the following address `http://localhost:3000/api/health-check`
+Чтобы проверить, что подключение к БД выполнено успешно, необходимо сделать `GET` запрос по адресу `http://localhost:3000/api/health-check`. Сделать это можно несколькими способами.
 
-There are several ways to do this:
+1. С помощью утилиты `curl`
 
-1. Using the `curl` utility
-
-   In a second terminal (since the app is running in the first one), run:
+   В другой консоли (так как в первой у нас запущено приложение) выполните команду:
 
    ```bash
    curl http://localhost:3000/api/health-check
    ```
 
-   If the connection is successful, you will see the response `OK`. Otherwise, an error will appear in the application console.
+   В случае успеха вы увидите ответ `OK`. Иначе в консоли с приложением будет ошибка.
 
-2. Using a browser
+2. С помощью браузера.
 
-   Open any browser and go to `http://localhost:3000/api/health-check`.  
-   The browser will send a GET request. If everything is working correctly, you will see the text `OK`.
+   Откройте любой браузер и перейдите по адресу `http://localhost:3000/api/health-check`. При таком действии браузер отправляет `GET` запрос. Если все нормально, то вы также увидите текст `Ok`.
 
-3. Using Postman software — more on this later.
+3. С помощью программного обеспечения Postman, об этом далее.
 
-## What is Postman?
+# Основы работы в ПО Postman
 
-In the world of modern software development, interaction between various applications through APIs (Application Programming Interfaces) has become an essential part of the process. However, before we can build complex integrations, we need to ensure that our API works correctly and returns the expected results.
+В мире современной разработки программного обеспечения, взаимодействие между различными приложениями через интерфейсы приложений (API) стало неотъемлемой частью разработки. Однако, прежде чем мы можем строить сложные взаимодействия, необходимо убедиться, что наш API работает корректно и предоставляет ожидаемые результаты.
 
-This is where Postman comes in — a powerful and intuitive tool designed specifically for API testing and development. Sending HTTP requests, creating tests, organizing requests into collections, working with variables — all of this is just a part of Postman’s functionality that simplifies and enhances the testing process.
+И вот на сцену выходит Postman - мощный и интуитивно понятный инструмент, предназначенный специально для тестирования и разработки API. Отправка HTTP-запросов, создание тестов, организация запросов в коллекции, работа с переменными - все это лишь часть функциональности Postman, которая облегчает процесс тестирования и повышает его эффективность.
 
-**Key features and useful functions of Postman**:
+**Основные возможности и полезные функции Postman**:
 
-- Sending HTTP requests: Postman allows you to easily create and send various types of HTTP requests such as `GET`, `POST`, `PUT`, `DELETE`, and others. You can configure request parameters, send headers, query parameters, and a request body.
+- Отправка HTTP-запросов: Postman позволяет легко создавать и отправлять различные типы HTTP-запросов, такие как `GET`, `POST`, `PUT`, `DELETE` и другие. Можно настраивать параметры запросов, передавать заголовки, параметры и тело запроса.
 
-- API testing: Postman allows you to create tests to verify server responses. You can define expected values and conditions to automatically check whether the API returns the correct results.
+- Тестирование API: Postman позволяет создавать тесты для проверки ответов от сервера. Можно определить ожидаемые значения и условия, чтобы автоматически проверить, что API возвращает правильные результаты.
 
-- Collections and environments: Postman allows you to organize requests and tests into collections, which simplifies managing a large number of requests. Collections can also be used to automate tests or run them in a specific order. Environments allow you to switch between different configuration contexts (e.g., development, staging, production).
+- Коллекции и среды: Postman позволяет организовывать запросы и тесты в коллекции, что упрощает управление большим числом запросов. Коллекции также можно использовать для автоматизации тестов или их запуска в определенной последовательности. Среды позволяют переключаться между различными конфигурациями окружения (например, тестовое, разработка, продакшн).
 
-- Working with variables: Postman supports the use of variables, making it easier for testers to manage and reuse data in requests, tests, and environments.
+- Работа с переменными: Postman поддерживает использование переменных, что облегчает тестировщикам управление и переиспользование данных в запросах, тестах и окружениях.
 
-These are just some of the many features Postman offers, but overall, Postman is a convenient tool for working with and testing APIs. It also helps structure and automate testing workflows.
+Возможностей у инструмента еще очень много, но в целом, Postman - это удобная программа для тестирования и работы с интерфейсами приложений (API). Postman также помогает организовать и автоматизировать тесты.
 
-## Collections
+### Коллекции
 
-A **collection** in Postman is a group of API requests organized together by purpose or project.
+**Коллекция** в Postman — это группа API-запросов, объединённых по смыслу или проекту.
 
-For example, a collection might include all requests for a specific API:
+Например, в одну коллекцию можно поместить все запросы к вашему API:
 
 - `GET /users`
 - `POST /login`
 - `DELETE /posts/:id`
 
-**Why use collections:**
+**Зачем использовать коллекции:**
 
-- Easily organize requests into folders/projects;
-- Run multiple requests at once (e.g., for testing);
-- Export and share them with teammates.
+- Удобная организация запросов по папкам и проектам;
+- Возможность запускать сразу несколько запросов (например, автотесты);
+- Простота экспорта и обмена с командой.
 
 ---
 
-## Environments
+### Окружения
 
-An **environment** in Postman is a set of variables that can be reused across requests.
+**Окружение** в Postman — это набор переменных, которые можно переиспользовать в запросах.
 
-For example:
+Пример:
 
-| Variable     | Dev Value               | Prod Value              |
+| Переменная   | Значение (Dev)          | Значение (Prod)         |
 | ------------ | ----------------------- | ----------------------- |
 | `base_url`   | `http://localhost:3000` | `https://api.myapp.com` |
 | `auth_token` | `dev-abc123`            | `prod-xyz789`           |
 
-You can use these variables inside requests:
+Эти переменные можно использовать прямо в URL и заголовках:
 
 ```
 {{base_url}}/api/users
 Authorization: Bearer {{auth_token}}
 ```
 
-When switching the environment, Postman will substitute the correct values automatically.
+Когда вы переключаете окружение, Postman автоматически подставляет нужные значения.
 
-## Importing Environment and Collection
+### Импорт окружения и коллекции
 
-Download the Postman environment and collection.
+Скачайте окружение для Postman и коллекцию.
 
-- <a target="_blank" href="/databases/gophertalk flavours.postman_collection.json">GopherTalk Flavours Collection</a>
-- <a target="_blank" href="/databases/gophertalk flavours.postman_environment.json">GopherTalk Flavours Environment</a>
+- <a target="_blank" href="/databases/gophertalk flavours.postman_collection.json">Коллекция GopherTalk Flavours</a>
+- <a target="_blank" href="/databases/gophertalk flavours.postman_environment.json">Окружение GopherTalk Flavours</a>
 
-Next, either drag the files into the Postman window or use the menu `File -> Import` to import the environment and collection.
+Далее либо перетяните файлы в окно Postman, либо через пункт меню `File->Import` импортируйте окружение и коллекцию.
 
-After import, go to the left-hand menu and open the Environments tab. Select the `gophertalk flavours` environment. You will see a table of variables:
+После импорта в боковом меню перейдите на вкладку Environments и выберите там gophertalk flavours. Там будет таблица с переменными:
 
 ![Postman Environment](./../../../assets/databases/postman-environment.png)
 
-The `api_url` variable contains the URL of our server: `http://localhost:3000/api`.  
-The `access_token` and `refresh_token` variables are used to store the JWT tokens that are issued after login. We’ll come back to them later.
+В переменной `api_url` указан URL-адрес нашего сервера `http://localhost:3000/api`. Переменные `access_token` и `refresh_token` нужны для хранения JWT токенов, которые выдаются после авторизации. К ним мы вернемся позже.
 
-Now go to the Collections tab. Expand the `gophertalk flavours` collection. It contains three folders:
+Перейдите на вкладку Collections. Раскройте коллекцию gophertalk flavours. В ней находятся три папки:
 
-- `users` – endpoints for working with users
-- `posts` – endpoints for working with posts
-- `auth` – endpoints for authentication
+- `users` - эндпоинты для работы с пользователями
+- `posts` - эндпоинты для работы с постами
+- `auth` - эндпоинты авторизации
 
 ![Postman Collection](./../../../assets/databases/postman-collection.png)
 
-You will implement all these endpoints later. For now, we're interested in the `health-check` endpoint. Double-click it.
+Все эти эндпоинты вы реализуете позже. Сейчас нас интересует эндпоинт `health-check`. Кликните два раза по нему.
 
 ![Postman Health Check](./../../../assets/databases/postman-health-check.png)
 
-At the top, you will see the HTTP method highlighted in green — in this case, `GET`.  
-To the right of the method is the URL. Note that it uses the variable `api_url` mentioned above. Substituting the variable gives us the final URL: `http://localhost:3000/api/health-check`.  
-This is the same URL we configured in our app to check the database connection.  
-To make the variables work, make sure to select the correct environment in the top right corner above the `Send` button. In our case, it’s `gophertalk flavours`.
+Сверху зеленым цветом выделен метод HTTP - в данном случае `GET`. Справа от метода находится URL. Обратите внимание, что в нем используется переменная `api_url`, рассмотренная выше. Подставляя значение переменной, итоговый URL - `http://localhost:3000/api/health-check`. Это тот самый URL, который мы настроили в нашем приложении для проверки соединения с БД. Чтобы переменные работали, необходимо выбрать нужный Environment в правом верхнем углу, над кнопкой `Send`. В нашем случае это gophertalk flavours.
 
-Make sure your app is running and click `Send`. The result will be displayed below in the `Response` window.
+Убедитесь, что ваше приложение запущено, и нажмите `Send`. Результат отобразится ниже во окне `Response`.
 
 ![Postman Health Check Response](./../../../assets/databases/postman-health-check-response.png)
 
-Below the URL bar in Postman you will see the following tabs:
+Под URL строкой в Postman присутсвуют вкладки:
 
-- `Params` – URL query parameters for the `GET` request
-- `Authorization` – authentication settings for the request
-- `Headers` – request headers
-- `Body` – request body
-- `Scripts` – scripts that can run before or after the request
-- `Settings` – request-specific settings
+- `params` - `GET` параметры URL запроса
+- `Authorization` - параметры авторизации для запроса
+- `Headers` - заголовки запроса
+- `Body` - тело запроса
+- `Scripts` - скрипты, которые можно выполнить как до, так и после запроса
+- `Settings` - настройки
 
-We will work with some of these tabs later.
+С некоторыми из этих вкладок мы будем работаь позже.
 
-## Conclusion
+## Заключение
 
-### Building the Express Application Skeleton
+### Разработка каркаса Express-приложения
 
-We have created a minimal but functional skeleton of a web application using Express.  
-You’ve learned how to:
+Мы создали минимальный, но уже работоспособный каркас веб-приложения на основе Express.  
+Вы узнали, как:
 
-- connect essential dependencies (`express`, `pg`, `dotenv`);
-- configure environment variables via `.env`;
-- set up a PostgreSQL connection pool;
-- implement a basic route (`/api/health-check`);
-- organize your project structure into layers: `controllers`, `services`, `repositories`, `routes`, `middlewares`, and so on.
+- подключать необходимые зависимости (`express`, `pg`, `dotenv`);
+- настраивать переменные окружения через `.env`;
+- использовать пул подключений к базе PostgreSQL;
+- реализовать базовую маршрутизацию (`/api/health-check`);
+- организовать структуру проекта по слоям: `controllers`, `services`, `repositories`, `routes`, `middlewares` и т.д.
 
-This foundational structure will serve as the basis for building a full-featured REST API.
-
----
-
-### Introduction to Postman
-
-We also got acquainted with Postman — an essential tool for testing and debugging APIs.  
-You’ve learned how to:
-
-- send HTTP requests of various types;
-- use collections and environments for better organization;
-- work with variables and insert them into your requests;
-- test API endpoints without writing frontend code.
-
-Postman greatly accelerates the development process, especially in the early stages when quick verification of routes, authorization, and server logic is crucial.
+Этот фундаментальный каркас послужит основой для дальнейшей разработки полноценного REST API.
 
 ---
 
-> In the next stage, we’ll begin implementing real endpoints, working with users and authentication — gradually turning our skeleton into a complete API.
+### Знакомство с Postman
+
+Мы также познакомились с инструментом Postman, который незаменим при тестировании и отладке API.  
+Вы узнали, как:
+
+- отправлять HTTP-запросы различных типов;
+- использовать коллекции и окружения для удобной работы;
+- подключать переменные и подставлять их в запросы;
+- проверять работоспособность API без написания frontend-кода.
+
+Postman значительно ускоряет процесс разработки, особенно на ранних этапах, когда важна быстрая проверка маршрутов, авторизации и логики работы сервера.
+
+---
+
+> На следующем этапе мы начнём реализацию реальных эндпоинтов, работу с пользователями и авторизацией, постепенно превращая наш каркас в полноценное API.

@@ -1,11 +1,11 @@
-## Developing the Repository Layer of a Web Application
+## Разработка слоя репозиториев web-приложения
 
-You need to manually create SQL tables that reflect the structure of the GopherTalk social network. Below are the tables, their fields, and the relationships between them.
+Вам необходимо вручную создать SQL-таблицы, отражающие структуру социальной сети GopherTalk. Ниже описаны таблицы, их поля и связи между ними.
 
-1. **Table `users`** — stores user data.
-2. **Table `posts`** — stores user posts. The `reply_to_id` field refers to another post if it's a reply.
-3. **Table `likes`** — stores information about which users liked which posts.
-4. **Table `views`** — stores information about which users viewed which posts.
+1. **Таблица `users`** — хранит данные пользователей.
+2. **Таблица `posts`** — хранит публикации пользователей. Поле `reply_to_id` указывает на другой пост, если это ответ.
+3. **Таблица `likes`** — отображает лайки пользователей к постам.
+4. **Таблица `views`** — отображает просмотры постов пользователями.
 
 ```mermaid
 erDiagram
@@ -52,82 +52,78 @@ erDiagram
 
 ```
 
-### Requirements:
+### Требования:
 
-- Use the data types and constraints as described.
-- Set up primary and foreign keys accordingly.
-- Create a unique index on `user_name`, but only for users who are not deleted (`deleted_at IS NULL`).
-- Make sure that the `status` field can only have values `0` or `1`.
+- Используйте типы данных и ограничения согласно описанию.
+- Настройте первичные и внешние ключи.
+- Создайте уникальный индекс по `user_name`, но только для не удалённых пользователей (`deleted_at IS NULL`).
+- Убедитесь, что `status` может быть только `0` или `1`.
 
-> 💡 Tip: After creating the tables, verify the schema using an ER diagram to ensure the relationships are correct.
+> Подсказка: после создания таблиц, проверьте схему с помощью ER-диаграммы, чтобы убедиться в корректности связей.
 
-## Application Architecture: Controllers, Services, and Repositories
+## Архитектура приложения: контроллеры, сервисы и репозитории
 
-As an application grows, more business logic, validation, and database operations are added — and the code quickly turns into an unreadable mess.  
-To prevent this, we use the principle of **separation of concerns** — where each component is responsible only for its specific task.
+Когда приложение начинает расти, добавляется всё больше бизнес-логики, валидации, работы с базой данных — и код быстро превращается в нечитаемую "кашу". Чтобы этого избежать, используется **разделение ответственности** — принцип, при котором каждый компонент отвечает только за свою задачу.
 
-In small web applications, it's convenient to follow this architecture:
+В небольших веб-приложениях удобно придерживаться следующей архитектуры:
 
-### 1. Controllers
+### 1. Контроллеры (controllers)
 
-A controller is the layer that handles an HTTP request, processes it, and returns a response. Here’s what typically happens:
+Контроллер — это слой, который принимает HTTP-запрос, обрабатывает его и возвращает ответ. Здесь происходит:
 
-- reading parameters from `req`,
-- calling the appropriate service method,
-- forming the response (`res.status().json(...)`).
+- чтение параметров из `req`,
+- вызов нужного метода сервиса,
+- формирование ответа (`res.status().json(...)`).
 
-A controller does **not** contain business logic or directly access the database — it simply **orchestrates the data flow**.  
-Additionally, access control and request filtering are often handled at the controller level.
+Контроллер не содержит бизнес-логики и не обращается напрямую к базе данных — он просто **управляет потоком данных**. Кроме того, на уровне контроллера решаются вопросы по разграничению доступа к ресурсам и фильтрации запросов.
 
-### 2. Services
+### 2. Сервисы (services)
 
-A service is the layer that contains the core **business logic** of the application. It:
+Сервис — это слой, где находится основная **бизнес-логика приложения**. Он:
 
-- processes data,
-- checks conditions (e.g., "user already exists"),
-- calls the repository to access the database.
+- обрабатывает данные,
+- проверяет условия (например, "пользователь уже существует"),
+- вызывает репозиторий для доступа к базе.
 
-A service knows nothing about `req` or `res` — it’s universal and can be reused in HTTP apps, CLI tools, or background scripts.
+Сервис ничего не знает про `req` и `res` — он универсален и может использоваться как в HTTP-приложении, так и, например, в CLI-утилите или фоновом скрипте.
 
-### 3. Repositories
+### 3. Репозитории (repositories)
 
-A repository is the layer responsible for **data access**. This is where SQL queries usually live.  
-The service says: “get me the user by id”, and the repository executes the SQL query and returns the result.
+Репозиторий — это слой, отвечающий за **доступ к данным**. Обычно здесь хранятся SQL-запросы.  
+Сервис говорит: "дай мне пользователя по id", а репозиторий выполняет конкретный SQL-запрос и возвращает результат.
 
-This approach allows you to:
+Такой подход позволяет:
 
-- isolate database logic,
-- write and run unit tests more easily,
-- switch the data storage method (e.g., from PostgreSQL to MongoDB) with minimal changes.
+- изолировать работу с базой,
+- легче писать и запускать юнит-тесты,
+- менять способ хранения данных (например, заменить PostgreSQL на MongoDB) с минимальными изменениями.
 
-### Advantages of this architecture:
+### Преимущества архитектуры:
 
-- Code becomes **cleaner, clearer, and more maintainable**;
-- Each layer can be **tested independently**;
-- Teamwork is simplified — everyone focuses on their own area of responsibility;
-- It’s easier to support and scale the application in the future.
+- Код становится **чище, понятнее и масштабируемее**;
+- Каждый слой можно **тестировать отдельно**;
+- Упрощается командная разработка — каждый работает в своей зоне ответственности;
+- Легче поддерживать и расширять приложение в будущем.
 
-According to the chosen architecture, we will build the development process as follows:  
-first, we will implement the repository layer, then the service layer, and finally the controller layer.  
-For each layer, you will be provided with unit tests to verify the correctness of your implementation.
+В соответсвии с архитектурой мы построим разработку следующим образом: сначала разработаем слой репозитория, затем слой сервисов и в конце слой контроллеров. Для каждого слоя напишем Вам будут предоставлены unit-тесты для проверки корректности разработки конкретного слоя.
 
-## Developing the User Repository
+## Разработка репозитория пользователей
 
-At this stage, we will implement the **user repository** — the layer responsible for interacting with the database.  
-This layer handles storing, retrieving, updating, and deleting user data, without involving any business logic or HTTP controllers.
+На этом этапе мы реализуем слой работы с базой данных — **репозиторий пользователей**.  
+Задача этого слоя — обеспечивать сохранение, получение, обновление и удаление данных пользователей без участия бизнес-логики или HTTP-контроллеров.
 
-The repository will include methods for:
+Репозиторий будет включать методы:
 
-- creating a new user,
-- retrieving all users with pagination,
-- finding a user by `id` and by `user_name`,
-- updating user data,
-- soft-deleting a user.
+- добавления нового пользователя,
+- получения всех пользователей с пагинацией,
+- поиска пользователя по `id` и по `user_name`,
+- обновления данных пользователя,
+- мягкого удаления пользователя.
 
-We will start with the simplest method — `createUser`, which inserts a new user into the `users` table.  
-Then, we will implement the remaining methods and write unit tests to ensure everything works as expected.
+Мы начнем с самого простого метода — `createUser`, который сохраняет нового пользователя в таблице `users`.  
+Затем реализуем остальные методы и подключим unit-тесты для проверки корректности.
 
-In the src folder of the project, create a folder named repositories, and inside it, create a file called `userRepository.js`. Place the following code into that file:
+В папке `src` проекта создайте папку `repositories`, а в ней файл `userRepository.js`. Поместите в него следующий код:
 
 ```js
 import { pool } from "../db/index.js";
@@ -139,43 +135,45 @@ export const UserRepository = {
       VALUES ($1, $2, $3, $4)
       RETURNING id, user_name, password_hash, status;
     `;
-    const values = [dto.user_name, dto.first_name, dto.last_name, dto.password_hash];
+    const values = [
+      dto.user_name,
+      dto.first_name,
+      dto.last_name,
+      dto.password_hash,
+    ];
     const res = await pool.query(query, values);
     return res.rows[0];
   },
 };
 ```
 
-This code implements the createUser method in the UserRepository object, which is responsible for adding a new user to the database.
+Этот код реализует метод `createUser` в объекте `UserRepository`, который отвечает за добавление нового пользователя в базу данных.
 
-### Step-by-step Breakdown
+### Пошаговый разбор
 
-- Importing the database connection:
+- Импорт подключения к базе данных:
 
   ```js
   import { pool } from "../db/index.js";
   ```
 
-  This line imports the `pool` object, which represents a connection pool to the PostgreSQL database.  
-  It is already configured in another module (`db/index.js`) and allows executing SQL queries.
+  Здесь импортируется объект `pool`, который представляет пул подключений к базе данных PostgreSQL. Он уже настроен в другом модуле (`db/index.js`) и позволяет выполнять SQL-запросы.
 
-- Exporting the `UserRepository` object:
+- Экспорт объекта `UserRepository`:
 
   ```js
   export const UserRepository = { ... }
   ```
 
-  This line exports the `UserRepository` object so that it can be used in other parts of the application.
-
-- Defining the `createUser` method:
+- Определение метода `createUser`:
 
   ```js
   async createUser(dto) { ... }
   ```
 
-  The `createUser` method is an asynchronous function that accepts a `dto` (data transfer object) containing the fields of the new user. In our case: `user_name`, `first_name`, `last_name`, `password_hash`.
+  Метод `createUser` — асинхронная функция, которая принимает объект `dto` (data transfer object) с полями нового пользователя. В нашем случае это `user_name`, `first_name`, `last_name`, `password_hash`.
 
-- SQL INSERT query
+- SQL-запрос на вставку
 
   ```js
   const query = `
@@ -185,40 +183,40 @@ This code implements the createUser method in the UserRepository object, which i
   `;
   ```
 
-  This SQL query inserts a new user into the `users` table. It uses placeholders `$1`, `$2`, `$3`, `$4` — these are positional parameters (used to prevent SQL injections). After the insertion, it immediately returns the new user's `id`, `user_name`, `password_hash`, and `status`.
+  Это SQL-запрос, который вставляет нового пользователя в таблицу `users`. Используются подстановки `$1`, `$2`, `$3`, `$4` — это позиционные параметры (предотвращают SQL-инъекции). После вставки сразу возвращаются данные нового пользователя: его `id`, `user_name`, `password_hash` и `status`.
 
-  ::: details SQL Injections
-  SQL injection is one of the most common types of database attacks. It occurs when user input is inserted directly into an SQL query without proper validation or escaping, allowing an attacker to alter the logic of the query.
+  ::: details SQL-инъекции
+  SQL-инъекция — это один из самых распространённых видов атак на базу данных.
+  Она возникает, когда ввод пользователя напрямую вставляется в SQL-запрос без проверки и экранирования, что позволяет злоумышленнику изменить логику запроса.
 
-  **Example of vulnerable code:**
+  **Пример уязвимого кода:**
 
   ```js
   const userInput = "' OR 1=1 --";
   const query = `SELECT * FROM users WHERE user_name = '${userInput}'`;
   ```
 
-  A user provides the input `' OR 1=1 --`, and the code inserts it directly into the query.
+  Вместо ожидаемого безопасного значения, пользователь ввёл строку `' OR 1=1 --`.
 
-  As a result, the final SQL query looks like:
+  В результате итоговый SQL-запрос будет выглядеть так:
 
   ```sql
   SELECT * FROM users WHERE user_name = '' OR 1=1 --';
   ```
 
-  The query will:
+  Что здесь происходит:
 
-  - `user_name = ''` — check if the username is empty;
+  - `user_name = ''` — первое условие, оно просто проверяет, что имя пользователя пустое;
 
-  - `OR 1=1` — a logical expression that is always true, so the condition applies to all users;
+  - `OR 1=1` — логическое выражение, которое всегда истинно, то есть условие выполняется для всех пользователей;
 
-  - `--` — begins an SQL comment; everything after it is ignored by the database;
+  - `--` — начало SQL-комментария, всё, что идёт после него, игнорируется СУБД;
 
-  - `';` — this part is not executed because it is commented out.
+  - `';` — эта часть уже не исполняется, так как закомментирована.
 
-  The query will return all users from the database, because `1=1` is always true.  
-  If such a query is used for login, an attacker could log in without a password — because the query bypasses the intended logic.
+  Этот запрос вернёт всех пользователей из базы, потому что `1=1` всегда истинно. Если такой запрос используется при входе в систему, злоумышленник может войти без пароля, просто потому что запрос "обманывает" проверку логина.
 
-  Using positional parameters solves this problem:
+  Используя позиционные параметры, мы избегаем этой проблемы:
 
   ```js
   const query = "SELECT * FROM users WHERE user_name = $1";
@@ -226,60 +224,62 @@ This code implements the createUser method in the UserRepository object, which i
   await pool.query(query, values);
   ```
 
-  Instead of injecting the user input directly into the query string, we pass it as a separate value.  
-  The PostgreSQL driver (`pg`) ensures safety by:
+  В случае использования позиционных параметров, даже если пользователь введёт `' OR 1=1 --`, это не приведёт к SQL-инъекции, потому что ввод не вставляется напрямую в текст SQL-запроса. Вместо этого он передаётся отдельно в виде значения, а не как часть кода, а на уровне драйвера PostgreSQL (`pg`) реализован механизм, который:
 
-  - Escaping special characters,
+  - экранирует специальные символы,
 
-  - Wrapping the value in quotes if necessary,
+  - оборачивает значение в кавычки при необходимости,
 
-  - Ensuring that the input is treated as a plain string, not as SQL code.
+  - и гарантирует, что ввод будет интерпретироваться именно как строка, а не как SQL-операторы.
 
-  In other words, the driver safely separates SQL code from user-provided data, preventing malicious input from altering the logic of the query.
+  Проще говоря, драйвер сам "разделяет" SQL-код и пользовательские данные, не давая последним повлиять на логику выполнения запроса.
 
-  Therefore, even a dangerous string like `' OR 1=1 --` will be passed as a simple value to the `user_name` field, not as executable SQL code.
+  Поэтому даже вредоносная строка будет просто передана как обычное значение поля `user_name`, а не как часть SQL-запроса.
 
   :::
 
-- Preparing values for the query:
+- Подготовка значений для запроса:
 
   ```js
-  const values = [dto.user_name, dto.first_name, dto.last_name, dto.password_hash];
+  const values = [
+    dto.user_name,
+    dto.first_name,
+    dto.last_name,
+    dto.password_hash,
+  ];
   ```
 
-  The values are taken from the input `dto` object and passed in the same order as defined in the SQL query.
+  Значения берутся из входного объекта `dto` и передаются в том порядке, в котором указаны в SQL-запросе.
 
-- Executing the query
+- Выполнение запроса
 
   ```js
   const res = await pool.query(query, values);
   ```
 
-  The query is executed using the `pool.query(...)` method.  
-  It is asynchronous, so `await` is used.  
-  The result is stored in the `res` variable.
+  Запрос выполняется с помощью метода `pool.query(...)`. Он асинхронный, поэтому используется `await`. Результат сохраняется в переменной `res`.
 
-- Returning the result:
+- Возврат результата:
 
   ```js
   return res.rows[0];
   ```
 
-  After executing the query, the first (and only) row from the result is returned — that is, the data of the newly created user.
+  После выполнения запроса возвращается первая (и единственная) строка результата — то есть данные только что созданного пользователя.
 
-We have implemented user creation. We also need to implement the following methods:
+Мы сделали создание пользователя. Также необходимо реализовать методы:
 
-- `getAllUsers` – retrieve a list of all users with pagination,
+- `getAllUsers` - получение списка всех пользователей с пагинацией,
 
-- `getUserById` – retrieve a user by their ID,
+- `getUserById` - получение пользователя по его id,
 
-- `getUserByUserName` – retrieve a user by their username,
+- `getUserByUserName` - получение пользователя по его имени пользователя,
 
-- `updateUser` – update user data,
+- `updateUser` - обновление данных пользователя,
 
-- `deleteUser` – delete a user
+- `deleteUser` - удаление пользователя
 
-Let's implement the `getAllUsers` method.
+Реализуем метод `getAllUsers`.
 
 ```js
 import { pool } from "../db/index.js";
@@ -291,7 +291,12 @@ export const UserRepository = {
       VALUES ($1, $2, $3, $4)
       RETURNING id, user_name, password_hash, status;
     `;
-    const values = [dto.user_name, dto.first_name, dto.last_name, dto.password_hash];
+    const values = [
+      dto.user_name,
+      dto.first_name,
+      dto.last_name,
+      dto.password_hash,
+    ];
     const res = await pool.query(query, values);
     return res.rows[0];
   },
@@ -309,9 +314,9 @@ export const UserRepository = {
 };
 ```
 
-Note that the method takes two parameters — `offset` and `limit`. These are required to implement pagination, meaning users will be returned in parts using a sliding window, rather than all at once.
+Обратите внимание, что метод принимает два параметра - `offset` и `limit`. Они необходимы для того, чтобы сделать пагинацию, то есть отдавать не всех пользователей сразу, а частями в рамках скользящего окна.
 
-Let's move on to the `getUserById` and `getUserByUserName` methods.
+Перейдем к методам `getUserById` и `getUserByUserName`.
 
 ```js
 import { pool } from "../db/index.js";
@@ -323,7 +328,12 @@ export const UserRepository = {
       VALUES ($1, $2, $3, $4)
       RETURNING id, user_name, password_hash, status;
     `;
-    const values = [dto.user_name, dto.first_name, dto.last_name, dto.password_hash];
+    const values = [
+      dto.user_name,
+      dto.first_name,
+      dto.last_name,
+      dto.password_hash,
+    ];
     const res = await pool.query(query, values);
     return res.rows[0];
   },
@@ -359,10 +369,10 @@ export const UserRepository = {
 };
 ```
 
-> [!IMPORTANT] Task  
-> Write the SQL queries for the `getUserById` and `getUserByUserName` methods yourself. For the `getUserById` method, you should return the fields: `user_name`, `first_name`, `last_name`, `status`, `created_at`, `updated_at`. For the `getUserByUserName` method, return: `user_name`, `password_hash`, `status`.
+> [!IMPORTANT] Задание
+> Напишите самостоятельно SQL запросы для методов `getUserById` и `getUserByUserName`. Для метода `getUserById` необходимо вернуть поля `user_name`, `first_name`, `last_name`, `status`, `created_at`, `updated_at`, а для метода `getUserByUserName` - `user_name`, `password_hash`, `status`.
 
-Let's look at the `updateUser` method
+Рассмотрим метод `updateUser`
 
 ```js
 async updateUser(id, dto) {
@@ -407,55 +417,55 @@ async updateUser(id, dto) {
   }
 ```
 
-This asynchronous method is designed to update user data in the database. It accepts two arguments:
+Этот асинхронный метод предназначен для обновления данных пользователя в базе данных. Он принимает два аргумента:
 
-- `id`: The ID of the user to update.
-- `dto`: An object containing the data to update.
+- `id`: Идентификатор пользователя, которого необходимо обновить.
+- `dto`: Объект, содержащий данные для обновления.
 
-### Operation Logic:
+### Логика работы:
 
-1.  **Initialization**:
+1.  **Инициализация**:
 
-    - Two arrays are created: `fields` to store strings with field updates (`field = $index`) and `args` to store the values that will be substituted into the query.
-    - `index` is initialized to `1`. This variable is used to generate placeholders `$1`, `$2`, etc., in the SQL query.
+    - Создаются два массива: `fields` для хранения строк с обновлениями полей (`field = $index`) и `args` для хранения значений, которые будут подставлены в запрос.
+    - `index` инициализируется значением `1`. Эта переменная используется для генерации плейсхолдеров `$1`, `$2` и т.д. в SQL-запросе.
 
-2.  **Checking Fields for Updates**:
+2.  **Проверка полей для обновления**:
 
-    - A sequential check is performed for the presence of fields in the `dto` object, and the corresponding data is added to the `fields` and `args` arrays:
-      - `password_hash`: If present, `password_hash = $index` is added to `fields` and the value `dto.password_hash` to `args`.
-      - `user_name`: Similarly for the username.
-      - `first_name`: Similarly for the first name.
-      - `last_name`: Similarly for the last name.
-    - With each field added, `index` is incremented.
+    - Выполняется последовательная проверка наличия полей в объекте `dto` и добавление соответствующих данных в массивы `fields` и `args`:
+      - `password_hash`: Если присутствует, добавляется `password_hash = $index` в `fields` и значение `dto.password_hash` в `args`.
+      - `user_name`: Аналогично для имени пользователя.
+      - `first_name`: Аналогично для имени.
+      - `last_name`: Аналогично для фамилии.
+    - При каждом добавлении поля `index` увеличивается.
 
-3.  **Checking for the Presence of Fields to Update**:
+3.  **Проверка наличия полей для обновления**:
 
-    - If the `fields` array is empty (i.e., there were no fields to update in `dto`), an exception `Error("No fields to update")` is thrown.
+    - Если массив `fields` пуст (то есть в `dto` не было полей для обновления), выбрасывается исключение `Error("No fields to update")`.
 
-4.  **Adding the `updated_at` Field**:
+4.  **Добавление поля `updated_at`**:
 
-    - The string `updated_at = NOW()` is added to the `fields` array, which will update the `updated_at` field with the current time.
+    - В массив `fields` добавляется строка `updated_at = NOW()`, которая обновит поле `updated_at` текущим временем.
 
-5.  **Forming the SQL Query**:
+5.  **Формирование SQL-запроса**:
 
-    - An SQL query is formed to update the user data.
-    - The construction `UPDATE users SET ${fields.join(", ")}` is used, where `fields.join(", ")` combines the strings with field updates into one string separated by commas.
-    - The condition `WHERE id = $index AND deleted_at IS NULL` specifies that you need to update the user with the specified `id` who is not marked as deleted (`deleted_at IS NULL`).
-    - The construction `RETURNING id, user_name, first_name, last_name, status, created_at, updated_at` returns the updated user data.
+    - Формируется SQL-запрос для обновления данных пользователя.
+    - Используется конструкция `UPDATE users SET ${fields.join(", ")}`, где `fields.join(", ")` объединяет строки с обновлениями полей в одну строку, разделенную запятыми.
+    - Условие `WHERE id = $index AND deleted_at IS NULL` указывает, что обновлять нужно пользователя с заданным `id`, который не помечен как удаленный (`deleted_at IS NULL`).
+    - Конструкция `RETURNING id, user_name, first_name, last_name, status, created_at, updated_at` возвращает данные обновленного пользователя.
 
-6.  **Adding the User's `id` to the Query Arguments**:
+6.  **Добавление `id` пользователя в аргументы запроса**:
 
-    - The user's `id` is added to the `args` array, which will be used in the `WHERE id = $index` condition.
+    - В массив `args` добавляется `id` пользователя, который будет использоваться в условии `WHERE id = $index`.
 
-7.  **Executing the Query**:
+7.  **Выполнение запроса**:
 
-    - The SQL query is executed using `pool.query(query, args)`. The query result is saved in the `res` variable.
+    - Выполняется SQL-запрос с использованием `pool.query(query, args)`. Результат запроса сохраняется в переменной `res`.
 
-8.  **Handling the Query Result**:
-    - If `res.rowCount === 0`, that is, no users were found to update, an exception `Error("User not found")` is thrown.
-    - Otherwise, the first row of the query result (`res.rows[0]`), containing the updated user data, is returned.
+8.  **Обработка результата запроса**:
+    - Если `res.rowCount === 0`, то есть не было найдено ни одного пользователя для обновления, выбрасывается исключение `Error("User not found")`.
+    - В противном случае возвращается первая строка результата запроса (`res.rows[0]`), содержащая данные обновленного пользователя.
 
-The last method we will implement in this repository is the `deleteUser` method to delete a user.
+Последний метод, который мы реализуем в этом репозитории - это метод удаления пользователя `deleteUser`.
 
 ```js
 async deleteUser(id) {
@@ -467,25 +477,27 @@ async deleteUser(id) {
   }
 ```
 
-This asynchronous method is designed to "delete" a user from the database. In fact, this could be a soft delete, where the record is not physically deleted, but only marked as deleted. Or it could be a complete deletion of the record from the table.
+Этот асинхронный метод предназначен для "удаления" пользователя из базы данных. Фактически, это может быть мягкое удаление (soft delete), когда запись не удаляется физически, а лишь помечается как удалённая. Либо это может быть полное удаление записи из таблицы.
 
-### Operation Logic:
+### Логика работы:
 
-1.  **Forming the SQL Query**
+1.  **Формирование SQL-запроса**
 
-2.  **Executing the Query**:
+2.  **Выполнение запроса**:
 
-    - The SQL query is executed using `pool.query(query, [id])`. The query result is saved in the `res` variable.
+    - Выполняется SQL-запрос с использованием `pool.query(query, [id])`. Результат запроса сохраняется в переменной `res`.
 
-3.  **Handling the Query Result**:
-    - If `res.rowCount === 0`, this means that no user with the specified `id` was found to delete. In this case, an `Error("User not found")` exception is thrown.
+3.  **Обработка результата запроса**:
+    - Если `res.rowCount === 0`, это значит, что не было найдено пользователя с указанным `id` для удаления. В этом случае выбрасывается исключение `Error("User not found")`.
 
 > [!IMPORTANT] Задание
-> Write an SQL query that performs a soft delete of a user, setting the `deleted_at` value to the current time for the user with the specified `id`. Also, write an SQL query that completely deletes the user with the specified `id` from the table.
+> Напишите SQL-запрос, который выполняет мягкое удаление пользователя, устанавливая значение `deleted_at` в текущее время для пользователя с указанным `id`. Также напишите SQL-запрос, который полностью удаляет пользователя с указанным `id` из таблицы.
 
-## Testing the User Repository
+## Тестирование репозитория пользователей
 
-In the root of the project, create a `__tests__` folder, and in it a `repositories` folder. In the `repositories` folder, create a `userRepository.test.js` file and place the code with unit tests in it:
+В корне проекта создайте папку `__tests__`, а в ней папку `repositories`. В папке `repositories` создайте файл `userRepository.test.js` и поместите в него код с unit-тестами:
+
+::: details Unit-тесты userRepository
 
 ```js
 import { expect, jest } from "@jest/globals";
@@ -526,9 +538,18 @@ describe("UserRepository", () => {
       expect(result).toEqual(expected);
       const [sql, params] = mock.mock.calls[0];
       const normalizedSQL = normalizeSQL(sql);
-      expect(normalizedSQL).toContain("insert into users (user_name, first_name, last_name, password_hash)");
-      expect(normalizedSQL).toContain("returning id, user_name, password_hash, status");
-      expect(params).toEqual([dto.user_name, dto.first_name, dto.last_name, dto.password_hash]);
+      expect(normalizedSQL).toContain(
+        "insert into users (user_name, first_name, last_name, password_hash)"
+      );
+      expect(normalizedSQL).toContain(
+        "returning id, user_name, password_hash, status"
+      );
+      expect(params).toEqual([
+        dto.user_name,
+        dto.first_name,
+        dto.last_name,
+        dto.password_hash,
+      ]);
     });
 
     it("error on user insert", async () => {
@@ -544,12 +565,21 @@ describe("UserRepository", () => {
       const fakeError = new Error("insert failed");
       mock.mockRejectedValueOnce(fakeError);
 
-      await expect(UserRepository.createUser(dto)).rejects.toThrow("insert failed");
+      await expect(UserRepository.createUser(dto)).rejects.toThrow(
+        "insert failed"
+      );
 
       const [sql, params] = mock.mock.calls[0];
       const normalizedSQL = normalizeSQL(sql);
-      expect(normalizedSQL).toContain("insert into users (user_name, first_name, last_name, password_hash)");
-      expect(params).toEqual([dto.user_name, dto.first_name, dto.last_name, dto.password_hash]);
+      expect(normalizedSQL).toContain(
+        "insert into users (user_name, first_name, last_name, password_hash)"
+      );
+      expect(params).toEqual([
+        dto.user_name,
+        dto.first_name,
+        dto.last_name,
+        dto.password_hash,
+      ]);
     });
   });
 
@@ -601,7 +631,9 @@ describe("UserRepository", () => {
       const mock = jest.spyOn(pool, "query");
       mock.mockRejectedValueOnce(new Error("SQL error"));
 
-      await expect(UserRepository.getAllUsers(100, 0)).rejects.toThrow("SQL error");
+      await expect(UserRepository.getAllUsers(100, 0)).rejects.toThrow(
+        "SQL error"
+      );
 
       const [sql, params] = mock.mock.calls[0];
       const normalizedSQL = normalizeSQL(sql);
@@ -633,7 +665,9 @@ describe("UserRepository", () => {
 
       const [sql, params] = mock.mock.calls[0];
       const normalizedSQL = normalizeSQL(sql);
-      expect(normalizedSQL).toContain("from users where id = $1 and deleted_at is null");
+      expect(normalizedSQL).toContain(
+        "from users where id = $1 and deleted_at is null"
+      );
       expect(params).toEqual([1]);
     });
 
@@ -641,11 +675,15 @@ describe("UserRepository", () => {
       const mock = jest.spyOn(pool, "query");
       mock.mockResolvedValueOnce({ rows: [], rowCount: 0 });
 
-      await expect(UserRepository.getUserById(2)).rejects.toThrow("User not found");
+      await expect(UserRepository.getUserById(2)).rejects.toThrow(
+        "User not found"
+      );
 
       const [sql, params] = mock.mock.calls[0];
       const normalizedSQL = normalizeSQL(sql);
-      expect(normalizedSQL).toContain("from users where id = $1 and deleted_at is null");
+      expect(normalizedSQL).toContain(
+        "from users where id = $1 and deleted_at is null"
+      );
       expect(params).toEqual([2]);
     });
   });
@@ -669,7 +707,9 @@ describe("UserRepository", () => {
 
       const [sql, params] = mock.mock.calls[0];
       const normalizedSQL = normalizeSQL(sql);
-      expect(normalizedSQL).toContain("from users where user_name = $1 and deleted_at is null");
+      expect(normalizedSQL).toContain(
+        "from users where user_name = $1 and deleted_at is null"
+      );
       expect(params).toEqual(["john"]);
     });
 
@@ -677,11 +717,15 @@ describe("UserRepository", () => {
       const mock = jest.spyOn(pool, "query");
       mock.mockResolvedValueOnce({ rows: [], rowCount: 0 });
 
-      await expect(UserRepository.getUserByUserName("notfound")).rejects.toThrow("User not found");
+      await expect(
+        UserRepository.getUserByUserName("notfound")
+      ).rejects.toThrow("User not found");
 
       const [sql, params] = mock.mock.calls[0];
       const normalizedSQL = normalizeSQL(sql);
-      expect(normalizedSQL).toContain("from users where user_name = $1 and deleted_at is null");
+      expect(normalizedSQL).toContain(
+        "from users where user_name = $1 and deleted_at is null"
+      );
       expect(params).toEqual(["notfound"]);
     });
   });
@@ -720,7 +764,9 @@ describe("UserRepository", () => {
       const normalizedSQL = normalizeSQL(sql);
       expect(normalizedSQL).toContain("update users set");
       expect(normalizedSQL).toContain("where id = $");
-      expect(normalizedSQL).toContain("returning id, user_name, first_name, last_name, status");
+      expect(normalizedSQL).toContain(
+        "returning id, user_name, first_name, last_name, status"
+      );
       expect(params).toContain(dto.user_name);
       expect(params).toContain(dto.password_hash);
       expect(params).toContain(dto.first_name);
@@ -729,7 +775,9 @@ describe("UserRepository", () => {
     });
 
     it("returns error if no fields to update", async () => {
-      await expect(UserRepository.updateUser(1, {})).rejects.toThrow("No fields to update");
+      await expect(UserRepository.updateUser(1, {})).rejects.toThrow(
+        "No fields to update"
+      );
     });
 
     it("returns error if user not found", async () => {
@@ -741,7 +789,9 @@ describe("UserRepository", () => {
 
       mock.mockResolvedValueOnce({ rows: [], rowCount: 0 });
 
-      await expect(UserRepository.updateUser(999, dto)).rejects.toThrow("User not found");
+      await expect(UserRepository.updateUser(999, dto)).rejects.toThrow(
+        "User not found"
+      );
 
       const [sql, params] = mock.mock.calls[0];
       const normalizedSQL = normalizeSQL(sql);
@@ -771,7 +821,9 @@ describe("UserRepository", () => {
 
       mock.mockResolvedValueOnce({ rowCount: 0 });
 
-      await expect(UserRepository.deleteUser(2)).rejects.toThrow("User not found");
+      await expect(UserRepository.deleteUser(2)).rejects.toThrow(
+        "User not found"
+      );
 
       const [sql, params] = mock.mock.calls[0];
       const normalizedSQL = normalizeSQL(sql);
@@ -782,13 +834,15 @@ describe("UserRepository", () => {
 });
 ```
 
-After that run the command
+:::
+
+После этого выполните команду
 
 ```bash
 npm run test
 ```
 
-If you did everything correctly, all tests will pass.
+Если вы все сделали правильно, все тесты пройдены.
 
 ```bash
 > gophertalk-backend-express@0.1.0 test
@@ -825,23 +879,22 @@ Time:        0.138 s
 Ran all test suites.
 ```
 
-## Post Repository Development
+## Разработка репозитория постов
 
-At this stage, we will implement the **post repository** — the layer responsible for interacting with the `posts` table and its related tables: `likes`, `views`, and replies (nested posts).
+На этом этапе мы реализуем **репозиторий постов** — слой, отвечающий за взаимодействие с таблицей `posts`, а также связанными с ней таблицами `likes`, `views` и вложенными ответами (реплаями).
 
-The post repository will include the following methods:
+Репозиторий постов будет включать следующие методы:
 
-- creating a new post (`createPost`);
-- retrieving a list of posts with filters and pagination (`getAllPosts`);
-- retrieving a single post by `id`, including author info, like/view/reply counts (`getPostByID`);
-- deleting a post by its owner (`deletePost`);
-- marking a post as viewed by a user (`viewPost`);
-- liking/disliking a post (`likePost`, `dislikePost`).
+- создание нового поста (`createPost`);
+- получение списка постов с фильтрацией и пагинацией (`getAllPosts`);
+- получение одного поста по `id`, включая автора, количество лайков, просмотров и ответов (`getPostByID`);
+- удаление поста владельцем (`deletePost`);
+- отметка, что пользователь просмотрел пост (`viewPost`);
+- лайк/дизлайк поста (`likePost`, `dislikePost`).
 
-We’ll start with the implementation of the `createPost` method, then move on to the others.  
-All methods interact with the database using SQL queries with parameterized inputs to prevent SQL injection, and return data in DTO format.
+Мы начнем с реализации метода `createPost`, затем последовательно опишем остальные. Все методы взаимодействуют с базой через SQL-запросы, используют подстановки для защиты от SQL-инъекций и возвращают данные в формате DTO.
 
-Create a file `src/repositories/postRepository.js` and put the following code in it:
+Создайте файл `src/repositories/postRepository.js`, в него поместите следующий код:
 
 ```js
 import { pool } from "../db/index.js";
@@ -849,25 +902,25 @@ import { pool } from "../db/index.js";
 export const PostRepository = {
   async createPost(dto) {
     const query = `...`;
-    const values = [dto.text, dto.userId, dto.replyToId];
+    const values = [dto.text, dto.user_id, dto.reply_to_id];
     const res = await pool.query(query, values);
     return res.rows[0];
   },
 };
 ```
 
-Explanation
+Пояснение:
 
-- `dto` is an object containing the new post's data (`text`, `user_id`, `reply_to_id`);
+- `dto` — объект, содержащий данные нового поста (`text`, `user_id`, `reply_to_id`);
 
-- The SQL query inserts the data into the posts table;
+- SQL-запрос вставляет данные в таблицу posts;
 
-- After the insertion, the newly created post’s fields (`id`, `text`, `created_at`, `reply_to_id`) are immediately returned.
+- После вставки сразу возвращаются поля нового поста: `id`, `text`, `created_at`, `reply_to_id`.
 
-> [!IMPORTANT] Task
-> According to the explanation, write a SQL query to add a new post. Do not forget to use positional parameters `$1`, `$2`, `$3` - to prevent SQL injection
+> [!IMPORTANT] Задание
+> В соответствии с пояснением напишите SQL запрос для добавления нового поста. Не забудьте использовать позиционные параметры `$1`, `$2`, `$3` — для предотвращения SQL-инъекций
 
-The `getAllPosts` method returns a list of posts with extended information: number of likes, views, replies, as well as user information and likes and views from the current user.
+Метод `getAllPosts` возвращает список постов с расширенной информацией: количество лайков, просмотров, ответов, а также информацию о пользователе и отметках "нравится" и "просмотрено" от текущего пользователя.
 
 ```js
 async getAllPosts(dto) {
@@ -945,17 +998,17 @@ async getAllPosts(dto) {
   }
 ```
 
-The `getAllPosts` method is designed to get a list of posts with extended information:
+Метод `getAllPosts` предназначен для получения списка публикаций с расширенной информацией:
 
-- post author;
+- автор поста;
 
-- number of likes, views, replies;
+- количество лайков, просмотров, ответов;
 
-- flags, whether the current user liked and/or viewed this post.
+- флаги, лайкнул и/или просматривал ли текущий пользователь этот пост.
 
-#### SQL query structure
+#### Структура SQL-запроса
 
-The query is built using CTE (Common Table Expressions) and looks like this:
+Запрос построен с использованием CTE (Common Table Expressions) и выглядит следующим образом:
 
 ```sql
 WITH likes_count AS (...),
@@ -965,9 +1018,9 @@ SELECT ...
 FROM posts ...
 ```
 
-Let's look at all the parts in order.
+Рассмотрим все части по порядку.
 
-#### 1. Calculating the number of likes for each post
+#### 1. Подсчёт количества лайков к каждому посту
 
 ```sql
 likes_count AS (
@@ -977,9 +1030,9 @@ likes_count AS (
 )
 ```
 
-Here, the number of likes for each post is collected from the `likes` table. `GROUP BY post_id` is used to group the likes by post.
+Здесь из таблицы `likes` собирается информация о количестве лайков для каждого поста. Используется `GROUP BY post_id`, чтобы сгруппировать лайки по постам.
 
-#### 2. Counting the number of views
+#### 2. Подсчёт количества просмотров
 
 ```sql
 views_count AS (
@@ -989,9 +1042,9 @@ views_count AS (
 )
 ```
 
-Similar to the first CTE, but now views from the `views` table are counted.
+Аналогично первой CTE, но теперь считаются просмотры из таблицы `views`.
 
-#### 3. Counting the number of replies to each post
+#### 3. Подсчёт количества ответов на каждый пост
 
 ```sql
 replies_count AS (
@@ -1002,9 +1055,9 @@ replies_count AS (
 )
 ```
 
-Here, from the `posts` table itself, those rows are selected where `reply_to_id IS NOT NULL`, that is, these are replies to other posts. It is calculated how many such replies each parent post has.
+Здесь из самой таблицы `posts` выбираются те строки, где `reply_to_id IS NOT NULL`, то есть это ответы на другие посты. Считается, сколько таких ответов у каждого родительского поста.
 
-#### 4. Main query
+#### 4. Основной запрос
 
 ```sql
 SELECT
@@ -1026,23 +1079,23 @@ WHERE p.deleted_at IS NULL
 ...
 ```
 
-What's going on here:
+Что здесь происходит:
 
-- `JOIN users` — join a post with its author by `user_id`;
+- `JOIN users` — соединение поста с его автором по `user_id`;
 
-- `LEFT JOIN` with `likes_count`, `views_count`, `replies_count` - data from CTE about the number of likes, views and replies is added;
+- `LEFT JOIN` с `likes_count`, `views_count`, `replies_count` — добавляются данные из CTE о количестве лайков, просмотров и ответов;
 
-- `LEFT JOIN likes l` and `views v` - checks if the current user (`$1` is his id) has liked or viewed something. These fields are used in the logical expressions below;
+- `LEFT JOIN likes l` и `views v` — проверяется, поставил ли лайк или просмотр текущий пользователь (`$1` — его id). Эти поля используются в логических выражениях ниже;
 
-- `CASE WHEN ... THEN true ELSE false` - defines `user_liked` and `user_viewed`;
+- `CASE WHEN ... THEN true ELSE false` — определяет `user_liked` и `user_viewed`;
 
-- `COALESCE(..., 0)` — if there is no data on likes/views/responses (for example, no one liked), `0` is substituted;
+- `COALESCE(..., 0)` — если данных о лайках/просмотрах/ответах нет (например, никто не лайкал), подставляется `0`;
 
-- `WHERE p.deleted_at IS NULL` — filtering: only non-deleted posts are taken.
+- `WHERE p.deleted_at IS NULL` — фильтрация: берутся только не удалённые посты.
 
-#### 5. Additional filters
+#### 5. Дополнительные фильтры
 
-**By text:**
+**По тексту:**
 
 ```sql
 if (dto.search) {
@@ -1051,9 +1104,9 @@ if (dto.search) {
 }
 ```
 
-If the string `search` is passed, posts with a match in the text are searched.
+Если передана строка `search`, ищутся посты, в тексте которых есть соответствие.
 
-**By user (author):**
+**По пользователю (автору):**
 
 ```sql
 if (dto.owner_id) {
@@ -1062,9 +1115,9 @@ if (dto.owner_id) {
 }
 ```
 
-If `owner_id` is passed, posts of a specific user are selected.
+Если передан `owner_id`, отбираются посты конкретного пользователя.
 
-**By replies:**
+**По ответам:**
 
 ```sql
 if (dto.reply_to_id) {
@@ -1074,30 +1127,30 @@ if (dto.reply_to_id) {
 }
 ```
 
-Checks if posts are replies to another post (`reply_to_id`) or root posts.
+Проверяется, являются ли посты ответами на другой пост (`reply_to_id`) или это корневые посты.
 
-#### 6. Pagination
+#### 6. Пагинация
 
 ```js
 query += ` OFFSET $${params.length + 1} LIMIT $${params.length + 2}`;
 params.push(dto.offset, dto.limit);
 ```
 
-The "sliding window" mechanics are implemented - a certain range of posts is selected.
+Реализуется механика "скользящего окна" — выбирается определённый диапазон постов.
 
-#### 7. Returned result
+#### 7. Возвращаемый результат
 
-The result is collected as an array of posts. Each post contains:
+Результат собирается в виде массива постов. Каждый пост содержит:
 
-- data of the post itself,
+- данные самого поста,
 
-- data of the author (`user`),
+- данные автора (`user`),
 
-- number of likes, views, replies,
+- количество лайков, просмотров, ответов,
 
-- flags `user_liked`, `user_viewed`.
+- флаги `user_liked`, `user_viewed`.
 
-Next, let's look at the implementation of the `getPostById` method.
+Далее рассмотрим реализацию метода `getPostById`.
 
 ```js
 import { pool } from "../db/index.js";
@@ -1172,32 +1225,32 @@ export const PostRepository = {
 };
 ```
 
-The `getPostById` method is used to retrieve a single specific post by its ID. It returns detailed information about the post, including likes, views, replies, and author information. The method is similar to `getAllPosts`, except for a few differences.
+Метод `getPostById` используется для получения одного конкретного поста по его идентификатору. Он возвращает расширенную информацию по посту, включая лайки, просмотры, количество ответов и данные об авторе. Метод похож на `getAllPosts`, за исключением некоторых отличий.
 
-**Filtering by Post ID**
+**Фильтрация по ID поста**
 
-Instead of fetching multiple posts, the query is limited to a single post:
+Вместо выборки множества записей, запрос ограничивается одним постом:
 
 ```sql
 WHERE p.id = $2 AND p.deleted_at IS NULL
 ```
 
-The first parameter (`$1`) is `user_id` (needed to determine whether the user liked/viewed the post),
-the second (`$2`) is the ID of the post itself that is being searched.
+Первый параметр (`$1`) — это `user_id` (нужен для определения, лайкнул ли/просматривал ли пользователь пост),
+второй (`$2`) — это ID самого поста, который ищется.
 
-**No pagination**
+**Отсутствует пагинация**
 
-The method returns only one post, so there is no `OFFSET` and `LIMIT`.
+Метод возвращает только один пост, поэтому нет `OFFSET` и `LIMIT`.
 
-**Return Value**
+**Возвращаемое значение**
 
-`getPostById` returns a single post object, while `getAllPosts` returns an array.
+`getPostById` возвращает один объект поста, а `getAllPosts` - массив.
 
-**Edge Case Handling**
+**Обработка крайних случаев**
 
-If no post is found, `getPostById` throws a "Post not found" exception, while `getAllPosts` returns an empty array.
+Если пост не найден, `getPostById` выбрасывает исключение "Post not found", а `getAllPosts` возвращает пустой массив.
 
-Let's move on to implementing the `deletePost` method in the `PostRepository` repository.
+Перейдем к реализации метода `deletePost` в репозитории `PostRepository`
 
 ```js
 async deletePost(id, ownerId) {
@@ -1209,10 +1262,10 @@ async deletePost(id, ownerId) {
 }
 ```
 
-> [!IMPORTANT] Task
-> Implement the `deletePost` method, which marks a post as deleted. The SQL query should update the `deleted_at` field with the current time, work only with posts owned by the author, and exclude already deleted posts.
+> [!IMPORTANT] Задание
+> Реализуйте метод `deletePost`, который помечает пост как удалённый. SQL-запрос должен обновлять поле `deleted_at` текущим временем, работать только с постами, принадлежащими автору и исключать уже удалённые посты.
 
-Now we implement a method that records the fact that a user has viewed a post. Each user can view a post only once - repeated views are not recorded.
+Теперь реализуем метод, который регистрирует факт просмотра поста пользователем. Каждый пользователь может просмотреть пост только один раз — повторные просмотры не записываются.
 
 ```js
 async function viewPost(postId, userId) {
@@ -1232,13 +1285,13 @@ async function viewPost(postId, userId) {
 }
 ```
 
-> [!CAUTION] Warning
-> Pay attention to the line `err.message.includes("pk__views")`. Here `pk__views` is the name of the primary key of the table `views`. Substitute yours if it is different.
+> [!CAUTION] Внимание
+> Обратите внимание на строку `err.message.includes("pk__views")`. Здесь `pk__views` - это имя первичного ключа у таблицы `views`. Подставьте свое, если у вас отличается.
 
-> [!IMPORTANT] Task
-> Implement the `viewPost` method, which adds a new record to the `views` table.
+> [!IMPORTANT] Задание
+> Реализуйте метод `viewPost`, который добавляет новую запись в таблицу `views`.
 
-Now we implement a method that allows a user to like a post. One user can only like a post once - repeated attempts should cause an error.
+Теперь реализуем метод, который позволяет пользователю поставить лайк посту. Один пользователь может поставить лайк одному посту только один раз — повторные попытки должны вызывать ошибку.
 
 ```js
 async function likePost(postId, userId) {
@@ -1258,13 +1311,13 @@ async function likePost(postId, userId) {
 }
 ```
 
-> [!CAUTION] Warning
-> Pay attention to the line `err.message.includes("pk__likes")`. Here `pk__likes` is the name of the primary key of the table `likes`. Substitute yours if it is different.
+> [!CAUTION] Внимание
+> Обратите внимание на строку `err.message.includes("pk__likes")`. Здесь `pk__likes` - это имя первичного ключа у таблицы `likes`. Подставьте свое, если у вас отличается.
 
-> [!IMPORTANT] Task
-> Implement the `likePost` method, which adds a new record to the `likes` table.
+> [!IMPORTANT] Задание
+> Реализуйте метод `likePost`, который добавляет новую запись в таблицу `likes`.
 
-The `dislikePost` method allows the user to remove a like from a post if they have previously given it.
+Метод `dislikePost` позволяет пользователю убрать лайк с поста, если он его ранее поставил.
 
 ```js
 async function dislikePost(postId, userId) {
@@ -1278,14 +1331,14 @@ async function dislikePost(postId, userId) {
 }
 ```
 
-> [!IMPORTANT] Task
-> Implement the `dislikePost` method, which deletes a record from the `likes` table.
+> [!IMPORTANT] Задание
+> Реализуйте метод `dislikePost`, который удаляет запись из таблицы `likes`.
 
-## Testing the Post Repository
+## Тестирование репозитория постов
 
-In the `__tests__/repositories` folder, create a `postRepository.test.js` file and place the code with unit tests in it:
+В папке `__tests__/repositories` создайте файл `postRepository.test.js` и поместите в него код с unit-тестами:
 
-::: details postRepository unit tests
+::: details Unit-тесты postRepository
 
 ```js
 import { describe, expect, jest } from "@jest/globals";
@@ -1342,7 +1395,9 @@ describe("PostRepository", () => {
       const fakeError = new Error("insert failed");
       mock.mockRejectedValueOnce(fakeError);
 
-      await expect(PostRepository.createPost(dto)).rejects.toThrow("insert failed");
+      await expect(PostRepository.createPost(dto)).rejects.toThrow(
+        "insert failed"
+      );
 
       const [sql, params] = mock.mock.calls[0];
       const normalizedSQL = normalizeSQL(sql);
@@ -1427,7 +1482,9 @@ describe("PostRepository", () => {
 
       mock.mockRejectedValueOnce(new Error("query failed"));
 
-      await expect(PostRepository.getAllPosts(dto)).rejects.toThrow("query failed");
+      await expect(PostRepository.getAllPosts(dto)).rejects.toThrow(
+        "query failed"
+      );
 
       const [sql, params] = mock.mock.calls[0];
       const normalized = normalizeSQL(sql);
@@ -1490,7 +1547,9 @@ describe("PostRepository", () => {
       const mock = jest.spyOn(pool, "query");
       mock.mockResolvedValueOnce({ rows: [], rowCount: 0 });
 
-      await expect(PostRepository.getPostById(999, 1)).rejects.toThrow("Post not found");
+      await expect(PostRepository.getPostById(999, 1)).rejects.toThrow(
+        "Post not found"
+      );
 
       const [sql, params] = mock.mock.calls[0];
       expect(normalizeSQL(sql)).toContain("select");
@@ -1506,7 +1565,9 @@ describe("PostRepository", () => {
       const mock = jest.spyOn(pool, "query");
       mock.mockResolvedValueOnce({ rowCount: 1 });
 
-      await expect(PostRepository.deletePost(postId, ownerId)).resolves.toBeUndefined();
+      await expect(
+        PostRepository.deletePost(postId, ownerId)
+      ).resolves.toBeUndefined();
 
       const [sql, params] = mock.mock.calls[0];
       const normalizedSQL = normalizeSQL(sql);
@@ -1522,7 +1583,9 @@ describe("PostRepository", () => {
       const mock = jest.spyOn(pool, "query");
       mock.mockResolvedValueOnce({ rowCount: 0 });
 
-      await expect(PostRepository.deletePost(postId, ownerId)).rejects.toThrow("Post not found or already deleted");
+      await expect(PostRepository.deletePost(postId, ownerId)).rejects.toThrow(
+        "Post not found or already deleted"
+      );
 
       const [sql, params] = mock.mock.calls[0];
       const normalizedSQL = normalizeSQL(sql);
@@ -1539,7 +1602,9 @@ describe("PostRepository", () => {
       const mock = jest.spyOn(pool, "query");
       mock.mockResolvedValueOnce({ rowCount: 1 });
 
-      await expect(PostRepository.viewPost(postId, userId)).resolves.toBeUndefined();
+      await expect(
+        PostRepository.viewPost(postId, userId)
+      ).resolves.toBeUndefined();
 
       const [sql, params] = mock.mock.calls[0];
       const normalizedSQL = normalizeSQL(sql);
@@ -1554,7 +1619,9 @@ describe("PostRepository", () => {
       const mock = jest.spyOn(pool, "query");
       mock.mockRejectedValueOnce(new Error("insert failed"));
 
-      await expect(PostRepository.viewPost(postId, userId)).rejects.toThrow("insert failed");
+      await expect(PostRepository.viewPost(postId, userId)).rejects.toThrow(
+        "insert failed"
+      );
 
       const [sql, params] = mock.mock.calls[0];
       const normalizedSQL = normalizeSQL(sql);
@@ -1567,9 +1634,13 @@ describe("PostRepository", () => {
       const userId = 1;
 
       const mock = jest.spyOn(pool, "query");
-      mock.mockRejectedValueOnce(new Error('duplicate key value violates unique constraint "pk__views"'));
+      mock.mockRejectedValueOnce(
+        new Error('duplicate key value violates unique constraint "pk__views"')
+      );
 
-      await expect(PostRepository.viewPost(postId, userId)).rejects.toThrow("Post already viewed");
+      await expect(PostRepository.viewPost(postId, userId)).rejects.toThrow(
+        "Post already viewed"
+      );
     });
   });
 
@@ -1581,7 +1652,9 @@ describe("PostRepository", () => {
       const mock = jest.spyOn(pool, "query");
       mock.mockResolvedValueOnce({ rowCount: 1 });
 
-      await expect(PostRepository.likePost(postId, userId)).resolves.toBeUndefined();
+      await expect(
+        PostRepository.likePost(postId, userId)
+      ).resolves.toBeUndefined();
 
       const [sql, params] = mock.mock.calls[0];
       const normalizedSQL = normalizeSQL(sql);
@@ -1596,7 +1669,9 @@ describe("PostRepository", () => {
       const mock = jest.spyOn(pool, "query");
       mock.mockRejectedValueOnce(new Error("insert failed"));
 
-      await expect(PostRepository.likePost(postId, userId)).rejects.toThrow("insert failed");
+      await expect(PostRepository.likePost(postId, userId)).rejects.toThrow(
+        "insert failed"
+      );
 
       const [sql, params] = mock.mock.calls[0];
       const normalizedSQL = normalizeSQL(sql);
@@ -1609,9 +1684,13 @@ describe("PostRepository", () => {
       const userId = 1;
 
       const mock = jest.spyOn(pool, "query");
-      mock.mockRejectedValueOnce(new Error('duplicate key value violates unique constraint "pk__likes"'));
+      mock.mockRejectedValueOnce(
+        new Error('duplicate key value violates unique constraint "pk__likes"')
+      );
 
-      await expect(PostRepository.likePost(postId, userId)).rejects.toThrow("Post already liked");
+      await expect(PostRepository.likePost(postId, userId)).rejects.toThrow(
+        "Post already liked"
+      );
     });
   });
 
@@ -1623,11 +1702,15 @@ describe("PostRepository", () => {
       const mock = jest.spyOn(pool, "query");
       mock.mockResolvedValueOnce({ rowCount: 1 });
 
-      await expect(PostRepository.dislikePost(postId, userId)).resolves.toBeUndefined();
+      await expect(
+        PostRepository.dislikePost(postId, userId)
+      ).resolves.toBeUndefined();
 
       const [sql, params] = mock.mock.calls[0];
       const normalizedSQL = normalizeSQL(sql);
-      expect(normalizedSQL).toContain("delete from likes where post_id = $1 and user_id = $2");
+      expect(normalizedSQL).toContain(
+        "delete from likes where post_id = $1 and user_id = $2"
+      );
       expect(params).toEqual([postId, userId]);
     });
 
@@ -1638,11 +1721,15 @@ describe("PostRepository", () => {
       const mock = jest.spyOn(pool, "query");
       mock.mockRejectedValueOnce(new Error("delete failed"));
 
-      await expect(PostRepository.dislikePost(postId, userId)).rejects.toThrow("delete failed");
+      await expect(PostRepository.dislikePost(postId, userId)).rejects.toThrow(
+        "delete failed"
+      );
 
       const [sql, params] = mock.mock.calls[0];
       const normalizedSQL = normalizeSQL(sql);
-      expect(normalizedSQL).toContain("delete from likes where post_id = $1 and user_id = $2");
+      expect(normalizedSQL).toContain(
+        "delete from likes where post_id = $1 and user_id = $2"
+      );
       expect(params).toEqual([postId, userId]);
     });
 
@@ -1653,11 +1740,15 @@ describe("PostRepository", () => {
       const mock = jest.spyOn(pool, "query");
       mock.mockResolvedValueOnce({ rowCount: 0 });
 
-      await expect(PostRepository.dislikePost(postId, userId)).rejects.toThrow("Post not found");
+      await expect(PostRepository.dislikePost(postId, userId)).rejects.toThrow(
+        "Post not found"
+      );
 
       const [sql, params] = mock.mock.calls[0];
       const normalizedSQL = normalizeSQL(sql);
-      expect(normalizedSQL).toContain("delete from likes where post_id = $1 and user_id = $2");
+      expect(normalizedSQL).toContain(
+        "delete from likes where post_id = $1 and user_id = $2"
+      );
       expect(params).toEqual([postId, userId]);
     });
   });
@@ -1666,7 +1757,7 @@ describe("PostRepository", () => {
 
 :::
 
-Run the tests. If you did everything correctly, all tests will pass.
+Запустите тесты. Если вы все сделали правильно, все тесты пройдены.
 
 ```bash
 npm run test
@@ -1686,95 +1777,96 @@ Time:        0.196 s, estimated 1 s
 Ran all test suites.
 ```
 
-## Section Summary
+## Итоги учебного вопроса
 
-In this section, we have consistently developed two data access layers — the User Repository and the Post Repository, following the architectural principle of separation of concerns. We have:
+Мы последовательно разработали два слоя доступа к данным — репозиторий пользователей и репозиторий постов, следуя архитектурному принципу разделения ответственности. Мы:
 
-- Implemented functions for basic database operations (create, read, update, delete).
+- Создали функции для основных операций с базой данных (создание, чтение, обновление, удаление).
 
-- Used positional parameters in SQL queries to protect against SQL injection attacks.
+- Реализовали SQL-запросы с использованием позиционных параметров, обеспечивающих защиту от SQL-инъекций.
 
-- Supported flexible filters, pagination, and conditional queries (e.g., by `user_id`, `reply_to_id`, `text`).
+- Поддержали гибкие фильтры, пагинацию и условия отбора данных (например, по `user_id`, `reply_to_id`, `text`).
 
-- Handled all possible error cases, including "not found" scenarios and conflicts (e.g., duplicate likes).
+- Обработали все возможные ошибки, включая ситуации "не найдено" и конфликты при повторных действиях (например, повторный лайк).
 
-- Wrote unit tests to ensure correctness of each repository method.
+- Написали юнит-тесты, чтобы убедиться в корректности реализации всех функций.
 
-This approach makes the code clean, maintainable, and extensible. Now we are ready to move on to the next layer — the functional layer (services), where we will implement the application logic and data validation before passing it to the repositories.
+Такой подход делает код читаемым, легко поддерживаемым и расширяемым. Теперь мы готовы перейти к разработке следующего слоя — функционального (сервисов), где будет реализована логика обработки данных и проверок перед их отправкой в репозитории.
 
-## Developing the Functional Layer of a Web Application
+## Разработка функционального слоя web-приложения
 
-In the previous section, we implemented the repository layer — direct access to the database. Now it's time to move on to the next architectural layer — the logic layer, also known as the service layer. This layer contains "services" — modules that implement the core behavior of the application.
+На предыдущем этапе мы реализовали слой репозиториев — прямой доступ к данным. Теперь переходим к следующему этапу архитектуры — функциональному слою, или слою логики приложения. Его часто называют сервисным, так как он содержит "сервисы" — модули, реализующие ключевые действия с данными.
 
-**Why do we need a logic layer?**
+**Зачем нужен функциональный слой?**
 
-The logic layer separates application logic from the specifics of data storage (repositories) and transport (such as HTTP). This approach allows us to:
+Функциональный слой изолирует логику работы приложения от деталей хранения данных (репозитории) и от деталей транспортного уровня (например, HTTP-запросов). Такой подход помогает:
 
-- Increase code reusability — a service can be used from a controller or from a background task;
+- Повысить переиспользуемость логики — сервис можно вызывать не только из контроллера, но и, например, из фоновой задачи;
 
-- Simplify testing — services can be tested independently from HTTP and the database;
+- Упростить тестирование — сервисы можно протестировать отдельно от HTTP и базы данных;
 
-- Improve code readability — each module has a clear responsibility;
+- Улучшить читаемость кода — каждый модуль занимается своей задачей;
 
-- Simplify team collaboration — developers can work on services and controllers separately.
+У- простить совместную разработку — разные разработчики могут работать над контроллерами и сервисами независимо.
 
-**Which services will we implement?**
+**Какие сервисы мы реализуем?**
 
-In our GopherTalk application, we will implement three main services:
+- В нашем приложении GopherTalk мы реализуем три ключевых сервиса:
 
-- `AuthService` — handles user registration, login, and token generation.
+- `AuthService` — регистрация, вход в систему, генерация токенов.
 
-- `UserService` — manages users (search, update, delete).
+- `UserService` — управление пользователями (поиск, обновление, удаление).
 
-- `PostService` — handles posts (create, retrieve, like, view, delete).
+- `PostService` — работа с постами (создание, получение, лайки, просмотры и удаление).
 
-Each service will use the corresponding repository and, if needed, helper functions such as password hashing or token generation.
+Каждый из этих сервисов будет использовать соответствующий репозиторий и, при необходимости, вспомогательные функции (например, для работы с паролями или токенами).
 
-## Authorization service development
+## Разработка сервиса авторизации
 
-This service is responsible for user registration, login, and token pair generation. It interacts with the user repository and auxiliary utilities for working with passwords and JWT.
+Этот сервис отвечает за регистрацию, вход пользователя и генерацию пары токенов. Он взаимодействует с репозиторием пользователей и вспомогательными утилитами для работы с паролями и JWT.
 
-::: details What is JWT?
+::: details Что такое JWT?
 
-JSON Web Token (JWT) is an open standard (RFC 7519) that provides a compact and self-contained way to securely transfer information between parties in the form of a JSON object. The token is digitally signed, which allows you to verify the authenticity and integrity of the data. JWT consists of three parts: a header, a payload, and a signature, each of which is encoded in Base64Url and separated by dots.
+JSON Web Token (JWT) — это открытый стандарт (RFC 7519), представляющий собой компактный и автономный способ безопасной передачи информации между участниками в виде JSON-объекта. Токен подписывается цифровой подписью, что позволяет проверить подлинность и целостность данных. JWT состоит из трёх частей: заголовка (header), полезной нагрузки (payload) и подписи (signature), каждая из которых кодируется в Base64Url и разделяется точками.
 
-JWT is a string that contains encoded user information and other data, signed with a secret key or a public/private key pair. This verifies that the token has not been tampered with and that the sender is who they claim to be.
+JWT — это строка, которая содержит закодированную информацию о пользователе и других данных, подписанную с помощью секретного ключа или пары публичного/приватного ключей. Это позволяет удостовериться, что токен не был подделан и что отправитель — тот, за кого себя выдает.
 
-**Advantages of JWT**
+**Преимущества JWT**
 
-- **Self-sufficiency**: JWT contains all the necessary information inside itself, which allows you to verify the token locally without accessing a database or centralized session storage, improving performance and scalability.
-- **Cross-platform**: JWT can be used in different programming languages ​​and environments, which is convenient for distributed systems.
-- **Flexibility**: The token can store additional information, such as user roles, token expiration time, and other user data.
-- **Single Sign-On (SSO) Friendly**: Due to its compact size and ability to be used across different domains, JWT is widely used for single sign-on.
-- **Signature Security**: The digital signature ensures the integrity and authenticity of the data, preventing the token from being tampered with.
+- **Самодостаточность**: JWT содержит всю необходимую информацию внутри себя, что позволяет проверять токен локально без обращения к базе данных или централизованному хранилищу сессий, улучшая производительность и масштабируемость.
+- **Кросс-платформенность**: JWT можно использовать в разных языках программирования и средах, что удобно для распределённых систем.
+- **Гибкость**: в токене можно хранить дополнительную информацию, например, роли пользователя, время действия токена и другие пользовательские данные.
+- **Удобство для Single Sign-On (SSO)**: благодаря компактности и возможности использования между разными доменами JWT широко применяется для единого входа в системы.
+- **Безопасность подписи**: цифровая подпись обеспечивает целостность и аутентичность данных, что предотвращает подделку токена.
 
-**JWT Disadvantages**
+**Недостатки JWT**
 
-- **Lack of built-in revocation mechanism**: JWT does not support token revocation by default, which can be a problem if you need to revoke access immediately.
-- **Leakage risk**: If the secret key or private signing key is compromised, an attacker can create fake tokens.
-- **Complexity of session management**: Unlike classic session cookies, JWT requires additional logic to manage the session lifecycle and secure storage on the client.
-- **Not always easier to use**: Despite its popularity, JWT is not always easier to implement and operate, especially for novice developers.
+- **Отсутствие встроенного механизма отзыва**: JWT не поддерживает отзыв токенов по умолчанию, что может быть проблемой при необходимости немедленно аннулировать доступ.
+- **Риск при утечке**: если секретный ключ или приватный ключ подписи скомпрометированы, злоумышленник может создавать поддельные токены.
+- **Сложность управления сессиями**: в отличие от классических сессионных куки, JWT требует дополнительной логики для управления жизненным циклом сессии и безопасным хранением на клиенте.
+- **Не всегда проще в использовании**: несмотря на популярность, JWT не всегда проще в реализации и эксплуатации, особенно для начинающих разработчиков.
 
-**Usage of JWT**
+**Использования JWT**
 
-- **Authentication**: The most common scenario is when a user logs in and the server issues a JWT, which the client sends with each request to access protected resources.
-- **Inter-service information exchange**: JWT is used to securely transfer information between different systems where it is important to verify the authenticity of the sender and the integrity of the data.
-- **Single Sign-On (SSO)**: Due to its compactness and independence from a specific server, JWT is suitable for implementing single sign-on across multiple applications or domains.
-- **Microservice architecture**: In distributed systems, JWT allows each service to independently verify user rights without a centralized session store.
+- **Авторизация**: самый распространённый сценарий — после входа пользователя сервер выдаёт JWT, который клиент отправляет с каждым запросом для доступа к защищённым ресурсам.
+- **Обмен информацией между сервисами**: JWT используется для безопасной передачи информации между различными системами, где важно удостовериться в подлинности отправителя и целостности данных.
+- **Single Sign-On (SSO)**: благодаря компактности и независимости от конкретного сервера JWT подходит для реализации единого входа в несколько приложений или доменов.
+- **Микросервисная архитектура**: в распределённых системах JWT позволяет каждому сервису самостоятельно проверять права пользователя без централизованного хранилища сессий.
 
-**JWT consists of three parts, separated by dots (`.`):**
+**JWT состоит из трёх частей, разделённых точками (`.`):**
 
-- **Header**
-  Contains metadata about the token: the token type (usually "JWT") and the signature algorithm used (e.g. HS256, RS256). This is a JSON object encoded in Base64Url.
+- **Header (Заголовок)**  
+  Содержит метаданные о токене: тип токена (обычно "JWT") и используемый алгоритм подписи (например, HS256, RS256). Это JSON-объект, закодированный в Base64Url.
 
-- **Payload**
-  Contains claims - data that is passed in the token, such as user ID, roles, token lifetime, and other user data. Also a JSON object encoded in Base64Url.
+- **Payload (Полезная нагрузка)**  
+  Содержит утверждения (claims) — данные, которые передаются в токене, например, идентификатор пользователя, роли, время жизни токена и другие пользовательские данные. Также JSON-объект, закодированный в Base64Url.
 
-- **Signature**
-  A cryptographic signature that is created from the header and payload using a secret key or key pair. Allows you to verify the integrity and authenticity of the token.
-  :::
+- **Signature (Подпись)**  
+  Криптографическая подпись, которая создаётся на основе заголовка и полезной нагрузки с использованием секретного ключа или пары ключей. Позволяет проверить целостность и подлинность токена.
 
-In the `src` folder of the project, create a `services` folder, and in it a file `authService.js`, and place the following code there:
+:::
+
+В папке `src` проекта создайте папку `services`, а в ней файл `authService.js`, и поместите туда следующий код:
 
 ```js
 import bcrypt from "bcrypt";
@@ -1811,9 +1903,13 @@ export const AuthService = {
     const accessToken = jwt.sign({ sub: id }, process.env.ACCESS_TOKEN_SECRET, {
       expiresIn: process.env.ACCESS_TOKEN_EXPIRES,
     });
-    const refreshToken = jwt.sign({ sub: id }, process.env.REFRESH_TOKEN_SECRET, {
-      expiresIn: process.env.REFRESH_TOKEN_EXPIRES,
-    });
+    const refreshToken = jwt.sign(
+      { sub: id },
+      process.env.REFRESH_TOKEN_SECRET,
+      {
+        expiresIn: process.env.REFRESH_TOKEN_EXPIRES,
+      }
+    );
     return {
       access_token: accessToken,
       refresh_token: refreshToken,
@@ -1822,33 +1918,25 @@ export const AuthService = {
 };
 ```
 
-#### Method Description
+#### Описание методов
 
 **`login(dto)`**
 
-- Searches for a user by name.
+- Ищет пользователя по имени.
 
-- Checks if the password is correct.
+- Проверяет правильность пароля.
 
-- Returns tokens if everything is correct.
+- Возвращает токены, если всё корректно.
 
 **`register(dto)`**
 
-- Hashes the password.
+- Хеширует пароль.
 
-- Creates a new user.
+- Создаёт нового пользователя.
 
-- Returns tokens for the new user.
+- Возвращает токены для нового пользователя.
 
 **`generateTokenPair(user)`**
-
-- Generates two tokens:
-
-  - access token — for quick authentication;
-
-  - refresh token — to refresh the access token without re-login.
-
-- Uses secrets and token lifetime from the configuration.
 
 - Генерирует два токена:
 
@@ -1858,33 +1946,33 @@ export const AuthService = {
 
 - Использует секреты и время жизни токенов из конфигурации.
 
-The authorization service (`AuthService`) uses environment variables to create JWT tokens. They allow you to flexibly configure security settings without changing the application code.
+В сервисе авторизации (`AuthService`) для создания JWT-токенов используются переменные окружения. Они позволяют гибко настраивать параметры безопасности без изменения кода приложения.
 
-| Variable                | Current value                    | Example of another value    | Description                                                                                               |
-| :---------------------- | :------------------------------- | :-------------------------- | :-------------------------------------------------------------------------------------------------------- |
-| `ACCESS_TOKEN_EXPIRES`  | `1h`                             | `15m`, `2h`, `7d`           | Access token expiration date (lifetime). Specified in time format: minutes (`m`), hours (`h`), days (`d`) |
-| `REFRESH_TOKEN_EXPIRES` | `24h`                            | `7d`, `30d`                 | Refresh token expiration date. Usually longer than access token                                           |
-| `ACCESS_TOKEN_SECRET`   | `super_secret_access_token_key`  | `any_random_secure_key`     | Secret string for signing access tokens                                                                   |
-| `REFRESH_TOKEN_SECRET`  | `super_secret_refresh_token_key` | `another_random_secure_key` | Secret string for signing refresh tokens                                                                  |
+| Переменная              | Текущее значение                 | Пример другого значения     | Описание                                                                                                      |
+| :---------------------- | :------------------------------- | :-------------------------- | :------------------------------------------------------------------------------------------------------------ |
+| `ACCESS_TOKEN_EXPIRES`  | `1h`                             | `15m`, `2h`, `7d`           | Срок действия access-токена (время жизни). Указывается в формате времени: минуты (`m`), часы (`h`), дни (`d`) |
+| `REFRESH_TOKEN_EXPIRES` | `24h`                            | `7d`, `30d`                 | Срок действия refresh-токена. Обычно длиннее, чем у access-токена                                             |
+| `ACCESS_TOKEN_SECRET`   | `super_secret_access_token_key`  | `any_random_secure_key`     | Секретная строка для подписания access-токенов                                                                |
+| `REFRESH_TOKEN_SECRET`  | `super_secret_refresh_token_key` | `another_random_secure_key` | Секретная строка для подписания refresh-токенов                                                               |
 
-By default, the jsonwebtoken library uses the HS256 (HMAC + SHA-256) algorithm.
-This is a symmetric algorithm: the same secret key is used to sign and verify the token.
+По умолчанию библиотека jsonwebtoken использует алгоритм HS256 (HMAC + SHA-256).
+Это симметричный алгоритм: для подписи и проверки токена используется один и тот же секретный ключ.
 
-Secret key requirements (`ACCESS_TOKEN_SECRET`, `REFRESH_TOKEN_SECRET`):
+Требования к секретному ключу (`ACCESS_TOKEN_SECRET`, `REFRESH_TOKEN_SECRET`):
 
-- The secret must be long and random enough to ensure security.
+- Секрет должен быть достаточно длинным и случайным, чтобы обеспечить безопасность.
 
-- The recommended length is at least 32 characters.
+- Рекомендуемая длина — не менее 32 символов.
 
-- You cannot use simple words like password or 12345.
+- Нельзя использовать простые слова вроде password или 12345.
 
-- A good practice is to generate the secret using special generators (for example, openssl rand -hex 32).
+- Хорошая практика: генерировать секрет через специальные генераторы (например, openssl rand -hex 32).
 
-## Testing the authorization service
+## Тестирование сервиса авторизации
 
-Let's write tests for `authService` right away to check its operation. To do this, create a `services` folder in the `__tests__` folder, and in it a file `authService.test.js`. Place the code below in it.
+Сразу напишем тесты для `authService`, чтобы проверить его работу. Для этого в папке `__tests__` создайте папку `services`, а в ней файл `authService.test.js`. Поместите в него код ниже.
 
-::: details Unit tests authService
+::: details Unit-тесты authService
 
 ```js
 import { describe, expect, jest } from "@jest/globals";
@@ -1925,7 +2013,10 @@ describe("AuthService", () => {
         refresh_token: "mocked_token",
       });
 
-      expect(bcrypt.compare).toHaveBeenCalledWith(dto.password, user.password_hash);
+      expect(bcrypt.compare).toHaveBeenCalledWith(
+        dto.password,
+        user.password_hash
+      );
     });
 
     it("throws error if user not found", async () => {
@@ -1936,7 +2027,9 @@ describe("AuthService", () => {
 
       jest.spyOn(UserRepository, "getUserByUserName").mockResolvedValue(null);
 
-      await expect(AuthService.login(dto, {})).rejects.toThrow("User not found");
+      await expect(AuthService.login(dto, {})).rejects.toThrow(
+        "User not found"
+      );
     });
 
     it("throws error if password is wrong", async () => {
@@ -1954,7 +2047,9 @@ describe("AuthService", () => {
       jest.spyOn(UserRepository, "getUserByUserName").mockResolvedValue(user);
       jest.spyOn(bcrypt, "compare").mockResolvedValue(false);
 
-      await expect(AuthService.login(dto, {})).rejects.toThrow("Wrong password");
+      await expect(AuthService.login(dto, {})).rejects.toThrow(
+        "Wrong password"
+      );
     });
   });
 
@@ -1995,7 +2090,7 @@ describe("AuthService", () => {
 
 :::
 
-Run the tests. If everything is done correctly, there will be no errors in the tests.
+Запустите тесты. Если все сделано правильно, ошибок в тестах не будет.
 
 ```bash
 npm run test
@@ -2016,11 +2111,11 @@ Time:        0.405 s, estimated 1 s
 Ran all test suites.
 ```
 
-## User service development
+## Разработка сервиса пользователей
 
-The user service (`UserService`) is responsible for working with user data via the repository. Its tasks include getting a list of users, searching for a specific user by ID, updating user information (including password encryption), and deleting a user.
+Сервис пользователей (`UserService`) отвечает за работу с данными пользователей через репозиторий. В его задачи входят получение списка пользователей, поиск конкретного пользователя по ID, обновление информации пользователя (включая шифрование пароля) и удаление пользователя.
 
-To implement it, create a file `src/userService.js` in the `services` directory and place the code there:
+Для его реализации в каталоге `services` создайте файл `src/userService.js` и поместите туда код:
 
 ```js
 import { UserRepository } from "../repositories/userRepository.js";
@@ -2039,7 +2134,10 @@ export const UserService = {
     const updateFields = { ...userDto };
     if (updateFields.password) {
       const saltRounds = 10;
-      updateFields.password_hash = await bcrypt.hash(updateFields.password, saltRounds);
+      updateFields.password_hash = await bcrypt.hash(
+        updateFields.password,
+        saltRounds
+      );
       delete updateFields.password;
     }
     return await UserRepository.updateUser(id, updateFields);
@@ -2051,33 +2149,33 @@ export const UserService = {
 };
 ```
 
-**getAllUsers(limit, offset)**
+**`getAllUsers(limit, offset)`**
 
-- Gets all users with pagination.
+- Получает всех пользователей с пагинацией.
 
-- Makes a request to the repository with the offset (`offset`) and limit (`limit`) parameters.
+- Делает запрос в репозиторий с параметрами смещения (`offset`) и лимита (`limit`).
 
-**getUserById(id)**
+**`getUserById(id)`**
 
-- Finds a user by their unique identifier.
+- Находит пользователя по его уникальному идентификатору.
 
-**updateUser(id, userDto)**
+**`updateUser(id, userDto)`**
 
-- Updates the user data.
+- Обновляет данные пользователя.
 
-- If a new password is passed, it is hashed with `bcrypt` before being stored.
+- Если передан новый пароль, он хэшируется через `bcrypt` перед сохранением.
 
-- The original password is removed from the object before being updated.
+- Оригинальный пароль удаляется из объекта перед обновлением.
 
-**deleteUser(id)**
+**`deleteUser(id)`**
 
-- Deletes a user by their ID. Soft deletion is usually implemented at the repository level by setting the `deleted_at` field.
+- Удаляет пользователя по его ID. На уровне репозитория обычно реализовано мягкое удаление через установку поля `deleted_at`.
 
-## User service testing
+## Тестирование сервиса пользователей
 
-Also, let's write tests for `userService` right away to check its operation. To do this, create a file `userService.test.js` in the `__tests__/services` folder. Put the code below in it.
+Также сразу напишем тесты для `userService`, чтобы проверить его работу. Для этого в папке `__tests__/services` создайте файл `userService.test.js`. Поместите в него код ниже.
 
-::: details Unit tests userService
+::: details Unit-тесты userService
 
 ```js
 import { expect, jest } from "@jest/globals";
@@ -2128,7 +2226,9 @@ describe("UserService", () => {
 
       mock.mockRejectedValueOnce(new Error("SQL error"));
 
-      await expect(UserService.getAllUsers(100, 0)).rejects.toThrow("SQL error");
+      await expect(UserService.getAllUsers(100, 0)).rejects.toThrow(
+        "SQL error"
+      );
       expect(mock).toHaveBeenCalledWith(100, 0);
     });
   });
@@ -2161,7 +2261,9 @@ describe("UserService", () => {
 
       mock.mockRejectedValueOnce(new Error("User not found"));
 
-      await expect(UserService.getUserById(2)).rejects.toThrow("User not found");
+      await expect(UserService.getUserById(2)).rejects.toThrow(
+        "User not found"
+      );
       expect(mock).toHaveBeenCalledWith(2);
     });
   });
@@ -2202,7 +2304,9 @@ describe("UserService", () => {
 
       mockUpdate.mockRejectedValueOnce(new Error("Update failed"));
 
-      await expect(UserService.updateUser(2, { user_name: "ghost" })).rejects.toThrow("Update failed");
+      await expect(
+        UserService.updateUser(2, { user_name: "ghost" })
+      ).rejects.toThrow("Update failed");
     });
   });
 
@@ -2230,7 +2334,7 @@ describe("UserService", () => {
 
 :::
 
-Run the tests. If everything is done correctly, there will be no errors in the tests.
+Запустите тесты. Если все сделано правильно, ошибок в тестах не будет.
 
 ```bash
 npm run test
@@ -2252,9 +2356,9 @@ Time:        0.525 s, estimated 1 s
 Ran all test suites.
 ```
 
-## Developing a post service
+## Разработка сервиса постов
 
-This service implements business logic for working with posts in the GopherTalk social network. The service serves as an intermediate layer between controllers and the repository, providing a convenient interface for working with publications.
+В этом сервисе реализуется бизнес-логика для работы с постами в социальной сети GopherTalk. Сервис служит промежуточным слоем между контроллерами и репозиторием, обеспечивая удобный интерфейс для работы с публикациями.
 
 ```js
 import { PostRepository } from "../repositories/postRepository.js";
@@ -2288,31 +2392,32 @@ export const PostService = {
 
 **`getAllPosts(filterDTO)`**
 
-- Gets a list of posts with support for filtering by author, post text, or parent post (`reply_to_id`). Delegates query execution to `PostRepository.getAllPosts`.
+- Получает список постов с поддержкой фильтрации по автору, тексту поста или родительскому посту (`reply_to_id`). Делегирует выполнение запроса в `PostRepository.getAllPosts`.
 
 **`createPost(createDTO)`**
 
-- Creates a new post in the system. Receives a DTO with the post data and calls `PostRepository.createPost` to save the record to the database.
+- Создаёт новый пост в системе. Получает DTO с данными поста и вызывает `PostRepository.createPost`, чтобы сохранить запись в базе данных.
 
 **`deletePost(postId, ownerId)`**
 
-- Deletes a user's post. Passes the post ID and owner to `PostRepository.deletePost`, where a soft delete occurs (setting `deleted_at`).
+- Удаляет пост пользователя. Передаёт идентификатор поста и владельца в `PostRepository.deletePost`, где происходит мягкое удаление (установка `deleted_at`).
 
 **`viewPost(postId, userId)`**
 
-- Records the fact that a post has been viewed by a user. Calls `PostRepository.viewPost` to add a new record to the `views` table.
+- Фиксирует факт просмотра поста пользователем. Вызывает `PostRepository.viewPost`, чтобы добавить новую запись в таблицу просмотров (`views`).
 
 **`likePost(postId, userId)`**
 
-- Allows the user to like a post. Calls `PostRepository.likePost` to save the like to the database.
+- Позволяет пользователю поставить лайк на пост. Обращается к `PostRepository.likePost`, чтобы сохранить лайк в базе данных.
 
 **`dislikePost(postId, userId)`**
 
-- Allows a user to remove their like from a post. Calls `PostRepository.dislikePost` to remove the like record.
+- Позволяет пользователю убрать свой лайк с поста. Вызывает `PostRepository.dislikePost` для удаления записи о лайке.
 
-## Testing a post service
+## Тестирование сервиса постов
 
-Similarly, here we will immediately write tests for `userService` to check its operation. To do this, create a file `userService.test.js` in the `__tests__/services` folder. Place the code below in it.
+Аналогично и здесь сразу напишем тесты для `userService`, чтобы проверить его работу. Для этого в папке `__tests__/services` создайте файл `userService.test.js`. Поместите в него код ниже.
+
 ::: details Unit-тесты userService
 
 ```js
@@ -2331,7 +2436,9 @@ describe("PostService", () => {
         { id: 1, text: "post1" },
         { id: 2, text: "post2" },
       ];
-      const mock = jest.spyOn(PostRepository, "getAllPosts").mockResolvedValue(posts);
+      const mock = jest
+        .spyOn(PostRepository, "getAllPosts")
+        .mockResolvedValue(posts);
 
       const result = await PostService.getAllPosts({
         user_id: 1,
@@ -2343,9 +2450,13 @@ describe("PostService", () => {
     });
 
     it("throws error on failure", async () => {
-      const mock = jest.spyOn(PostRepository, "getAllPosts").mockRejectedValue(new Error("DB error"));
+      const mock = jest
+        .spyOn(PostRepository, "getAllPosts")
+        .mockRejectedValue(new Error("DB error"));
 
-      await expect(PostService.getAllPosts({ user_id: 1, limit: 100, offset: 0 })).rejects.toThrow("DB error");
+      await expect(
+        PostService.getAllPosts({ user_id: 1, limit: 100, offset: 0 })
+      ).rejects.toThrow("DB error");
       expect(mock).toHaveBeenCalledTimes(1);
     });
   });
@@ -2353,7 +2464,9 @@ describe("PostService", () => {
   describe("createPost", () => {
     it("successfully creates a post", async () => {
       const post = { id: 1, text: "new post" };
-      const mock = jest.spyOn(PostRepository, "createPost").mockResolvedValue(post);
+      const mock = jest
+        .spyOn(PostRepository, "createPost")
+        .mockResolvedValue(post);
 
       const result = await PostService.createPost({
         text: "new post",
@@ -2364,9 +2477,13 @@ describe("PostService", () => {
     });
 
     it("throws error on insert failure", async () => {
-      const mock = jest.spyOn(PostRepository, "createPost").mockRejectedValue(new Error("Insert error"));
+      const mock = jest
+        .spyOn(PostRepository, "createPost")
+        .mockRejectedValue(new Error("Insert error"));
 
-      await expect(PostService.createPost({ text: "new post", user_id: 1 })).rejects.toThrow("Insert error");
+      await expect(
+        PostService.createPost({ text: "new post", user_id: 1 })
+      ).rejects.toThrow("Insert error");
       expect(mock).toHaveBeenCalledTimes(1);
     });
   });
@@ -2380,9 +2497,13 @@ describe("PostService", () => {
     });
 
     it("throws error on delete failure", async () => {
-      const mock = jest.spyOn(PostRepository, "deletePost").mockRejectedValue(new Error("Delete error"));
+      const mock = jest
+        .spyOn(PostRepository, "deletePost")
+        .mockRejectedValue(new Error("Delete error"));
 
-      await expect(PostService.deletePost(2, 0)).rejects.toThrow("Delete error");
+      await expect(PostService.deletePost(2, 0)).rejects.toThrow(
+        "Delete error"
+      );
       expect(mock).toHaveBeenCalledWith(2, 0);
     });
   });
@@ -2396,7 +2517,9 @@ describe("PostService", () => {
     });
 
     it("throws error on view failure", async () => {
-      const mock = jest.spyOn(PostRepository, "viewPost").mockRejectedValue(new Error("View error"));
+      const mock = jest
+        .spyOn(PostRepository, "viewPost")
+        .mockRejectedValue(new Error("View error"));
 
       await expect(PostService.viewPost(2, 0)).rejects.toThrow("View error");
       expect(mock).toHaveBeenCalledWith(2, 0);
@@ -2412,7 +2535,9 @@ describe("PostService", () => {
     });
 
     it("throws error on like failure", async () => {
-      const mock = jest.spyOn(PostRepository, "likePost").mockRejectedValue(new Error("Like error"));
+      const mock = jest
+        .spyOn(PostRepository, "likePost")
+        .mockRejectedValue(new Error("Like error"));
 
       await expect(PostService.likePost(2, 0)).rejects.toThrow("Like error");
       expect(mock).toHaveBeenCalledWith(2, 0);
@@ -2421,16 +2546,22 @@ describe("PostService", () => {
 
   describe("dislikePost", () => {
     it("successfully dislikes a post", async () => {
-      const mock = jest.spyOn(PostRepository, "dislikePost").mockResolvedValue();
+      const mock = jest
+        .spyOn(PostRepository, "dislikePost")
+        .mockResolvedValue();
 
       await expect(PostService.dislikePost(1, 0)).resolves.toBeUndefined();
       expect(mock).toHaveBeenCalledWith(1, 0);
     });
 
     it("throws error on dislike failure", async () => {
-      const mock = jest.spyOn(PostRepository, "dislikePost").mockRejectedValue(new Error("Dislike error"));
+      const mock = jest
+        .spyOn(PostRepository, "dislikePost")
+        .mockRejectedValue(new Error("Dislike error"));
 
-      await expect(PostService.dislikePost(2, 0)).rejects.toThrow("Dislike error");
+      await expect(PostService.dislikePost(2, 0)).rejects.toThrow(
+        "Dislike error"
+      );
       expect(mock).toHaveBeenCalledWith(2, 0);
     });
   });
@@ -2439,7 +2570,7 @@ describe("PostService", () => {
 
 :::
 
-Run the tests. If everything is done correctly, there will be no errors in the tests.
+Запустите тесты. Если все сделано правильно, ошибок в тестах не будет.
 
 ```bash
 npm run test
@@ -2462,35 +2593,35 @@ Time:        0.568 s, estimated 1 s
 Ran all test suites.
 ```
 
-## Section Summary
+## Итоги учебного вопроса
 
-In this study question, we developed a business logic layer for three main entities: users, posts, and authentication.
-Each service was implemented through a corresponding repository and performed its tasks without direct interaction with the database.
+В рамках данного учебного вопроса мы разработали уровень бизнес-логики для трёх основных сущностей: пользователей, постов и аутентификации.
+Каждый сервис был реализован через соответствующий репозиторий и обеспечивал выполнение своих задач без прямого взаимодействия с базой данных.
 
-- `AuthService` is responsible for registering and authenticating users, creating a pair of tokens (access and refresh), and checking the password.
+- `AuthService` отвечает за регистрацию и аутентификацию пользователей, создание пары токенов (access и refresh), а также проверку пароля.
 
-- `UserService` provides work with users: getting a list of all users, getting a user by ID, updating data and deleting users.
+- `UserService` обеспечивает работу с пользователями: получение списка всех пользователей, получение пользователя по ID, обновление данных и удаление пользователей.
 
-- `PostService` manages the creation, deletion, viewing of posts and user actions (like, dislike).
+- `PostService` управляет созданием, удалением, просмотром постов и действиями пользователей (лайк, дизлайк).
 
-A clean architecture was followed:
+Была соблюдена чистая архитектура:
 
-- Repositories encapsulate work with the database.
+- Репозитории инкапсулируют работу с базой данных.
 
-- Services execute business logic and validate data.
+- Сервисы выполняют бизнес-логику и валидируют данные.
 
-- Interaction between layers occurs through interfaces and DTO structures.
+- Взаимодействие между слоями происходит через интерфейсы и DTO-структуры.
 
-Also, for each service, Jest tests were developed and adapted, which check both positive and negative scenarios for executing methods. This made it possible to verify the correctness of the business logic before the stage of integration with the real database.
+Также для каждого сервиса были разработаны и адаптированы тесты на Jest, которые проверяют как положительные, так и отрицательные сценарии выполнения методов. Это позволило убедиться в корректности бизнес-логики до этапа интеграции с реальной базой данных.
 
-Thus, the implemented structure lays a reliable foundation for further scaling and expansion of the project.
+Таким образом, реализованная структура закладывает надёжную основу для дальнейшего масштабирования и расширения проекта.
 
-## Developing the Controller Layer of a Web Application
+## Разработка слоя контроллеров web-приложения
 
-Before we can define routes in an Express application, we need to set up some middleware to handle user authentication.
-Middleware in Express is functions that handle requests before passing them to final routes.
+Перед тем как переходить к определению маршрутов в Express-приложении, нам нужно подготовить middleware для обработки авторизации пользователей.
+Middleware в Express — это функции, которые обрабатывают запросы до передачи их в конечные маршруты.
 
-Create a `middleware` folder in the `src` folder, and in it an `auth.js` file, and place the following code in it:
+Создайте в папке `src` папку `middleware`, а в ней файл `auth.js`, и поместите в него следующий код:
 
 ```js
 import jwt from "jsonwebtoken";
@@ -2542,102 +2673,87 @@ export function requestAuthSameId(secret) {
 }
 ```
 
-Our middleware performs a check for the JWT token in the request header:
+Наше middleware выполняет проверку JWT-токена в заголовке запроса:
 
-- `requestAuth` — checks that the user is authenticated and signed with the correct token. If the check is successful, the user data is added to the request object (`req.user`).
+- `requestAuth` — проверяет, что пользователь аутентифицирован и подписан корректным токеном. Если проверка проходит успешно, в объект запроса (`req.user`) добавляются данные о пользователе.
 
-- `requestAuthSameId` — additionally checks that the ID in the request parameters matches the ID embedded in the token, to protect against changing other people's data.
+- `requestAuthSameId` — дополнительно проверяет, что ID в параметрах запроса совпадает с ID, зашитым в токене, для защиты от изменения чужих данных.
 
 ```mermaid
 flowchart TD
-  A[Client sends request] --> B{Is there an Authorization header?}
-  B -- No --> C[Response 401 Unauthorized]
-  B -- Yes --> D[Verify token]
-  D -- Invalid token --> C
-  D -- Valid token --> E{Middleware}
+  A[Клиент отправляет запрос] --> B{Есть Authorization заголовок?}
+  B -- Нет --> C[Ответ 401 Unauthorized]
+  B -- Да --> D[Проверка токена]
+  D -- Некорректный токен --> C
+  D -- Валидный токен --> E{Middleware}
 
-  E -- requestAuth --> F[Add req.user and pass to route]
-  E -- requestAuthSameId --> G{ID in URL = ID in token?}
+  E -- requestAuth --> F[Добавить req.user и передать в роут]
+  E -- requestAuthSameId --> G{ID в URL = ID в токене?}
 
-  G -- No --> C
-  G -- Yes --> F
+  G -- Нет --> C
+  G -- Да --> F
 ```
 
-This middleware will help to centrally and securely check user access rights to protected routes.
+Эти middleware помогут централизованно и безопасно проверять права доступа пользователей к защищённым маршрутам.
 
-## Developing an authorization controller
+## Разаботка контроллера авторизации
 
-The authorization controller is responsible for processing user requests related to entering the system (`login`) and registering new users (` register`).
-At this stage, the controller accepts HTTP checks, validates input data and delegates the business logic to the authentication service.
+Контроллер авторизации отвечает за обработку запросов пользователей, связанных с входом в систему (`Login`) и регистрацией новых пользователей (`Register`).
+На этом этапе контроллер принимает HTTP-запросы, проводит валидацию входных данных и делегирует бизнес-логику в сервис аутентификации.
 
-This approach helps to comply with the separation of responsibility between the levels of the application: controllers are responsible only for receiving and refunding data, and the processing logic is concentrated in services.
+Этот подход помогает соблюдать разделение ответственности между уровнями приложения: контроллеры отвечают только за прием и возврат данных, а логика обработки сосредоточена в сервисах.
 
-In the `src` folder, create the`Controllers' folder, and in it the file is`authController.js`, and place the following code there:
+В папке `src` создайте папку `controllers`, а в ней файл `authController.js`, и поместите туда следующий код:
 
 ```js
 import { AuthService } from "../services/authService.js";
-import { validationResult } from "express-validator";
 
-export const authController = {
-  async login(req, res) {
+export class AuthController {
+  static async login(req, res) {
     try {
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        return res.status(422).json({ errors: errors.array() });
-      }
-
-      const loginDTO = req.body;
-      const tokens = await AuthService.login(loginDTO);
-
-      return res.status(200).json(tokens);
-    } catch (error) {
-      console.error("Login error:", error.message);
-      return res.status(401).json({ error: error.message });
+      const dto = req.body;
+      const tokens = await AuthService.login(dto);
+      res.status(200).json(tokens);
+    } catch (err) {
+      res.status(401).json({ message: err.message });
     }
-  },
+  }
 
-  async register(req, res) {
+  static async register(req, res) {
     try {
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        return res.status(422).json({ errors: errors.array() });
-      }
-
-      const registerDTO = req.body;
-      const tokens = await AuthService.register(registerDTO);
-
-      return res.status(201).json(tokens);
-    } catch (error) {
-      console.error("Register error:", error.message);
-      return res.status(401).json({ error: error.message });
+      const dto = req.body;
+      const tokens = await AuthService.register(dto);
+      res.status(201).json(tokens);
+    } catch (err) {
+      res.status(401).json({ message: err.message });
     }
-  },
-};
+  }
+}
 ```
 
 **`login(req, res)`**
 
-- Acceps user data: `user_name` and` password`.
+- Принимает данные пользователя: `user_name` и `password`.
 
-- If the data is valid, the `login` method in the authentication service causes.
+- Если данные валидны, вызывает метод `login` в сервисе аутентификации.
 
-- With successful authentication, it returns a couple of tokens (`Access_token` and` Refresh_Token`).
+- При успешной аутентификации возвращает пользователю пару токенов (`access_token` и `refresh_token`).
 
-- In the event of an error, it returns the corresponding HTTP status and an error message.
+- В случае ошибки возвращает соответствующий HTTP-статус и сообщение об ошибке.
 
 **`register(req, res)`**
 
-- Accepts registration data: `user_name`,` password`, `password_confirm`,` first_name`, `last_name`.
+- Принимает регистрационные данные: `user_name`, `password`, `password_confirm`, `first_name`, `last_name`.
 
-- If the data is valid, it calls the `register` in the authentication service.
+- Если данные валидны, вызывает метод `register` в сервисе аутентификации.
 
-- With successful registration, it returns a couple of tokens for the new user.
+- При успешной регистрации возвращает пару токенов для нового пользователя.
 
-- If registration has failed, sends an error message and the corresponding HTTP status.
+- Если регистрация не удалась, отправляет сообщение об ошибке и соответствующий HTTP-статус.
 
-Now the input data is not validated. To fix this, it is necessary to add validators - special objects that will monitor the correctness of the data that come to the server.
+Сейчас входные данные никаки не валидируются. Чтобы это исправить, необходимо добавить валидаторы - специальные объекты, которые будут следить за правильностью тех данных, которые приходят на сервер.
 
-Create a `validators` folder in the `src` directory, and create an `authValidators.js` file in it. Place the following code in it:
+Создайте в каталоге `src` папку `validators`, а в ней файл `authValidators.js`. Поместите в него следующий код:
 
 ```js
 import { z } from "zod";
@@ -2653,7 +2769,10 @@ const passwordSchema = z
   .string()
   .min(5)
   .max(30)
-  .regex(/^(?=.*[a-zA-Z])(?=.*\d)(?=.*[@$!%*?&])/, "Must contain letter, number and special character");
+  .regex(
+    /^(?=.*[a-zA-Z])(?=.*\d)(?=.*[@$!%*?&])/,
+    "Must contain letter, number and special character"
+  );
 
 export const loginValidator = z.object({
   user_name: usernameSchema,
@@ -2676,15 +2795,15 @@ export const registerValidator = z
       .max(30)
       .regex(/^[\p{L}]+$/u, "Only letters allowed"),
   })
-  .refine(data => data.password === data.password_confirm, {
+  .refine((data) => data.password === data.password_confirm, {
     message: "Passwords must match",
     path: ["password_confirm"],
   });
 ```
 
-This file contains validation schemes for the request body (`req.body`) when authorizing users.
+Этот файл содержит схемы валидации для тела запроса (`req.body`) при авторизации пользователей.
 
-Everything is built on the `zod` library - a modern and powerful tool for data validation in JavaScript and TypeScript.
+Всё построено на библиотеке `zod` — это современный и мощный инструмент для валидации данных в JavaScript и TypeScript.
 
 ```js
 const usernameSchema = z
@@ -2695,29 +2814,32 @@ const usernameSchema = z
   .regex(/^[^0-9]/, "Must start with a letter");
 ```
 
-- A string between `5` and `30` characters long.
+- Строка длиной от `5` до `30` символов.
 
-- Only letters, numbers, and underscores (`_`).
+- Только буквы, цифры и подчёркивание (`_`).
 
-- The first letter must be a symbol, not a number.
+- Первая буква должна быть символом, не цифрой.
 
 ```js
 const passwordSchema = z
   .string()
   .min(5)
   .max(30)
-  .regex(/^(?=.*[a-zA-Z])(?=.*\d)(?=.*[@$!%*?&])/, "Must contain letter, number and special character");
+  .regex(
+    /^(?=.*[a-zA-Z])(?=.*\d)(?=.*[@$!%*?&])/,
+    "Must contain letter, number and special character"
+  );
 ```
 
-- A string from `5` to `30` characters long.
+- Строка длиной от `5` до `30` символов.
 
-- Must contain:
+- Обязательно должна содержать:
 
-  - at least one letter,
+  - хотя бы одну букву,
 
-  - at least one digit,
+  - хотя бы одну цифру,
 
-  - at least one special character (`@`, `$`, `!`, `%`, `*`, `?`, `&`).
+  - хотя бы один спецсимвол (`@`, `$`, `!`, `%`, `*`, `?`, `&`).
 
 ```js
 export const loginValidator = z.object({
@@ -2726,7 +2848,7 @@ export const loginValidator = z.object({
 });
 ```
 
-- Checks `user_name` and `password` when logging in.
+- Проверяет `user_name` и `password` при логине.
 
 ```js
 export const registerValidator = z
@@ -2745,32 +2867,32 @@ export const registerValidator = z
       .max(30)
       .regex(/^[\p{L}]+$/u, "Only letters allowed"),
   })
-  .refine(data => data.password === data.password_confirm, {
+  .refine((data) => data.password === data.password_confirm, {
     message: "Passwords must match",
     path: ["password_confirm"],
   });
 ```
 
-Checks:
+Проверяет:
 
-- `user_name`, `password`, `password_confirm` (using the same schemes).
+- `user_name`, `password`, `password_confirm` (по тем же схемам).
 
-- `first_name` and `last_name` — strings from 1 to 30 characters long, letters only, supports any alphabets (`\p{L}` — Unicode letter symbols).
+- `first_name` и `last_name` — строки длиной от 1 до 30 символов, только буквы, поддерживает любые алфавиты (`\p{L}` — буквенные символы Unicode).
 
-Additional check via `.refine()`:
+Дополнительная проверка через `.refine()`:
 
-- `password` and `password_confirm` must match, otherwise the error "Passwords must match" is returned.
+- `password` и `password_confirm` должны совпадать, иначе выдаётся ошибка "Passwords must match".
 
-This validator will be run via middleware. In the `src/middleware` folder, create a `validate.js` file and put the following code in it:
+Этот валидатор будет запускаться через middleware. В папке `src/middleware` создайте файл `validate.js` и поместите в него код:
 
 ```js
-export const validate = schema => (req, res, next) => {
+export const validate = (schema) => (req, res, next) => {
   try {
     schema.parse(req.body);
     next();
   } catch (err) {
     return res.status(422).json({
-      errors: err.errors.map(e => ({
+      errors: err.errors.map((e) => ({
         path: e.path.join("."),
         message: e.message,
       })),
@@ -2779,38 +2901,38 @@ export const validate = schema => (req, res, next) => {
 };
 ```
 
-We've added a second middleware. Let's see how the incoming HTTP request will be processed now:
+Мы добавили второй middleware. Посмотрим, как теперь будет обрабатываться входящий HTTP-запрос:
 
 ```mermaid
 flowchart TD
-  A[Client sends request] --> B{Authorization header present?}
-  B -- No --> C[401 Unauthorized response]
-  B -- Yes --> D[Verifying token]
-  D -- Invalid token --> C
-  D -- Valid token --> E{Middleware: Verifying authorization}
+  A[Клиент отправляет запрос] --> B{Есть Authorization заголовок?}
+  B -- Нет --> C[Ответ 401 Unauthorized]
+  B -- Да --> D[Проверка токена]
+  D -- Некорректный токен --> C
+  D -- Валидный токен --> E{Middleware: Проверка авторизации}
 
-  E -- requestAuth --> F{Middleware: Validating request body}
+  E -- requestAuth --> F{Middleware: Валидация тела запроса}
 
-  F -- Successful validation --> G[Passing request to controller]
-  F -- Validation error --> H[422 Unprocessable Entity response]
+  F -- Успешная валидация --> G[Передача запроса в контроллер]
+  F -- Ошибка валидации --> H[Ответ 422 Unprocessable Entity]
 
-  E -- requestAuthSameId --> I{ID in URL = ID in token?}
+  E -- requestAuthSameId --> I{ID в URL = ID в токене?}
 
-  I -- No --> C
-  I -- Yes --> F
+  I -- Нет --> C
+  I -- Да --> F
 ```
 
-If the request does not require authorization (for example, during authorization or registration), then the request processing scheme will look like this:
+Если же для запроса не требуется авторизация (например при авторизации или регистрации), то схема обработки запроса будет выглядеть так:
 
 ```mermaid
 flowchart TD
-  A[Client sends request] --> B{Middleware: Validating request body}
+  A[Клиент отправляет запрос] --> B{Middleware: Валидация тела запроса}
 
-  B -- Validation failed --> C[Response 422 Unprocessable Entity]
-  B -- Validation successful --> D[Passing request to controller]
+  B -- Ошибка валидации --> C[Ответ 422 Unprocessable Entity]
+  B -- Успешная валидация --> D[Передача запроса в контроллер]
 ```
 
-How do we connect all this? How will the express server understand that the client wants to log in and needs to validate the input data? In the previous lesson, in the `app.js` file, we specified our first endpoint for checking the connection to the database:
+Как же все это соединить? Как сервер express поймет, что клиент хочет авторизоваться и нужно провалидировать входные данные? В прошлом уроке в файле `app.js` мы указали наш первый эндпоинт для проверки соединения с БД:
 
 ```js
 ...
@@ -2825,15 +2947,18 @@ app.get("/api/health-check", async (req, res) => {
 ...
 ```
 
-You can follow the same path and write the rest of the routes in `app.js`. However, if the application grows, it will be a mess. Therefore, it is considered good practice to move the definition of routes to a separate file, which is what we will do.
+Можно пойти тем же путем и в `app.js` прописать остальные маршруты. Однако, если приложение разрастется, будет бардак. ПОэтому хорошей практикой считается выносить определение маршрутов в отдельный файл, что мы и сделаем.
 
-In the `src` directory, create a `routes` folder, and in it a file `authRoutes.js`, and put the following code there:
+В каталоге `src` создайте папку `routes`, а в ней файл `authRoutes.js`, и поместите туда следующий код:
 
 ```js
 import express from "express";
 import { AuthController } from "../controllers/authController.js";
 import { validate } from "../middleware/validate.js";
-import { loginValidator, registerValidator } from "../validators/authValidators.js";
+import {
+  loginValidator,
+  registerValidator,
+} from "../validators/authValidators.js";
 
 const router = express.Router();
 
@@ -2843,7 +2968,7 @@ router.post("/register", validate(registerValidator), AuthController.register);
 export default router;
 ```
 
-Next, you need to update `app.js` by adding two lines (highlighted in green):
+Далее необходимо обновить `app.js`, добавив две строки (выделены зеленым цветом):
 
 ```js
 import dotenv from "dotenv";
@@ -2874,22 +2999,6 @@ app.listen(PORT, () => {
 });
 ```
 
-After that, you need to start the server. If everything is done correctly, it will start without errors:
-
-```bash
-npm run dev
-
-> gophertalk-backend-express@0.1.0 dev
-> nodemon src/app.js
-
-[nodemon] 3.1.9
-[nodemon] to restart at any time, enter `rs`
-[nodemon] watching path(s): *.*
-[nodemon] watching extensions: js,mjs,cjs,json
-[nodemon] starting `node src/app.js`
-Server is running on port 3000
-```
-
 После этого нужно запустить сервер. Если все сделано правильно, он запустится без ошибок:
 
 ```bash
@@ -2906,35 +3015,36 @@ npm run dev
 Server is running on port 3000
 ```
 
-To make sure everything works, let's try registering a user and then logging in.
+Чтобы убедится, что все работает, давайте попробуем зарегистрировать пользователя и затем авторизоваться.
 
-![Postman Collection](./../../../assets/databases/postman-collection.png)
+![Коллекция Postman](./../../../assets/databases/postman-collection.png)
 
-In Postman, open the `register` request in the `auth` directory. We can test validation first. Let's remove the `first_name` field and add numbers to the `last_name` field.
+В Postman откройте запрос `register` в каталоге `auth`. Для начала можно проверить валидацию. Давайте удалим поле `first_name` и добавим в поле `last_name` цифры.
 
-![Invalid registration request](./../../../assets/databases/postman-incorrect-register-request.png)
+![Невалидный запрос на регистрацию](./../../../assets/databases/postman-incorrect-register-request.png)
 
-If we send a correct request, we will receive a pair of `access_token` and `refresh_token` in response.
+Если же мы отправим корректный запрос, то в ответ получим пару `access_token` и `refresh_token`.
 
-![Valid registration request](./../../../assets/databases/postman-correct-register-request.png)
+![Валидный запрос на регистрацию](./../../../assets/databases/postman-correct-register-request.png)
 
-Open the `Scripts` tab in the request panel in Postman.
+Откройте вкладку `Scripts` на панели запроса в Postman.
 
-![Scripts executed after a request](./../../../assets/databases/postman-post-response-scripts.png)
+![Скрипты, выполняемые после запроса](./../../../assets/databases/postman-post-response-scripts.png)
 
-This script reads the response from the server and sets variables from the Postman environment. That is, Postman "remembers" the tokens and can use them in other requests. You can see this if you open any request that requires authorization and go to the `Authorizaton` tab.
+Этот скрипт читает ответ от сервера и устанавливает переменные из окружения Postman. То есть Postman "запоминает" токены, и может их использовать в других запросах.
+Это можно увидеть, еслди открыть любой запрос, требующий авторизации, и перейти на вкладку `Authorizaton`.
 
-![Postman Authorization Tab](./../../../assets/databases/postman-authorization-tab.png)
+![Вкладка авторизации Postman](./../../../assets/databases/postman-authorization-tab.png)
 
-Here it is specified that Postman will substitute a line with our `Bearer <access_token>` in the `Authorization` header. Note that the `src/middleware/auth` file checks for the `Authorization` header with the value `Bearer <access_token>`.
+Тут указано, что Postman будет подставлять в заголовок `Authorization` строку с нашим `Bearer <access_token>`. Обратите внимание, что в файле `src/middleware/auth` как раз проверяется наличие заголовка `Authorization` со значением `Bearer <access_token>`.
 
-Try to log in to the system yourself - via Postman, execute the `/login` request.
+Попробуйте самостоятельно авторизоваться в системе - через Postman выполнить запрос `/login`.
 
-## Testing the authorization controller
+## Тестирование контроллера авторизации
 
-In the `__tests__` directory, create a `controllers` directory, and in it a file `authController.test.js`, and put the code there:
+В каталоге `__tests__` создайте каталог `controllers`, а в нем файл `authController.test.js`, и поместите туда код:
 
-::: details Unit tests authController
+::: details Unit тесты authController
 
 ```js
 import { expect, jest } from "@jest/globals";
@@ -2970,7 +3080,9 @@ describe("AuthController", () => {
     it("should return 401 if login fails", async () => {
       const loginDTO = { user_name: "test_user", password: "wrongpassword" };
 
-      jest.spyOn(AuthService, "login").mockRejectedValueOnce(new Error("Wrong password"));
+      jest
+        .spyOn(AuthService, "login")
+        .mockRejectedValueOnce(new Error("Wrong password"));
 
       const res = await request(app).post("/api/auth/login").send(loginDTO);
 
@@ -2993,7 +3105,9 @@ describe("AuthController", () => {
 
       jest.spyOn(AuthService, "register").mockResolvedValueOnce(tokens);
 
-      const res = await request(app).post("/api/auth/register").send(registerDTO);
+      const res = await request(app)
+        .post("/api/auth/register")
+        .send(registerDTO);
 
       expect(res.status).toBe(201);
       expect(res.body).toEqual(tokens);
@@ -3009,9 +3123,13 @@ describe("AuthController", () => {
         last_name: "Doe",
       };
 
-      jest.spyOn(AuthService, "register").mockRejectedValueOnce(new Error("User already exists"));
+      jest
+        .spyOn(AuthService, "register")
+        .mockRejectedValueOnce(new Error("User already exists"));
 
-      const res = await request(app).post("/api/auth/register").send(registerDTO);
+      const res = await request(app)
+        .post("/api/auth/register")
+        .send(registerDTO);
 
       expect(res.status).toBe(401);
       expect(res.body.message).toBe("User already exists");
@@ -3023,7 +3141,7 @@ describe("AuthController", () => {
 
 :::
 
-If everything is done correctly, the tests will run successfully:
+Если все сделано правильно, тесты выполнятся успешно:
 
 ```bash
 npm run test
@@ -3047,11 +3165,11 @@ Time:        1.141 s
 Ran all test suites.
 ```
 
-## Developing a user controller
+## Разработка контроллера пользователей
 
-We will perform all actions in exactly the same way as `authController`.
+Полностью аналогично `authController` выполним все действия.
 
-In the `src/controllers` directory, create a file in `userController.js` and place the following code in it:
+В каталоге `src/controllers` создадим файл в `userController.js` и поместим в него следующий код:
 
 ```js
 import { UserService } from "../services/userService.js";
@@ -3110,7 +3228,7 @@ export class UserController {
 }
 ```
 
-In the `src/validators` directory, create a `userValidators.js` file and put the following code in there:
+В каталоге `src/validators` создайте файл `userValidators.js` и поместите туда код:
 
 ```js
 import { z } from "zod";
@@ -3126,7 +3244,10 @@ const passwordSchema = z
   .string()
   .min(5)
   .max(30)
-  .regex(/^(?=.*[a-zA-Z])(?=.*\d)(?=.*[@$!%*?&])/, "Must contain letter, number and special character");
+  .regex(
+    /^(?=.*[a-zA-Z])(?=.*\d)(?=.*[@$!%*?&])/,
+    "Must contain letter, number and special character"
+  );
 
 export const updateUserValidator = z
   .object({
@@ -3147,7 +3268,7 @@ export const updateUserValidator = z
       .optional(),
   })
   .refine(
-    data => {
+    (data) => {
       if (data.password || data.password_confirm) {
         return data.password === data.password_confirm;
       }
@@ -3160,7 +3281,7 @@ export const updateUserValidator = z
   );
 ```
 
-Next, let's add routes. In the `src/routes` directory, create a `userRoutes.js` file and put the code there:
+Далее добавим маршруты. В каталоге `src/routes` создайте файл `userRoutes.js` и поместите туда код:
 
 ```js
 import express from "express";
@@ -3171,23 +3292,35 @@ import { requestAuth, requestAuthSameId } from "../middleware/auth.js";
 
 const router = express.Router();
 
-// Only authorized users
-router.get("/", requestAuth(process.env.ACCESS_TOKEN_SECRET), UserController.getAllUsers);
-router.get("/:id", requestAuth(process.env.ACCESS_TOKEN_SECRET), UserController.getUserById);
+// Только авторизованные пользователи
+router.get(
+  "/",
+  requestAuth(process.env.ACCESS_TOKEN_SECRET),
+  UserController.getAllUsers
+);
+router.get(
+  "/:id",
+  requestAuth(process.env.ACCESS_TOKEN_SECRET),
+  UserController.getUserById
+);
 
-// The user can only update or delete himself.
+// Обновить или удалить пользователь может только себя
 router.put(
   "/:id",
   requestAuthSameId(process.env.ACCESS_TOKEN_SECRET),
   validate(updateUserValidator),
   UserController.updateUser
 );
-router.delete("/:id", requestAuthSameId(process.env.ACCESS_TOKEN_SECRET), UserController.deleteUserById);
+router.delete(
+  "/:id",
+  requestAuthSameId(process.env.ACCESS_TOKEN_SECRET),
+  UserController.deleteUserById
+);
 
 export default router;
 ```
 
-Next, you need to update `app.js` by adding two lines (highlighted in green):
+Далее необходимо обновить `app.js`, добавив две строки (выделены зеленым цветом):
 
 ```js
 import dotenv from "dotenv";
@@ -3220,7 +3353,7 @@ app.listen(PORT, () => {
 });
 ```
 
-After that, you need to start the server. If everything is done correctly, it will start without errors:
+После этого нужно запустить сервер. Если все сделано правильно, он запустится без ошибок:
 
 ```bash
 npm run dev
@@ -3236,18 +3369,18 @@ npm run dev
 Server is running on port 3000
 ```
 
-Check the endpoints from the `users` folder in Postman yourself:
+Самостоятельно проверьте эндпоинты из папки `users` в Postman:
 
-- `get all` - get all users
-- `get by id` - get user info by `id`
-- `delete` - delete user (you can only delete yourself; check what happens to the user record in the database)
-- `update` - update user data (you can only update your own data)
+- `get all` - получить всех пользователей
+- `get by id` - получить информацию о пользователе по `id`
+- `delete` - удалить пользователя (можно удалить только себя; проверьте, что произойдет с записью пользователя в базе данных)
+- `update` - обновить данные пользователя (можно обновить только свои данные)
 
-## Testing the user controller
+## Тестирование контроллера пользователей
 
-In the `__tests__/controllers` directory, create a file `userController.test.js` and put the following code in it:
+В каталоге `__tests__/controllers` создайте файл `userController.test.js` и поместите в него следующий код:
 
-::: details Unit tests userController
+::: details Unit тесты userController
 
 ```js
 import { expect, jest } from "@jest/globals";
@@ -3263,7 +3396,11 @@ app.use(express.json());
 
 app.get("/api/users", UserController.getAllUsers);
 app.get("/api/users/:id", UserController.getUserById);
-app.put("/api/users/:id", validate(updateUserValidator), UserController.updateUser);
+app.put(
+  "/api/users/:id",
+  validate(updateUserValidator),
+  UserController.updateUser
+);
 app.delete("/api/users/:id", UserController.deleteUserById);
 
 describe("UserController", () => {
@@ -3276,7 +3413,9 @@ describe("UserController", () => {
       const users = [{ id: 1, user_name: "test_user" }];
       jest.spyOn(UserService, "getAllUsers").mockResolvedValueOnce(users);
 
-      const res = await request(app).get("/api/users?limit=10&offset=0").set("Authorization", "Bearer mockToken");
+      const res = await request(app)
+        .get("/api/users?limit=10&offset=0")
+        .set("Authorization", "Bearer mockToken");
 
       expect(res.status).toBe(200);
       expect(res.body).toEqual(users);
@@ -3284,9 +3423,13 @@ describe("UserController", () => {
     });
 
     it("should return 400 if service fails", async () => {
-      jest.spyOn(UserService, "getAllUsers").mockRejectedValueOnce(new Error("Service error"));
+      jest
+        .spyOn(UserService, "getAllUsers")
+        .mockRejectedValueOnce(new Error("Service error"));
 
-      const res = await request(app).get("/api/users?limit=10&offset=0").set("Authorization", "Bearer mockToken");
+      const res = await request(app)
+        .get("/api/users?limit=10&offset=0")
+        .set("Authorization", "Bearer mockToken");
 
       expect(res.status).toBe(400);
     });
@@ -3297,7 +3440,9 @@ describe("UserController", () => {
       const user = { id: 1, user_name: "test_user" };
       jest.spyOn(UserService, "getUserById").mockResolvedValueOnce(user);
 
-      const res = await request(app).get("/api/users/1").set("Authorization", "Bearer mockToken");
+      const res = await request(app)
+        .get("/api/users/1")
+        .set("Authorization", "Bearer mockToken");
 
       expect(res.status).toBe(200);
       expect(res.body).toEqual(user);
@@ -3305,15 +3450,21 @@ describe("UserController", () => {
     });
 
     it("should return 404 if id is invalid", async () => {
-      const res = await request(app).get("/api/users/abc").set("Authorization", "Bearer mockToken");
+      const res = await request(app)
+        .get("/api/users/abc")
+        .set("Authorization", "Bearer mockToken");
 
       expect(res.status).toBe(404);
     });
 
     it("should return 404 if user not found", async () => {
-      jest.spyOn(UserService, "getUserById").mockRejectedValueOnce(new Error("Not found"));
+      jest
+        .spyOn(UserService, "getUserById")
+        .mockRejectedValueOnce(new Error("Not found"));
 
-      const res = await request(app).get("/api/users/2").set("Authorization", "Bearer mockToken");
+      const res = await request(app)
+        .get("/api/users/2")
+        .set("Authorization", "Bearer mockToken");
 
       expect(res.status).toBe(404);
     });
@@ -3325,7 +3476,10 @@ describe("UserController", () => {
       const updatedUser = { id: 1, user_name: "updated_user" };
       jest.spyOn(UserService, "updateUser").mockResolvedValueOnce(updatedUser);
 
-      const res = await request(app).put("/api/users/1").set("Authorization", "Bearer mockToken").send(updateDto);
+      const res = await request(app)
+        .put("/api/users/1")
+        .set("Authorization", "Bearer mockToken")
+        .send(updateDto);
 
       expect(res.status).toBe(200);
       expect(res.body).toEqual(updatedUser);
@@ -3333,7 +3487,10 @@ describe("UserController", () => {
     });
 
     it("should return 404 if id is invalid", async () => {
-      const res = await request(app).put("/api/users/abc").set("Authorization", "Bearer mockToken").send({});
+      const res = await request(app)
+        .put("/api/users/abc")
+        .set("Authorization", "Bearer mockToken")
+        .send({});
 
       expect(res.status).toBe(404);
     });
@@ -3341,16 +3498,24 @@ describe("UserController", () => {
     it("should return 422 if validation fails", async () => {
       const invalidDto = { user_name: "test" };
 
-      const res = await request(app).put("/api/users/1").set("Authorization", "Bearer mockToken").send(invalidDto);
+      const res = await request(app)
+        .put("/api/users/1")
+        .set("Authorization", "Bearer mockToken")
+        .send(invalidDto);
 
       expect(res.status).toBe(422);
     });
 
     it("should return 400 on service error", async () => {
       const updateDto = { first_name: "Updated", last_name: "User" };
-      jest.spyOn(UserService, "updateUser").mockRejectedValueOnce(new Error("Service error"));
+      jest
+        .spyOn(UserService, "updateUser")
+        .mockRejectedValueOnce(new Error("Service error"));
 
-      const res = await request(app).put("/api/users/1").set("Authorization", "Bearer mockToken").send(updateDto);
+      const res = await request(app)
+        .put("/api/users/1")
+        .set("Authorization", "Bearer mockToken")
+        .send(updateDto);
 
       expect(res.status).toBe(400);
     });
@@ -3360,22 +3525,30 @@ describe("UserController", () => {
     it("should return 204 if user deleted", async () => {
       jest.spyOn(UserService, "deleteUser").mockResolvedValueOnce();
 
-      const res = await request(app).delete("/api/users/1").set("Authorization", "Bearer mockToken");
+      const res = await request(app)
+        .delete("/api/users/1")
+        .set("Authorization", "Bearer mockToken");
 
       expect(res.status).toBe(204);
       expect(UserService.deleteUser).toHaveBeenCalledWith(1);
     });
 
     it("should return 404 if id is invalid", async () => {
-      const res = await request(app).delete("/api/users/abc").set("Authorization", "Bearer mockToken");
+      const res = await request(app)
+        .delete("/api/users/abc")
+        .set("Authorization", "Bearer mockToken");
 
       expect(res.status).toBe(404);
     });
 
     it("should return 404 if user not found", async () => {
-      jest.spyOn(UserService, "deleteUser").mockRejectedValueOnce(new Error("Not found"));
+      jest
+        .spyOn(UserService, "deleteUser")
+        .mockRejectedValueOnce(new Error("Not found"));
 
-      const res = await request(app).delete("/api/users/2").set("Authorization", "Bearer mockToken");
+      const res = await request(app)
+        .delete("/api/users/2")
+        .set("Authorization", "Bearer mockToken");
 
       expect(res.status).toBe(404);
     });
@@ -3385,7 +3558,7 @@ describe("UserController", () => {
 
 :::
 
-If everything is done correctly, the tests will run successfully:
+Если все сделано правильно, тесты выполнятся успешно:
 
 ```bash
 npm run test
@@ -3410,11 +3583,11 @@ Time:        1.367 s
 Ran all test suites.
 ```
 
-## Developing a post controller
+## Разработка контроллера постов
 
-The last controller left to develop is `postController`.
+Осталось разработать последний контроллер - `postController`.
 
-In the `src/controllers` directory, create a file in `postController.js` and place the following code in it:
+В каталоге `src/controllers` создадим файл в `postController.js` и поместим в него следующий код:
 
 ```js
 import { PostService } from "../services/postService.js";
@@ -3423,7 +3596,13 @@ export class PostController {
   static async getAllPosts(req, res) {
     try {
       const userId = req.user.sub;
-      const { limit = 10, offset = 0, reply_to_id = 0, owner_id = 0, search = "" } = req.query;
+      const {
+        limit = 10,
+        offset = 0,
+        reply_to_id = 0,
+        owner_id = 0,
+        search = "",
+      } = req.query;
 
       const filterDTO = {
         user_id: Number(userId),
@@ -3504,7 +3683,7 @@ export class PostController {
 }
 ```
 
-In the `src/validators` directory, create a `postValidators.js` file and put the following code in there:
+В каталоге `src/validators` создайте файл `postValidators.js` и поместите туда код:
 
 ```js
 import { z } from "zod";
@@ -3515,7 +3694,7 @@ export const createPostValidator = z.object({
     .number()
     .optional()
     .nullable()
-    .refine(val => val === undefined || val > 0, {
+    .refine((val) => val === undefined || val > 0, {
       message: "ReplyToID must be greater than 0",
     }),
 });
@@ -3530,7 +3709,7 @@ export const filterPostValidator = z.object({
 });
 ```
 
-Next, let's add routes. In the `src/routes` directory, create a `postRoutes.js` file and put the code there:
+Далее добавим маршруты. В каталоге `src/routes` создайте файл `postRoutes.js` и поместите туда код:
 
 ```js
 import express from "express";
@@ -3541,7 +3720,11 @@ import { createPostValidator } from "../validators/postValidators.js";
 
 const router = express.Router();
 
-router.get("/", requestAuth(process.env.ACCESS_TOKEN_SECRET), PostController.getAllPosts);
+router.get(
+  "/",
+  requestAuth(process.env.ACCESS_TOKEN_SECRET),
+  PostController.getAllPosts
+);
 
 router.post(
   "/",
@@ -3550,18 +3733,34 @@ router.post(
   PostController.createPost
 );
 
-router.delete("/:id", requestAuthSameId(process.env.ACCESS_TOKEN_SECRET), PostController.deletePost);
+router.delete(
+  "/:id",
+  requestAuthSameId(process.env.ACCESS_TOKEN_SECRET),
+  PostController.deletePost
+);
 
-router.post("/:id/view", requestAuth(process.env.ACCESS_TOKEN_SECRET), PostController.viewPost);
+router.post(
+  "/:id/view",
+  requestAuth(process.env.ACCESS_TOKEN_SECRET),
+  PostController.viewPost
+);
 
-router.post("/:id/like", requestAuth(process.env.ACCESS_TOKEN_SECRET), PostController.likePost);
+router.post(
+  "/:id/like",
+  requestAuth(process.env.ACCESS_TOKEN_SECRET),
+  PostController.likePost
+);
 
-router.post("/:id/dislike", requestAuth(process.env.ACCESS_TOKEN_SECRET), PostController.dislikePost);
+router.post(
+  "/:id/dislike",
+  requestAuth(process.env.ACCESS_TOKEN_SECRET),
+  PostController.dislikePost
+);
 
 export default router;
 ```
 
-Next, you need to update `app.js` by adding two lines (highlighted in green):
+Далее необходимо обновить `app.js`, добавив две строки (выделены зеленым цветом):
 
 ```js
 import dotenv from "dotenv";
@@ -3596,7 +3795,7 @@ app.listen(PORT, () => {
 });
 ```
 
-After that, you need to start the server. If everything is done correctly, it will start without errors:
+После этого нужно запустить сервер. Если все сделано правильно, он запустится без ошибок:
 
 ```bash
 npm run dev
@@ -3612,20 +3811,20 @@ npm run dev
 Server is running on port 3000
 ```
 
-Check the endpoints from the `users` folder in Postman yourself:
+Самостоятельно проверьте эндпоинты из папки `users` в Postman:
 
-- `get all` - get all posts
-- `delete` - delete a post (you can only delete your own post; check what happens to the post record in the database)
-- `create` - create a post
-- `like` - like
-- `dislike` - remove a like
-- `view` - view a post
+- `get all` - получить все посты
+- `delete` - удалить пост (можно удалить только свой пост; проверьте, что произойдет с записью поста в базе данных)
+- `create` - создать пост
+- `like` - поставить лайк
+- `dislike` - удалить лайк
+- `view` - просмотреть пост
 
-## Testing the post controller
+## Тестирование контроллера постов
 
-In the `__tests__/controllers` directory, create a file `postController.test.js` and put the following code in it:
+В каталоге `__tests__/controllers` создайте файл `postController.test.js` и поместите в него следующий код:
 
-::: details Unit tests postController
+::: details Unit тесты postController
 
 ```js
 import { expect, jest } from "@jest/globals";
@@ -3651,7 +3850,11 @@ app.use((req, res, next) => {
 });
 
 app.get("/api/posts", PostController.getAllPosts);
-app.post("/api/posts", validate(createPostValidator), PostController.createPost);
+app.post(
+  "/api/posts",
+  validate(createPostValidator),
+  PostController.createPost
+);
 app.delete("/api/posts/:id", PostController.deletePost);
 app.post("/api/posts/:id/view", PostController.viewPost);
 app.post("/api/posts/:id/like", PostController.likePost);
@@ -3675,7 +3878,9 @@ describe("PostController", () => {
     });
 
     it("should handle service error", async () => {
-      jest.spyOn(PostService, "getAllPosts").mockRejectedValueOnce(new Error("Service error"));
+      jest
+        .spyOn(PostService, "getAllPosts")
+        .mockRejectedValueOnce(new Error("Service error"));
 
       const res = await request(app).get("/api/posts?limit=10&offset=0");
 
@@ -3689,7 +3894,9 @@ describe("PostController", () => {
       const post = { id: 1, text: "New post" };
       jest.spyOn(PostService, "createPost").mockResolvedValueOnce(post);
 
-      const res = await request(app).post("/api/posts").send({ text: "New post" });
+      const res = await request(app)
+        .post("/api/posts")
+        .send({ text: "New post" });
 
       expect(res.status).toBe(201);
       expect(res.body).toEqual(post);
@@ -3703,9 +3910,13 @@ describe("PostController", () => {
     });
 
     it("should handle service error", async () => {
-      jest.spyOn(PostService, "createPost").mockRejectedValueOnce(new Error("Service error"));
+      jest
+        .spyOn(PostService, "createPost")
+        .mockRejectedValueOnce(new Error("Service error"));
 
-      const res = await request(app).post("/api/posts").send({ text: "New post" });
+      const res = await request(app)
+        .post("/api/posts")
+        .send({ text: "New post" });
 
       expect(res.status).toBe(400);
       expect(PostService.createPost).toHaveBeenCalled();
@@ -3784,7 +3995,7 @@ describe("PostController", () => {
 
 :::
 
-If everything is done correctly, the tests will run successfully:
+Если все сделано правильно, тесты выполнятся успешно:
 
 ```bash
 npm run test
@@ -3810,18 +4021,18 @@ Time:        0.967 s, estimated 1 s
 Ran all test suites.
 ```
 
-# Conclusion
+# Заключение
 
-As part of the lesson, an application program was developed - a server application on Express, simulating the work of the GopherTalk social network. During the work, special attention was paid to the applied use of databases: the creation, use, reading and modification of data occurred through services, and interaction with the database was carried out through a well-thought-out structure of controllers, services and repositories. Thanks to this, it became clear what place databases occupy in the architecture of information systems and how the interaction between different layers of the application is built.
+В рамках занятия была разработана прикладная программа — серверное приложение на Express, моделирующее работу социальной сети GopherTalk. В процессе работы особое внимание уделялось прикладному применению баз данных: создание, использование, чтение и изменение данных происходили через сервисы, а взаимодействие с базой осуществлялось через продуманную структуру контроллеров, сервисов и репозиториев. Благодаря этому стало наглядно понятно, какое место занимают базы данных в архитектуре информационных систем и как строится взаимодействие между различными слоями приложения.
 
-The developed architecture turned out to be correct, logical and easily extensible: adding new entities, new routes or validation rules does not require significant changes in the existing code. The project is divided into layers: controllers are responsible for processing HTTP requests, services are responsible for business logic, and repositories are responsible for accessing data. Data validation before performing business operations is carried out through middleware, which makes the API reliable and resistant to errors at the input data level.
+Разработанная архитектура получилась корректной, логичной и легко расширяемой: добавление новых сущностей, новых маршрутов или правил валидации не требует существенных изменений в уже существующем коде. Проект разделён на слои: контроллеры отвечают за обработку HTTP-запросов, сервисы — за бизнес-логику, репозитории — за доступ к данным. Валидация данных перед выполнением бизнес-операций осуществляется через middleware, что делает API надёжным и устойчивым к ошибкам на уровне входных данных.
 
-Further development paths for the application include:
+Пути дальнейшего развития приложения включают:
 
-- Optimizing SQL queries to improve performance, especially when working with large amounts of data (e.g. adding indexes, revising filters and joins).
-- Implementing caching of frequently requested data (e.g. via Redis) to unload the database.
-- Introducing asynchronous tasks for background event processing (e.g. processing likes or views).
-- Improving query and error logging for easier system maintenance.
-- Developing the test infrastructure: adding integration tests with a real database in Docker containers.
+- Оптимизацию SQL-запросов для повышения производительности, особенно при работе с большим объёмом данных (например, добавление индексов, пересмотр фильтраций и джойнов).
+- Реализацию кеширования часто запрашиваемых данных (например, через Redis) для разгрузки базы данных.
+- Введение асинхронных задач для фоновой обработки событий (например, обработка лайков или просмотров).
+- Улучшение логирования запросов и ошибок для удобства сопровождения системы.
+- Развитие тестовой инфраструктуры: добавление интеграционных тестов с реальной базой данных в Docker-контейнерах.
 
-Thus, the work performed not only deepened the understanding of databases, but also provided practical experience in building real, scalable server applications.
+Таким образом, выполненная работа не только углубила понимание баз данных, но и дала практический опыт построения реальных, масштабируемых серверных приложений.
