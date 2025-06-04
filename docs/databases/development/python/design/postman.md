@@ -65,7 +65,7 @@ Authorization: Bearer {{auth_token}}
 
 После импорта в боковом меню перейдите на вкладку Environments и выберите там gophertalk flavours. Там будет таблица с переменными:
 
-![Postman Environment](./../../../assets/databases/postman-environment.png)
+![Postman Environment](../../../../assets/databases/postman-environment.png)
 
 В переменной `api_url` указан URL-адрес нашего сервера `http://localhost:3000/api`. Переменные `access_token` и `refresh_token` нужны для хранения JWT токенов, которые выдаются после авторизации. К ним мы вернемся позже.
 
@@ -75,17 +75,17 @@ Authorization: Bearer {{auth_token}}
 - `posts` - эндпоинты для работы с постами
 - `auth` - эндпоинты авторизации
 
-![Postman Collection](./../../../assets/databases/postman-collection.png)
+![Postman Collection](../../../../assets/databases/postman-collection.png)
 
 Все эти эндпоинты вы реализуете позже. Сейчас нас интересует эндпоинт `health-check`. Кликните два раза по нему.
 
-![Postman Health Check](./../../../assets/databases/postman-health-check.png)
+![Postman Health Check](../../../../assets/databases/postman-health-check.png)
 
 Сверху зеленым цветом выделен метод HTTP - в данном случае `GET`. Справа от метода находится URL. Обратите внимание, что в нем используется переменная `api_url`, рассмотренная выше. Подставляя значение переменной, итоговый URL - `http://localhost:3000/api/health-check`. Это тот самый URL, который мы настроили в нашем приложении для проверки соединения с БД. Чтобы переменные работали, необходимо выбрать нужный Environment в правом верхнем углу, над кнопкой `Send`. В нашем случае это gophertalk flavours.
 
 Убедитесь, что ваше приложение запущено, и нажмите `Send`. Результат отобразится ниже во окне `Response`.
 
-![Postman Health Check Response](./../../../assets/databases/postman-health-check-response.png)
+![Postman Health Check Response](../../../../assets/databases/postman-health-check-response.png)
 
 Под URL строкой в Postman присутсвуют вкладки:
 

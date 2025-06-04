@@ -12,7 +12,7 @@
 db.movies.insertOne({ title: "Stand by Me" });
 ```
 
-![Compass insertOne](./../../../../assets/databases/mongo-compass-insert-one.png)
+![Compass insertOne](../../../assets/databases/mongo-compass-insert-one.png)
 
 В результате документ попадёт в коллекцию movies, а поле `_id` будет создано автоматически.
 
@@ -29,7 +29,11 @@ db.movies.find();
 ```js
 db.movies.drop(); // Очистим коллекцию перед вставкой
 
-db.movies.insertMany([{ title: "Ghostbusters" }, { title: "E.T." }, { title: "Blade Runner" }]);
+db.movies.insertMany([
+  { title: "Ghostbusters" },
+  { title: "E.T." },
+  { title: "Blade Runner" },
+]);
 ```
 
 После выполнения можно проверить:
@@ -38,7 +42,7 @@ db.movies.insertMany([{ title: "Ghostbusters" }, { title: "E.T." }, { title: "Bl
 db.movies.find();
 ```
 
-![Compass insertMany](./../../../../assets/databases/mongo-compass-insert-many.png)
+![Compass insertMany](../../../assets/databases/mongo-compass-insert-many.png)
 
 > [!CAUTION] Внимание
 > В MongoDB максимальный размер одного запроса — 48 МБ. Если массив слишком большой, драйвер может разделить его на части.
@@ -83,7 +87,7 @@ MongoDB предлагает два метода:
 db.movies.find();
 ```
 
-![Compass find перед deleteOne](./../../../../assets/databases/mongo-compass-find-delete-one.png)
+![Compass find перед deleteOne](../../../assets/databases/mongo-compass-find-delete-one.png)
 
 Удалим по `_id` и сразу проверим результата.
 
@@ -96,7 +100,7 @@ db.movies.deleteOne({ _id: ObjectId("682058f73408044d94390553") });
 db.movies.find();
 ```
 
-![Compass deleteOne](./../../../../assets/databases/mongo-compass-delete-one.png)
+![Compass deleteOne](../../../assets/databases/mongo-compass-delete-one.png)
 
 > [!CAUTION] Внимание
 > Если фильтр соответствует нескольким документам, `deleteOne()` удалит первый попавшийся. Этот выбор зависит от порядка вставки, индексов и других факторов.
@@ -203,13 +207,19 @@ db.users.updateOne({ _id: 5001 }, { $set: { favorite_color: "blue" } });
 Если позже она решит, что больше любит другой цвет, `$set` можно снова использовать для обновления:
 
 ```js
-db.users.updateOne({ username: "maria" }, { $set: { favorite_color: "green" } });
+db.users.updateOne(
+  { username: "maria" },
+  { $set: { favorite_color: "green" } }
+);
 ```
 
 Модификатор `$set` позволяет также изменять тип значения. Например, если пользователь решает, что у неё несколько любимых цветов, можно заменить строку на массив:
 
 ```js
-db.users.updateOne({ username: "maria" }, { $set: { favorite_color: ["green", "purple", "orange"] } });
+db.users.updateOne(
+  { username: "maria" },
+  { $set: { favorite_color: ["green", "purple", "orange"] } }
+);
 ```
 
 Если же она решит, что не хочет указывать цвет вообще, поле можно полностью удалить с помощью модификатора `$unset`:
@@ -237,7 +247,10 @@ db.articles.insertOne({
 Если нужно обновить имя автора, можно сделать это так:
 
 ```js
-db.articles.updateOne({ "author.name": "Ivan" }, { $set: { "author.name": "Ivan Petrov" } });
+db.articles.updateOne(
+  { "author.name": "Ivan" },
+  { $set: { "author.name": "Ivan Petrov" } }
+);
 ```
 
 После этого имя будет изменено только внутри вложенного объекта `author`, остальные поля документа сохранятся:
@@ -261,7 +274,10 @@ db.articles.updateOne({ "author.name": "Ivan" }, { $set: { "author.name": "Ivan 
 
 ```js
 // Ошибочный подход!
-db.articles.updateOne({ "author.name": "Ivan Petrov" }, { "author.name": "Ivan Sidorov" });
+db.articles.updateOne(
+  { "author.name": "Ivan Petrov" },
+  { "author.name": "Ivan Sidorov" }
+);
 ```
 
 Это приведёт к ошибке, потому что MongoDB ожидает обновление через оператор (например, `$set`), а не целый документ без модификаторов. В старых версиях API это не вызывало ошибку, а просто полностью заменяло документ — часто с неожиданными последствиями. Сейчас это считается некорректным.
@@ -283,7 +299,10 @@ db.scores.insertOne({ game: "tetris", user: "anna" });
 Теперь, когда игрок набирает очки, мы можем использовать `$inc`, чтобы прибавить их к полю `points`. Допустим, пользователь заработал `150` очков:
 
 ```js
-db.scores.updateOne({ game: "tetris", user: "anna" }, { $inc: { points: 150 } });
+db.scores.updateOne(
+  { game: "tetris", user: "anna" },
+  { $inc: { points: 150 } }
+);
 ```
 
 Если теперь посмотреть на документ, он будет выглядеть так:
@@ -302,7 +321,10 @@ db.scores.updateOne({ game: "tetris", user: "anna" }, { $inc: { points: 150 } })
 Если пользователь получает дополнительный бонус, например, `+5000` очков, можно просто снова использовать `$inc`:
 
 ```js
-db.scores.updateOne({ game: "tetris", user: "anna" }, { $inc: { points: 5000 } });
+db.scores.updateOne(
+  { game: "tetris", user: "anna" },
+  { $inc: { points: 5000 } }
+);
 ```
 
 Теперь документ будет выглядеть так:
@@ -319,7 +341,10 @@ db.scores.updateOne({ game: "tetris", user: "anna" }, { $inc: { points: 5000 } }
 Если вы хотите не увеличивать, а уменьшить значение, просто передайте отрицательное число. Например, если игрок теряет `100` очков:
 
 ```js
-db.scores.updateOne({ game: "tetris", user: "anna" }, { $inc: { points: -100 } });
+db.scores.updateOne(
+  { game: "tetris", user: "anna" },
+  { $inc: { points: -100 } }
+);
 ```
 
 Итоговое значение points будет равно `5050`.
@@ -615,7 +640,14 @@ db.users.updateOne(
 После этого массив emails будет содержать:
 
 ```json
-["joe@example.com", "joe@gmail.com", "joe@yahoo.com", "joe@hotmail.com", "joe@php.net", "joe@python.org"]
+[
+  "joe@example.com",
+  "joe@gmail.com",
+  "joe@yahoo.com",
+  "joe@hotmail.com",
+  "joe@php.net",
+  "joe@python.org"
+]
 ```
 
 Обратите внимание: "joe@example.com" не был добавлен повторно, так как уже присутствовал в массиве. Остальные два — были добавлены.
@@ -755,7 +787,10 @@ db.articles.updateOne({ _id: "post1" }, { $inc: { "comments.0.likes": 1 } });
 Для этого существует позиционный оператор `$`, который позволяет MongoDB найти первый подходящий элемент в массиве и применить обновление:
 
 ```js
-db.articles.updateOne({ "comments.author": "Ben" }, { $set: { "comments.$.author": "Benjamin" } });
+db.articles.updateOne(
+  { "comments.author": "Ben" },
+  { $set: { "comments.$.author": "Benjamin" } }
+);
 ```
 
 Обратите внимание: `comments.$.author` — это путь к нужному полю внутри того элемента, который соответствует фильтру "comments.author": "Ben".

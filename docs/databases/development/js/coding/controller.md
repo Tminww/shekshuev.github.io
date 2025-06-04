@@ -399,24 +399,24 @@ Server is running on port 3000
 
 Чтобы убедится, что все работает, давайте попробуем зарегистрировать пользователя и затем авторизоваться.
 
-![Коллекция Postman](./../../../assets/databases/postman-collection.png)
+![Коллекция Postman](../../../../assets/databases/postman-collection.png)
 
 В Postman откройте запрос `register` в каталоге `auth`. Для начала можно проверить валидацию. Давайте удалим поле `first_name` и добавим в поле `last_name` цифры.
 
-![Невалидный запрос на регистрацию](./../../../assets/databases/postman-incorrect-register-request.png)
+![Невалидный запрос на регистрацию](../../../../assets/databases/postman-incorrect-register-request.png)
 
 Если же мы отправим корректный запрос, то в ответ получим пару `access_token` и `refresh_token`.
 
-![Валидный запрос на регистрацию](./../../../assets/databases/postman-correct-register-request.png)
+![Валидный запрос на регистрацию](../../../../assets/databases/postman-correct-register-request.png)
 
 Откройте вкладку `Scripts` на панели запроса в Postman.
 
-![Скрипты, выполняемые после запроса](./../../../assets/databases/postman-post-response-scripts.png)
+![Скрипты, выполняемые после запроса](../../../../assets/databases/postman-post-response-scripts.png)
 
 Этот скрипт читает ответ от сервера и устанавливает переменные из окружения Postman. То есть Postman "запоминает" токены, и может их использовать в других запросах.
 Это можно увидеть, еслди открыть любой запрос, требующий авторизации, и перейти на вкладку `Authorizaton`.
 
-![Вкладка авторизации Postman](./../../../assets/databases/postman-authorization-tab.png)
+![Вкладка авторизации Postman](../../../../assets/databases/postman-authorization-tab.png)
 
 Тут указано, что Postman будет подставлять в заголовок `Authorization` строку с нашим `Bearer <access_token>`. Обратите внимание, что в файле `src/middleware/auth` как раз проверяется наличие заголовка `Authorization` со значением `Bearer <access_token>`.
 

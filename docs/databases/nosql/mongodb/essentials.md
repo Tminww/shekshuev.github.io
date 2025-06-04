@@ -245,11 +245,11 @@ db.users.insertOne({ name: "Bob" })
 
 MongoDB Compass — это официальный графический интерфейс (GUI) для работы с MongoDB. Он особенно удобен для начинающих, поскольку позволяет работать с коллекциями и документами без написания кода.
 
-![Compass экран приветствия](./../../../../assets/databases/mongo-compass-welcome.png)
+![Compass экран приветствия](../../../assets/databases/mongo-compass-welcome.png)
 
 Для подключения с БД нажмите Add new connection.
 
-![Compass настройка соединения - advanced](./../../../../assets/databases/mongo-compass-connect.png)
+![Compass настройка соединения - advanced](../../../assets/databases/mongo-compass-connect.png)
 
 MongoDB Compass позволяет подключаться как к локальной базе данных, так и к удалённому серверу. Если MongoDB установлена локально и работает по умолчанию, достаточно нажать Connect.
 
@@ -266,13 +266,13 @@ mongodb+srv://username:password@host/myDatabase
 
 Также можно настроить дополнительные параметры (например, SSL, авторизацию) через вкладку Advanced.
 
-![Compass настройка соединения - advanced](./../../../../assets/databases/mongo-compass-connect-advanced.png)
+![Compass настройка соединения - advanced](../../../assets/databases/mongo-compass-connect-advanced.png)
 
 ### Обзор интерфейса
 
 После подключения вы попадаете на главную панель, где отображаются все доступные базы данных и коллекции.
 
-![Интерфейс Compass](./../../../../assets/databases/mongo-compass-interface.png)
+![Интерфейс Compass](../../../assets/databases/mongo-compass-interface.png)
 
 Основные области интерфейса:
 
@@ -295,12 +295,12 @@ MongoDB по умолчанию использует базу данных `test
 db.runCommand({ connectionStatus: 1 });
 ```
 
-![Тестовая команда Compass](./../../../../assets/databases/mongo-compass-test-command.png)
+![Тестовая команда Compass](../../../assets/databases/mongo-compass-test-command.png)
 
 Этот запрос возвращает информацию о текущем подключении, включая имя пользователя, роли и базу данных.
 
 Аналогично можно подключиться из терминала, используя утилиту `mongosh`.
 
-![Тестовая команда mongosh](./../../../../assets/databases/mongosh-test-command.png)
+![Тестовая команда mongosh](../../../assets/databases/mongosh-test-command.png)
 
 Вы познакомились с основами MongoDB, её структурой, типами данных и интерфейсом Compass. Теперь перейдём к практической части — операциям с коллекциями и документами.

@@ -1,11 +1,11 @@
 <script setup>
-import Conversation from "../../../../components/Conversation.vue";
-import alexey from "../../../assets/databases/heroes/clerk_alexey.png";
-import ivan from "../../../assets/databases/heroes/clerk_ivan.png";
-import petr from "../../../assets/databases/heroes/petr.png";
+import Conversation from "../../../components/Conversation.vue";
+import alexey from "../../assets/databases/heroes/clerk_alexey.png";
+import ivan from "../../assets/databases/heroes/clerk_ivan.png";
+import petr from "../../assets/databases/heroes/petr.png";
 import { defineAsyncComponent } from "vue";
 
-const Repl = defineAsyncComponent(() => import("../../../../components/Repl.vue"))
+const Repl = defineAsyncComponent(() => import("../../../components/Repl.vue"))
 
 </script>
 
@@ -25,7 +25,7 @@ const Repl = defineAsyncComponent(() => import("../../../../components/Repl.vue"
 
 1686 год. В нашей истории рядом с Петром находятся два дьяка (герои вымышленные).
 
-![Разговор Петра с дьяками](./../../../assets/databases/story/petr_talk_with_clerks.png)
+![Разговор Петра с дьяками](../../assets/databases/story/petr_talk_with_clerks.png)
 
 - Дьяк Алексей — опытный государственный служащий, помощник Петра в административных делах.
 - Дьяк Иван — молодой помощник Алексея, которому поручают вести учёт и составлять отчёты.
@@ -501,7 +501,7 @@ SELECT upper('hello'); -- Преобразует строку в верхний 
 
 ## Преобразование типов данных (`CAST`)
 
-![Разговор Петра с дьяками](./../../../assets/databases/story/petr_talk_with_clerks_2.png)
+![Разговор Петра с дьяками](../../assets/databases/story/petr_talk_with_clerks_2.png)
 
 При использовании команды `SELECT` ранее, возможно, вы не задумывались о типах данных в столбцах результирующей выборки. Если внутри запроса `SELECT` не выполнять никаких преобразований, то тип данных в результирующем наборе совпадет с типом данных столбца, из которого были выбраны данные. Это естественно, и чаще всего это именно то, что нам и нужно.
 
