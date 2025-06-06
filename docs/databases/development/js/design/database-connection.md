@@ -333,9 +333,9 @@ export const pool = new Pool({
    import dotenv from "dotenv";
    ```
 
-   - pg — библиотека для работы с PostgreSQL в Node.js.
+   - `pg` — библиотека для работы с PostgreSQL в Node.js.
 
-   - dotenv — библиотека для загрузки переменных окружения из `.env` файла в `process.env`.
+   - `dotenv` — библиотека для загрузки переменных окружения из `.env` файла в `process.env`.
 
 2. Загрузка переменных окружения
 
@@ -397,7 +397,7 @@ app.listen(PORT, () => {
 
 Этот код — минимальный сервер на `express`, подключённый к базе данных PostgreSQL через `pg`. Разберем его.
 
-1.  Импорт библиотек
+### 1. Импорт библиотек
 
     ```js
     import dotenv from "dotenv";
@@ -411,7 +411,7 @@ app.listen(PORT, () => {
 
     - `pool` — импортированный пул подключений к PostgreSQL.
 
-2.  Загрузка переменных окружения
+### 2. Загрузка переменных окружения
 
     ```js
     dotenv.config();
@@ -419,7 +419,7 @@ app.listen(PORT, () => {
 
     Загружает переменные окружения из `.env` в `process.env`.
 
-3.  Создание приложения и определение порта
+### 3. Создание приложения и определение порта
 
     ```js
     const app = express();
@@ -430,7 +430,7 @@ app.listen(PORT, () => {
 
     - `PORT` — порт, на котором будет работать сервер (берётся из `.env` или по умолчанию 3000).
 
-4.  Подключение middleware
+### 4. Подключение middleware
 
     ```js
     app.use(express.json());
@@ -479,7 +479,7 @@ app.listen(PORT, () => {
 
     :::
 
-5.  Маршрут `/api/health-check`
+### 5. Маршрут `/api/health-check`
 
     ```js
     app.get("/api/health-check", async (req, res) => {
@@ -585,7 +585,7 @@ app.listen(PORT, () => {
 
     :::
 
-6.  Запуск сервера
+### 6. Запуск сервера
 
     ```js
     app.listen(PORT, () => {
@@ -641,7 +641,6 @@ Server is running on port 3000
 - подключать необходимые зависимости (`express`, `pg`, `dotenv`);
 - настраивать переменные окружения через `.env`;
 - использовать пул подключений к базе PostgreSQL;
-- реализовать базовую маршрутизацию (`/api/health-check`);
-- организовать структуру проекта по слоям: `controllers`, `services`, `repositories`, `routes`, `middlewares` и т.д.
+- реализовать базовую маршрутизацию (`/api/health-check`).
 
 Этот фундаментальный каркас послужит основой для дальнейшей разработки полноценного REST API.
