@@ -782,120 +782,132 @@ tests/repositories/test_user_repository.py::test_delete_user_not_found PASSED   
 
 Репозиторий постов будет включать следующие методы:
 
-- создание нового поста (`createPost`);
-- получение списка постов с фильтрацией и пагинацией (`getAllPosts`);
-- получение одного поста по `id`, включая автора, количество лайков, просмотров и ответов (`getPostByID`);
-- удаление поста владельцем (`deletePost`);
-- отметка, что пользователь просмотрел пост (`viewPost`);
-- лайк/дизлайк поста (`likePost`, `dislikePost`).
+- создание нового поста (`create_post`);
+- получение списка постов с фильтрацией и пагинацией (`get_all_posts`);
+- получение одного поста по `id`, включая автора, количество лайков, просмотров и ответов (`get_post_by_id`);
+- удаление поста владельцем (`delete_post`);
+- отметка, что пользователь просмотрел пост (`view_post`);
+- лайк/дизлайк поста (`like_post`, `dislike_post`).
 
-Мы начнем с реализации метода `createPost`, затем последовательно опишем остальные. Все методы взаимодействуют с базой через SQL-запросы, используют подстановки для защиты от SQL-инъекций и возвращают данные в формате DTO.
+Мы начнем с реализации функции `create_post`, затем последовательно опишем остальные. Все методы взаимодействуют с базой через SQL-запросы, используют подстановки для защиты от SQL-инъекций и возвращают данные в формате DTO.
 
-Создайте файл `src/repositories/postRepository.js`, в него поместите следующий код:
+Создайте файл `src/repositories/post_repository.py`, в него поместите следующий код:
 
 ```python
-import { pool } from "../db/index.js";
+from config.db import pool
+from psycopg.rows import dict_row
 
-export const PostRepository = {
-  async createPost(dto) {
-    const query = `...`;
-    const values = [dto.text, dto.user_id, dto.reply_to_id];
-    const res = await pool.query(query, values);
-    return res.rows[0];
-  },
-};
+
+def create_post(dto: dict) -> dict:
+    query = """
+        ...
+    """
+    values = (
+        dto["text"],
+        dto["user_id"],
+        dto.get("reply_to_id"),
+    )
+
+    with pool.connection() as conn:
+        with conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(query, values)
+            return cur.fetchone()
+
 ```
 
 Пояснение:
 
-- `dto` — объект, содержащий данные нового поста (`text`, `user_id`, `reply_to_id`);
+- `dto` — словарь, содержащий данные нового поста (`text`, `user_id`, `reply_to_id`);
 
 - SQL-запрос вставляет данные в таблицу posts;
 
 - После вставки сразу возвращаются поля нового поста: `id`, `text`, `created_at`, `reply_to_id`.
 
 > [!IMPORTANT] Задание
-> В соответствии с пояснением напишите SQL запрос для добавления нового поста. Не забудьте использовать позиционные параметры `$1`, `$2`, `$3` — для предотвращения SQL-инъекций
+> В соответствии с пояснением напишите SQL запрос для добавления нового поста. Не забудьте использовать позиционные параметры для предотвращения SQL-инъекций
 
-Метод `getAllPosts` возвращает список постов с расширенной информацией: количество лайков, просмотров, ответов, а также информацию о пользователе и отметках "нравится" и "просмотрено" от текущего пользователя.
+Функция `get_all_posts` возвращает список постов с расширенной информацией: количество лайков, просмотров, ответов, а также информацию о пользователе и отметках "нравится" и "просмотрено" от текущего пользователя.
 
 ```python
-async getAllPosts(dto) {
-    const params = [dto.user_id];
-    let query = `
-      WITH likes_count AS (
-        SELECT post_id, COUNT(*) AS likes_count
-        FROM likes GROUP BY post_id
-      ),
-      views_count AS (
-        SELECT post_id, COUNT(*) AS views_count
-        FROM views GROUP BY post_id
-      ),
-      replies_count AS (
-        SELECT reply_to_id, COUNT(*) AS replies_count
-        FROM posts WHERE reply_to_id IS NOT NULL GROUP BY reply_to_id
-      )
-      SELECT
-        p.id, p.text, p.reply_to_id, p.created_at,
-        u.id AS user_id, u.user_name, u.first_name, u.last_name,
-        COALESCE(lc.likes_count, 0) AS likes_count,
-        COALESCE(vc.views_count, 0) AS views_count,
-        COALESCE(rc.replies_count, 0) AS replies_count,
-        CASE WHEN l.user_id IS NOT NULL THEN true ELSE false END AS user_liked,
-        CASE WHEN v.user_id IS NOT NULL THEN true ELSE false END AS user_viewed
-      FROM posts p
-      JOIN users u ON p.user_id = u.id
-      LEFT JOIN likes_count lc ON p.id = lc.post_id
-      LEFT JOIN views_count vc ON p.id = vc.post_id
-      LEFT JOIN replies_count rc ON p.id = rc.reply_to_id
-      LEFT JOIN likes l ON l.post_id = p.id AND l.user_id = $1
-      LEFT JOIN views v ON v.post_id = p.id AND v.user_id = $1
-      WHERE p.deleted_at IS NULL
-    `;
+def get_all_posts(dto: dict) -> list[dict]:
+    params = [dto["user_id"]]
+    query = """
+        WITH likes_count AS (
+            SELECT post_id, COUNT(*) AS likes_count
+            FROM likes GROUP BY post_id
+        ),
+        views_count AS (
+            SELECT post_id, COUNT(*) AS views_count
+            FROM views GROUP BY post_id
+        ),
+        replies_count AS (
+            SELECT reply_to_id, COUNT(*) AS replies_count
+            FROM posts WHERE reply_to_id IS NOT NULL GROUP BY reply_to_id
+        )
+        SELECT
+            p.id, p.text, p.reply_to_id, p.created_at,
+            u.id AS user_id, u.user_name, u.first_name, u.last_name,
+            COALESCE(lc.likes_count, 0) AS likes_count,
+            COALESCE(vc.views_count, 0) AS views_count,
+            COALESCE(rc.replies_count, 0) AS replies_count,
+            CASE WHEN l.user_id IS NOT NULL THEN true ELSE false END AS user_liked,
+            CASE WHEN v.user_id IS NOT NULL THEN true ELSE false END AS user_viewed
+        FROM posts p
+        JOIN users u ON p.user_id = u.id
+        LEFT JOIN likes_count lc ON p.id = lc.post_id
+        LEFT JOIN views_count vc ON p.id = vc.post_id
+        LEFT JOIN replies_count rc ON p.id = rc.reply_to_id
+        LEFT JOIN likes l ON l.post_id = p.id AND l.user_id = %s
+        LEFT JOIN views v ON v.post_id = p.id AND v.user_id = %s
+        WHERE p.deleted_at IS NULL
+    """
 
-    if (dto.search) {
-      query += ` AND p.text ILIKE $${params.length + 1}`;
-      params.push(`%${dto.search}%`);
-    }
+    if "search" in dto and dto["search"]:
+        query += f" AND p.text ILIKE %s"
+        params.append(f"%{dto['search']}%")
 
-    if (dto.owner_id) {
-      query += ` AND p.user_id = $${params.length + 1}`;
-      params.push(dto.owner_id);
-    }
+    if "owner_id" in dto and dto["owner_id"]:
+        query += f" AND p.user_id = %s"
+        params.append(dto["owner_id"])
 
-    if (dto.reply_to_id) {
-      query += ` AND p.reply_to_id = $${params.length + 1} ORDER BY p.created_at ASC`;
-      params.push(dto.reply_to_id);
-    } else {
-      query += ` AND p.reply_to_id IS NULL ORDER BY p.created_at DESC`;
-    }
+    if "reply_to_id" in dto and dto["reply_to_id"]:
+        query += f" AND p.reply_to_id = %s ORDER BY p.created_at ASC"
+        params.append(dto["reply_to_id"])
+    else:
+        query += " AND p.reply_to_id IS NULL ORDER BY p.created_at DESC"
 
-    query += ` OFFSET $${params.length + 1} LIMIT $${params.length + 2}`;
-    params.push(dto.offset, dto.limit);
+    query += " OFFSET %s LIMIT %s"
+    params.extend([dto["offset"], dto["limit"]])
 
-    const res = await pool.query(query, params);
+    with pool.connection() as conn:
+        with conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(query, params)
+            rows = cur.fetchall()
 
-    return res.rows.map((row) => ({
-      id: row.id,
-      text: row.text,
-      reply_to_id: row.reply_to_id,
-      created_at: row.created_at,
-      likes_count: row.likes_count,
-      views_count: row.views_count,
-      replies_count: row.replies_count,
-      user_liked: row.user_liked,
-      user_viewed: row.user_viewed,
-      user: {
-        id: row.user_id,
-        user_name: row.user_name,
-        first_name: row.first_name,
-        last_name: row.last_name,
-      },
-    }));
-  }
+    return [
+        {
+            "id": row["id"],
+            "text": row["text"],
+            "reply_to_id": row["reply_to_id"],
+            "created_at": row["created_at"],
+            "likes_count": row["likes_count"],
+            "views_count": row["views_count"],
+            "replies_count": row["replies_count"],
+            "user_liked": row["user_liked"],
+            "user_viewed": row["user_viewed"],
+            "user": {
+                "id": row["user_id"],
+                "user_name": row["user_name"],
+                "first_name": row["first_name"],
+                "last_name": row["last_name"],
+            },
+        }
+        for row in rows
+    ]
+
 ```
 
-Метод `getAllPosts` предназначен для получения списка публикаций с расширенной информацией:
+Метод `get_all_posts` предназначен для получения списка публикаций с расширенной информацией:
 
 - автор поста;
 
@@ -995,10 +1007,9 @@ WHERE p.deleted_at IS NULL
 **По тексту:**
 
 ```sql
-if (dto.search) {
-  query += ` AND p.text ILIKE $${params.length + 1}`;
-  params.push(`%${dto.search}%`);
-}
+if "search" in dto and dto["search"]:
+    query += f" AND p.text ILIKE %s"
+    params.append(f"%{dto['search']}%")
 ```
 
 Если передана строка `search`, ищутся посты, в тексте которых есть соответствие.
@@ -1006,10 +1017,9 @@ if (dto.search) {
 **По пользователю (автору):**
 
 ```sql
-if (dto.owner_id) {
-  query += ` AND p.user_id = $${params.length + 1}`;
-  params.push(dto.owner_id);
-}
+if "owner_id" in dto and dto["owner_id"]:
+    query += f" AND p.user_id = %s"
+    params.append(dto["owner_id"])
 ```
 
 Если передан `owner_id`, отбираются посты конкретного пользователя.
@@ -1017,11 +1027,11 @@ if (dto.owner_id) {
 **По ответам:**
 
 ```sql
-if (dto.reply_to_id) {
-  query += ` AND p.reply_to_id = $${params.length + 1} ORDER BY p.created_at ASC`;
-} else {
-  query += ` AND p.reply_to_id IS NULL ORDER BY p.created_at DESC`;
-}
+if "reply_to_id" in dto and dto["reply_to_id"]:
+    query += f" AND p.reply_to_id = %s ORDER BY p.created_at ASC"
+    params.append(dto["reply_to_id"])
+else:
+    query += " AND p.reply_to_id IS NULL ORDER BY p.created_at DESC"
 ```
 
 Проверяется, являются ли посты ответами на другой пост (`reply_to_id`) или это корневые посты.
@@ -1029,8 +1039,8 @@ if (dto.reply_to_id) {
 #### 6. Пагинация
 
 ```python
-query += ` OFFSET $${params.length + 1} LIMIT $${params.length + 2}`;
-params.push(dto.offset, dto.limit);
+query += " OFFSET %s LIMIT %s"
+params.extend([dto["offset"], dto["limit"]])
 ```
 
 Реализуется механика "скользящего окна" — выбирается определённый диапазон постов.
@@ -1047,82 +1057,81 @@ params.push(dto.offset, dto.limit);
 
 - флаги `user_liked`, `user_viewed`.
 
-Далее рассмотрим реализацию метода `getPostById`.
+Далее рассмотрим реализацию функции `get_post_by_id`.
 
 ```python
-import { pool } from "../db/index.js";
+def get_post_by_id(post_id: int, user_id: int) -> dict:
+    query = """
+        WITH likes_count AS (
+            SELECT post_id, COUNT(*) AS likes_count
+            FROM likes
+            GROUP BY post_id
+        ),
+        views_count AS (
+            SELECT post_id, COUNT(*) AS views_count
+            FROM views
+            GROUP BY post_id
+        ),
+        replies_count AS (
+            SELECT reply_to_id, COUNT(*) AS replies_count
+            FROM posts
+            WHERE reply_to_id IS NOT NULL
+            GROUP BY reply_to_id
+        )
+        SELECT
+            p.id AS post_id,
+            p.text,
+            p.reply_to_id,
+            p.created_at,
+            u.id AS user_id,
+            u.user_name,
+            u.first_name,
+            u.last_name,
+            COALESCE(lc.likes_count, 0) AS likes_count,
+            COALESCE(vc.views_count, 0) AS views_count,
+            COALESCE(rc.replies_count, 0) AS replies_count,
+            CASE WHEN l.user_id IS NOT NULL THEN true ELSE false END AS user_liked,
+            CASE WHEN v.user_id IS NOT NULL THEN true ELSE false END AS user_viewed
+        FROM posts p
+        JOIN users u ON p.user_id = u.id
+        LEFT JOIN likes_count lc ON p.id = lc.post_id
+        LEFT JOIN views_count vc ON p.id = vc.post_id
+        LEFT JOIN replies_count rc ON p.id = rc.reply_to_id
+        LEFT JOIN likes l ON l.post_id = p.id AND l.user_id = %s
+        LEFT JOIN views v ON v.post_id = p.id AND v.user_id = %s
+        WHERE p.id = %s AND p.deleted_at IS NULL;
+    """
+    params = (user_id, user_id, post_id)
 
-export const PostRepository = {
-  async getPostById(postId, userId) {
-    const query = `
-      WITH likes_count AS (
-        SELECT post_id, COUNT(*) AS likes_count
-        FROM likes
-        GROUP BY post_id
-      ),
-      views_count AS (
-        SELECT post_id, COUNT(*) AS views_count
-        FROM views
-        GROUP BY post_id
-      ),
-      replies_count AS (
-        SELECT reply_to_id, COUNT(*) AS replies_count
-        FROM posts
-        WHERE reply_to_id IS NOT NULL
-        GROUP BY reply_to_id
-      )
-      SELECT
-        p.id AS post_id,
-        p.text,
-        p.reply_to_id,
-        p.created_at,
-        u.id AS user_id,
-        u.user_name,
-        u.first_name,
-        u.last_name,
-        COALESCE(lc.likes_count, 0) AS likes_count,
-        COALESCE(vc.views_count, 0) AS views_count,
-        COALESCE(rc.replies_count, 0) AS replies_count,
-        CASE WHEN l.user_id IS NOT NULL THEN true ELSE false END AS user_liked,
-        CASE WHEN v.user_id IS NOT NULL THEN true ELSE false END AS user_viewed
-      FROM posts p
-      JOIN users u ON p.user_id = u.id
-      LEFT JOIN likes_count lc ON p.id = lc.post_id
-      LEFT JOIN views_count vc ON p.id = vc.post_id
-      LEFT JOIN replies_count rc ON p.id = rc.reply_to_id
-      LEFT JOIN likes l ON l.post_id = p.id AND l.user_id = $1
-      LEFT JOIN views v ON v.post_id = p.id AND v.user_id = $1
-      WHERE p.id = $2 AND p.deleted_at IS NULL;
-    `;
+    with pool.connection() as conn:
+        with conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(query, params)
+            row = cur.fetchone()
 
-    const res = await pool.query(query, [userId, postId]);
-    if (res.rowCount === 0) {
-      throw new Error("Post not found");
-    }
+            if row is None:
+                raise ValueError("Post not found")
 
-    const row = res.rows[0];
-    return {
-      id: row.post_id,
-      text: row.text,
-      reply_to_id: row.reply_to_id,
-      created_at: row.created_at,
-      likes_count: row.likes_count,
-      views_count: row.views_count,
-      replies_count: row.replies_count,
-      user_liked: row.user_liked,
-      user_viewed: row.user_viewed,
-      user: {
-        id: row.user_id,
-        user_name: row.user_name,
-        first_name: row.first_name,
-        last_name: row.last_name,
-      },
-    };
-  },
-};
+            return {
+                "id": row["post_id"],
+                "text": row["text"],
+                "reply_to_id": row["reply_to_id"],
+                "created_at": row["created_at"],
+                "likes_count": row["likes_count"],
+                "views_count": row["views_count"],
+                "replies_count": row["replies_count"],
+                "user_liked": row["user_liked"],
+                "user_viewed": row["user_viewed"],
+                "user": {
+                    "id": row["user_id"],
+                    "user_name": row["user_name"],
+                    "first_name": row["first_name"],
+                    "last_name": row["last_name"],
+                },
+            }
+
 ```
 
-Метод `getPostById` используется для получения одного конкретного поста по его идентификатору. Он возвращает расширенную информацию по посту, включая лайки, просмотры, количество ответов и данные об авторе. Метод похож на `getAllPosts`, за исключением некоторых отличий.
+Функция `get_post_by_id` используется для получения одного конкретного поста по его идентификатору. Она возвращает расширенную информацию по посту, включая лайки, просмотры, количество ответов и данные об авторе. Функция похожа на `get_all_posts`, за исключением некоторых отличий.
 
 **Фильтрация по ID поста**
 
@@ -1132,8 +1141,8 @@ export const PostRepository = {
 WHERE p.id = $2 AND p.deleted_at IS NULL
 ```
 
-Первый параметр (`$1`) — это `user_id` (нужен для определения, лайкнул ли/просматривал ли пользователь пост),
-второй (`$2`) — это ID самого поста, который ищется.
+Первый параметр — это `user_id` (нужен для определения, лайкнул ли/просматривал ли пользователь пост),
+второй — это ID самого поста, который ищется.
 
 **Отсутствует пагинация**
 
@@ -1141,515 +1150,612 @@ WHERE p.id = $2 AND p.deleted_at IS NULL
 
 **Возвращаемое значение**
 
-`getPostById` возвращает один объект поста, а `getAllPosts` - массив.
+`get_post_by_id` возвращает один объект поста, а `get_all_posts` - массив.
 
 **Обработка крайних случаев**
 
-Если пост не найден, `getPostById` выбрасывает исключение "Post not found", а `getAllPosts` возвращает пустой массив.
+Если пост не найден, `get_post_by_id` выбрасывает исключение "Post not found", а `get_all_posts` возвращает пустой массив.
 
-Перейдем к реализации метода `deletePost` в репозитории `PostRepository`
+Перейдем к реализации метода `delete_post`.
 
 ```python
-async deletePost(id, ownerId) {
-  const query = `...`;
-  const res = await pool.query(query, [id, ownerId]);
-  if (res.rowCount === 0) {
-    throw new Error("Post not found or already deleted");
-  }
-}
+def delete_post(post_id: int, owner_id: int) -> None:
+    query = """
+        ...
+    """
+    with pool.connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(query, (post_id, owner_id))
+            if cur.rowcount == 0:
+                raise ValueError("Post not found or already deleted")
 ```
 
 > [!IMPORTANT] Задание
-> Реализуйте метод `deletePost`, который помечает пост как удалённый. SQL-запрос должен обновлять поле `deleted_at` текущим временем, работать только с постами, принадлежащими автору и исключать уже удалённые посты.
+> Реализуйте метод `delete_post`, который помечает пост как удалённый. SQL-запрос должен обновлять поле `deleted_at` текущим временем, работать только с постами, принадлежащими автору и исключать уже удалённые посты.
 
 Теперь реализуем метод, который регистрирует факт просмотра поста пользователем. Каждый пользователь может просмотреть пост только один раз — повторные просмотры не записываются.
 
 ```python
-async function viewPost(postId, userId) {
-  const query = `...`;
+from psycopg.errors import UniqueViolation
 
-  try {
-    const res = await pool.query(query, [postId, userId]);
-    if (res.rowCount === 0) {
-      throw new Error("Post not found");
-    }
-  } catch (err) {
-    if (err.message.includes("pk__views")) {
-      throw new Error("Post already viewed");
-    }
-    throw err;
-  }
-}
+def view_post(post_id: int, user_id: int) -> None:
+    query = """
+        ...
+    """
+    try:
+        with pool.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(query, (post_id, user_id))
+                if cur.rowcount == 0:
+                    raise ValueError("Post not found")
+    except UniqueViolation as err:
+        if "pk__views" in str(err):
+            raise ValueError("Post already viewed") from err
+        raise
 ```
 
 > [!CAUTION] Внимание
-> Обратите внимание на строку `err.message.includes("pk__views")`. Здесь `pk__views` - это имя первичного ключа у таблицы `views`. Подставьте свое, если у вас отличается.
+> Обратите внимание на строку `if "pk__views" in str(err)`. Здесь `pk__views` - это имя первичного ключа у таблицы `views`. Подставьте свое, если у вас отличается.
 
 > [!IMPORTANT] Задание
-> Реализуйте метод `viewPost`, который добавляет новую запись в таблицу `views`.
+> Реализуйте метод `view_post`, который добавляет новую запись в таблицу `views`.
 
 Теперь реализуем метод, который позволяет пользователю поставить лайк посту. Один пользователь может поставить лайк одному посту только один раз — повторные попытки должны вызывать ошибку.
 
 ```python
-async function likePost(postId, userId) {
-  const query = `...`;
+def like_post(post_id: int, user_id: int) -> None:
+    query = """
+        ...
+    """
 
-  try {
-    const res = await pool.query(query, [postId, userId]);
-    if (res.rowCount === 0) {
-      throw new Error("Post not found");
-    }
-  } catch (err) {
-    if (err.message.includes("pk__likes")) {
-      throw new Error("Post already liked");
-    }
-    throw err;
-  }
-}
+    try:
+        with pool.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(query, (post_id, user_id, post_id))
+                if cur.rowcount == 0:
+                    raise ValueError("Post not found")
+    except UniqueViolation as err:
+        if "pk__likes" in str(err):
+            raise ValueError("Post already liked") from err
+        raise
 ```
 
 > [!CAUTION] Внимание
-> Обратите внимание на строку `err.message.includes("pk__likes")`. Здесь `pk__likes` - это имя первичного ключа у таблицы `likes`. Подставьте свое, если у вас отличается.
+> Обратите внимание на строку `if "pk__likes" in str(err)`. Здесь `pk__likes` - это имя первичного ключа у таблицы `likes`. Подставьте свое, если у вас отличается.
 
 > [!IMPORTANT] Задание
-> Реализуйте метод `likePost`, который добавляет новую запись в таблицу `likes`.
+> Реализуйте метод `like_post`, который добавляет новую запись в таблицу `likes`.
 
-Метод `dislikePost` позволяет пользователю убрать лайк с поста, если он его ранее поставил.
+Метод `dislike_post` позволяет пользователю убрать лайк с поста, если он его ранее поставил.
 
 ```python
-async function dislikePost(postId, userId) {
-  const query = `...`;
+def dislike_post(post_id: int, user_id: int) -> None:
+    query = """
+        ...
+    """
 
-  const res = await pool.query(query, [postId, userId]);
-
-  if (res.rowCount === 0) {
-    throw new Error("Post not found");
-  }
-}
+    with pool.connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(query, (post_id, user_id, post_id))
+            if cur.rowcount == 0:
+                raise ValueError("Post not found")
 ```
 
 > [!IMPORTANT] Задание
-> Реализуйте метод `dislikePost`, который удаляет запись из таблицы `likes`.
+> Реализуйте метод `dislike_post`, который удаляет запись из таблицы `likes`.
 
 ## Тестирование репозитория постов
 
-В папке `__tests__/repositories` создайте файл `postRepository.test.js` и поместите в него код с unit-тестами:
+В папке `__tests__/repositories` создайте файл `test_post_repository.py` и поместите в него код с unit-тестами:
 
 ::: details Unit-тесты postRepository
 
 ```python
-import { describe, expect, jest } from "@jest/globals";
-import { pool } from "../../src/config/db.js";
-import { PostRepository } from "../../src/repositories/postRepository.js";
+from datetime import datetime
+from unittest.mock import MagicMock, patch
 
-function normalizeSQL(sql) {
-  return sql.toLowerCase().replace(/\s+/g, " ").trim();
-}
+import pytest
+from psycopg.errors import UniqueViolation
+from repositories.post_repository import (create_post, delete_post,
+                                          dislike_post, get_all_posts,
+                                          get_post_by_id, like_post, view_post)
 
-describe("PostRepository", () => {
-  afterEach(() => {
-    jest.clearAllMocks();
-  });
 
-  describe("createPost", () => {
-    it("should successfully create a post", async () => {
-      const mock = jest.spyOn(pool, "query");
+def normalize_sql(sql: str) -> str:
+    return " ".join(sql.lower().split())
 
-      const dto = {
-        text: "Lorem ipsum dolor sit amet, consectetur adipiscing",
-        user_id: 1,
-        reply_to_id: null,
-      };
 
-      const expected = {
-        id: 1,
-        text: dto.text,
-        created_at: new Date(),
-        reply_to_id: null,
-      };
+@pytest.fixture
+def mock_conn():
+    with patch("config.db.pool.connection") as mock_conn_context:
+        yield mock_conn_context
 
-      mock.mockResolvedValueOnce({ rows: [expected], rowCount: 1 });
 
-      const result = await PostRepository.createPost(dto);
 
-      expect(result).toEqual(expected);
+def test_create_post_success(mock_conn):
+    dto = {
+        "text": "Lorem ipsum dolor sit amet, consectetur adipiscing",
+        "user_id": 1,
+        "reply_to_id": None,
+    }
 
-      const [sql, params] = mock.mock.calls[0];
-      const normalizedSQL = normalizeSQL(sql);
-      expect(normalizedSQL).toContain("insert into posts");
-      expect(params).toEqual([dto.text, dto.user_id, dto.reply_to_id]);
-    });
+    expected = {
+        "id": 1,
+        "text": dto["text"],
+        "created_at": datetime.utcnow(),
+        "reply_to_id": None,
+    }
 
-    it("should return error on insert failure", async () => {
-      const mock = jest.spyOn(pool, "query");
+    mock_cursor = MagicMock()
+    mock_cursor.fetchone.return_value = expected
+    mock_conn.return_value.__enter__.return_value.cursor.return_value.__enter__.return_value = mock_cursor
 
-      const dto = {
-        text: "Lorem ipsum dolor sit amet, consectetur adipiscing",
-        user_id: 1,
-        reply_to_id: null,
-      };
+    result = create_post(dto)
 
-      const fakeError = new Error("insert failed");
-      mock.mockRejectedValueOnce(fakeError);
+    assert result == expected
 
-      await expect(PostRepository.createPost(dto)).rejects.toThrow(
-        "insert failed"
-      );
+    sql_called = mock_cursor.execute.call_args[0][0].lower()
+    normalized_sql = normalize_sql(sql_called)
+    assert "insert into posts" in normalized_sql
 
-      const [sql, params] = mock.mock.calls[0];
-      const normalizedSQL = normalizeSQL(sql);
-      expect(normalizedSQL).toContain("insert into posts");
-      expect(params).toEqual([dto.text, dto.user_id, dto.reply_to_id]);
-    });
-  });
+    params = mock_cursor.execute.call_args[0][1]
+    assert params == (dto["text"], dto["user_id"], dto["reply_to_id"])
 
-  describe("getAllPosts", () => {
-    it("should successfully return all posts", async () => {
-      const mock = jest.spyOn(pool, "query");
 
-      const now = new Date("2025-04-24T20:55:53.021Z");
+def test_create_post_error(mock_conn):
+    dto = {
+        "text": "Lorem ipsum dolor sit amet, consectetur adipiscing",
+        "user_id": 1,
+        "reply_to_id": None,
+    }
 
-      const dto = {
-        user_id: 1,
-        owner_id: 0,
-        limit: 100,
-        offset: 0,
-        reply_to_id: 1,
-        search: "test",
-      };
+    fake_error = Exception("insert failed")
 
-      const rows = [
+    mock_cursor = MagicMock()
+    mock_cursor.execute.side_effect = fake_error
+    mock_conn.return_value.__enter__.return_value.cursor.return_value.__enter__.return_value = mock_cursor
+
+    with pytest.raises(Exception, match="insert failed"):
+        create_post(dto)
+
+    sql_called = mock_cursor.execute.call_args[0][0].lower()
+    normalized_sql = normalize_sql(sql_called)
+    assert "insert into posts" in normalized_sql
+
+    params = mock_cursor.execute.call_args[0][1]
+    assert params == (dto["text"], dto["user_id"], dto["reply_to_id"])
+
+def test_create_post_success(mock_conn):
+    dto = {
+        "text": "Lorem ipsum dolor sit amet, consectetur adipiscing",
+        "user_id": 1,
+        "reply_to_id": None,
+    }
+
+    expected = {
+        "id": 1,
+        "text": dto["text"],
+        "created_at": datetime.utcnow(),
+        "reply_to_id": None,
+    }
+
+    mock_cursor = MagicMock()
+    mock_cursor.fetchone.return_value = expected
+    mock_conn.return_value.__enter__.return_value.cursor.return_value.__enter__.return_value = mock_cursor
+
+    result = create_post(dto)
+
+    assert result == expected
+
+    sql_called = mock_cursor.execute.call_args[0][0].lower()
+    normalized_sql = normalize_sql(sql_called)
+    assert "insert into posts" in normalized_sql
+
+    params = mock_cursor.execute.call_args[0][1]
+    assert params == (dto["text"], dto["user_id"], dto["reply_to_id"])
+
+
+def test_create_post_error(mock_conn):
+    dto = {
+        "text": "Lorem ipsum dolor sit amet, consectetur adipiscing",
+        "user_id": 1,
+        "reply_to_id": None,
+    }
+
+    fake_error = Exception("insert failed")
+
+    mock_cursor = MagicMock()
+    mock_cursor.execute.side_effect = fake_error
+    mock_conn.return_value.__enter__.return_value.cursor.return_value.__enter__.return_value = mock_cursor
+
+    with pytest.raises(Exception, match="insert failed"):
+        create_post(dto)
+
+    sql_called = mock_cursor.execute.call_args[0][0].lower()
+    normalized_sql = normalize_sql(sql_called)
+    assert "insert into posts" in normalized_sql
+
+    params = mock_cursor.execute.call_args[0][1]
+    assert params == (dto["text"], dto["user_id"], dto["reply_to_id"])
+
+
+def test_get_all_posts_success(mock_conn):
+    now = datetime(2025, 4, 24, 20, 55, 53, 21000)
+
+    dto = {
+        "user_id": 1,
+        "owner_id": 0,
+        "limit": 100,
+        "offset": 0,
+        "reply_to_id": 1,
+        "search": "test",
+    }
+
+    mock_cursor = MagicMock()
+    mock_cursor.fetchall.return_value = [
         {
-          id: 1,
-          text: "Post 1",
-          reply_to_id: null,
-          created_at: now,
-          likes_count: 10,
-          views_count: 100,
-          replies_count: 0,
-          user_liked: true,
-          user_viewed: true,
-          user_id: 1,
-          user_name: "username",
-          first_name: "first",
-          last_name: "last",
+            "id": 1,
+            "text": "Post 1",
+            "reply_to_id": None,
+            "created_at": now,
+            "likes_count": 10,
+            "views_count": 100,
+            "replies_count": 0,
+            "user_liked": True,
+            "user_viewed": True,
+            "user_id": 1,
+            "user_name": "username",
+            "first_name": "first",
+            "last_name": "last",
         },
         {
-          id: 2,
-          text: "Post 2",
-          reply_to_id: null,
-          created_at: now,
-          likes_count: 5,
-          views_count: 50,
-          replies_count: 2,
-          user_liked: false,
-          user_viewed: true,
-          user_id: 1,
-          user_name: "username",
-          first_name: "first",
-          last_name: "last",
+            "id": 2,
+            "text": "Post 2",
+            "reply_to_id": None,
+            "created_at": now,
+            "likes_count": 5,
+            "views_count": 50,
+            "replies_count": 2,
+            "user_liked": False,
+            "user_viewed": True,
+            "user_id": 1,
+            "user_name": "username",
+            "first_name": "first",
+            "last_name": "last",
         },
-      ];
+    ]
+    mock_conn.return_value.__enter__.return_value.cursor.return_value.__enter__.return_value = mock_cursor
 
-      mock.mockResolvedValueOnce({ rows, rowCount: rows.length });
+    result = get_all_posts(dto)
 
-      const result = await PostRepository.getAllPosts(dto);
-
-      expect(result).toHaveLength(2);
-      expect(result[0].id).toBe(1);
-      expect(result[1].likes_count).toBe(5);
-
-      const [sql, params] = mock.mock.calls[0];
-      const normalized = normalizeSQL(sql);
-      expect(normalized).toContain("select");
-      expect(params[0]).toBe(dto.user_id);
-    });
-
-    it("should return error on SQL failure", async () => {
-      const mock = jest.spyOn(pool, "query");
-
-      const dto = {
-        user_id: 1,
-        owner_id: 0,
-        limit: 100,
-        offset: 0,
-        reply_to_id: 1,
-        search: "test",
-      };
-
-      mock.mockRejectedValueOnce(new Error("query failed"));
-
-      await expect(PostRepository.getAllPosts(dto)).rejects.toThrow(
-        "query failed"
-      );
-
-      const [sql, params] = mock.mock.calls[0];
-      const normalized = normalizeSQL(sql);
-      expect(normalized).toContain("select");
-      expect(params[0]).toBe(dto.user_id);
-    });
-  });
-
-  describe("getPostById", () => {
-    it("should successfully get post by ID", async () => {
-      const userId = 1;
-      const postId = 1;
-      const now = new Date();
-
-      const row = {
-        post_id: postId,
-        text: "Lorem ipsum dolor sit amet, consectetur adipiscing",
-        reply_to_id: null,
-        created_at: now,
-        user_id: userId,
-        user_name: "username",
-        first_name: "first_name",
-        last_name: "last_name",
-        likes_count: 10,
-        views_count: 100,
-        replies_count: 0,
-        user_liked: true,
-        user_viewed: true,
-      };
-
-      const mock = jest.spyOn(pool, "query");
-      mock.mockResolvedValueOnce({ rows: [row], rowCount: 1 });
-
-      const result = await PostRepository.getPostById(postId, userId);
-
-      expect(result).toEqual({
-        id: row.post_id,
-        text: row.text,
-        reply_to_id: row.reply_to_id,
-        created_at: row.created_at,
-        likes_count: row.likes_count,
-        views_count: row.views_count,
-        replies_count: row.replies_count,
-        user_liked: row.user_liked,
-        user_viewed: row.user_viewed,
-        user: {
-          id: row.user_id,
-          user_name: row.user_name,
-          first_name: row.first_name,
-          last_name: row.last_name,
+    assert result == [
+        {
+            "id": 1,
+            "text": "Post 1",
+            "reply_to_id": None,
+            "created_at": now,
+            "likes_count": 10,
+            "views_count": 100,
+            "replies_count": 0,
+            "user_liked": True,
+            "user_viewed": True,
+            "user": {
+                "id": 1,
+                "user_name": "username",
+                "first_name": "first",
+                "last_name": "last",
+            },
         },
-      });
+        {
+            "id": 2,
+            "text": "Post 2",
+            "reply_to_id": None,
+            "created_at": now,
+            "likes_count": 5,
+            "views_count": 50,
+            "replies_count": 2,
+            "user_liked": False,
+            "user_viewed": True,
+            "user": {
+                "id": 1,
+                "user_name": "username",
+                "first_name": "first",
+                "last_name": "last",
+            },
+        },
+    ]
 
-      const [sql, params] = mock.mock.calls[0];
-      expect(normalizeSQL(sql)).toContain("select");
-      expect(params).toEqual([userId, postId]);
-    });
+    sql_called = mock_cursor.execute.call_args[0][0].lower()
+    normalized = normalize_sql(sql_called)
+    assert "select" in normalized
 
-    it("should throw error if post not found", async () => {
-      const mock = jest.spyOn(pool, "query");
-      mock.mockResolvedValueOnce({ rows: [], rowCount: 0 });
+    params = mock_cursor.execute.call_args[0][1]
+    assert params[0] == dto["user_id"]
 
-      await expect(PostRepository.getPostById(999, 1)).rejects.toThrow(
-        "Post not found"
-      );
 
-      const [sql, params] = mock.mock.calls[0];
-      expect(normalizeSQL(sql)).toContain("select");
-      expect(params).toEqual([1, 999]);
-    });
-  });
+def test_get_all_posts_error(mock_conn):
+    dto = {
+        "user_id": 1,
+        "owner_id": 0,
+        "limit": 100,
+        "offset": 0,
+        "reply_to_id": 1,
+        "search": "test",
+    }
 
-  describe("deletePost", () => {
-    it("should successfully delete post", async () => {
-      const postId = 1;
-      const ownerId = 1;
+    mock_cursor = MagicMock()
+    mock_cursor.execute.side_effect = Exception("query failed")
+    mock_conn.return_value.__enter__.return_value.cursor.return_value.__enter__.return_value = mock_cursor
 
-      const mock = jest.spyOn(pool, "query");
-      mock.mockResolvedValueOnce({ rowCount: 1 });
+    with pytest.raises(Exception, match="query failed"):
+        get_all_posts(dto)
 
-      await expect(
-        PostRepository.deletePost(postId, ownerId)
-      ).resolves.toBeUndefined();
+    sql_called = mock_cursor.execute.call_args[0][0].lower()
+    normalized = normalize_sql(sql_called)
+    assert "select" in normalized
 
-      const [sql, params] = mock.mock.calls[0];
-      const normalizedSQL = normalizeSQL(sql);
-      expect(normalizedSQL).toContain("update posts set deleted_at = now()");
-      expect(normalizedSQL).toContain("where id = $1 and user_id = $2");
-      expect(params).toEqual([postId, ownerId]);
-    });
+    params = mock_cursor.execute.call_args[0][1]
+    assert params[0] == dto["user_id"]
 
-    it("should return error if post not found", async () => {
-      const postId = 2;
-      const ownerId = 1;
 
-      const mock = jest.spyOn(pool, "query");
-      mock.mockResolvedValueOnce({ rowCount: 0 });
+def test_get_post_by_id_success(mock_conn):
+    user_id = 1
+    post_id = 1
+    now = datetime.utcnow()
 
-      await expect(PostRepository.deletePost(postId, ownerId)).rejects.toThrow(
-        "Post not found or already deleted"
-      );
+    row = {
+        "post_id": post_id,
+        "text": "Lorem ipsum dolor sit amet, consectetur adipiscing",
+        "reply_to_id": None,
+        "created_at": now,
+        "user_id": user_id,
+        "user_name": "username",
+        "first_name": "first_name",
+        "last_name": "last_name",
+        "likes_count": 10,
+        "views_count": 100,
+        "replies_count": 0,
+        "user_liked": True,
+        "user_viewed": True,
+    }
 
-      const [sql, params] = mock.mock.calls[0];
-      const normalizedSQL = normalizeSQL(sql);
-      expect(normalizedSQL).toContain("update posts set deleted_at = now()");
-      expect(params).toEqual([postId, ownerId]);
-    });
-  });
+    mock_cursor = MagicMock()
+    mock_cursor.fetchone.return_value = row
+    mock_conn.return_value.__enter__.return_value.cursor.return_value.__enter__.return_value = mock_cursor
 
-  describe("viewPost", () => {
-    it("should successfully register a view", async () => {
-      const postId = 1;
-      const userId = 1;
+    result = get_post_by_id(post_id, user_id)
 
-      const mock = jest.spyOn(pool, "query");
-      mock.mockResolvedValueOnce({ rowCount: 1 });
+    assert result == {
+        "id": row["post_id"],
+        "text": row["text"],
+        "reply_to_id": row["reply_to_id"],
+        "created_at": row["created_at"],
+        "likes_count": row["likes_count"],
+        "views_count": row["views_count"],
+        "replies_count": row["replies_count"],
+        "user_liked": row["user_liked"],
+        "user_viewed": row["user_viewed"],
+        "user": {
+            "id": row["user_id"],
+            "user_name": row["user_name"],
+            "first_name": row["first_name"],
+            "last_name": row["last_name"],
+        },
+    }
 
-      await expect(
-        PostRepository.viewPost(postId, userId)
-      ).resolves.toBeUndefined();
+    sql_called = mock_cursor.execute.call_args[0][0].lower()
+    assert "select" in normalize_sql(sql_called)
 
-      const [sql, params] = mock.mock.calls[0];
-      const normalizedSQL = normalizeSQL(sql);
-      expect(normalizedSQL).toContain("insert into views (post_id, user_id)");
-      expect(params).toEqual([postId, userId]);
-    });
+    params = mock_cursor.execute.call_args[0][1]
+    assert params == (user_id, user_id, post_id)
 
-    it("should throw error on SQL failure", async () => {
-      const postId = 2;
-      const userId = 1;
 
-      const mock = jest.spyOn(pool, "query");
-      mock.mockRejectedValueOnce(new Error("insert failed"));
+def test_get_post_by_id_not_found(mock_conn):
+    mock_cursor = MagicMock()
+    mock_cursor.fetchone.return_value = None
+    mock_conn.return_value.__enter__.return_value.cursor.return_value.__enter__.return_value = mock_cursor
 
-      await expect(PostRepository.viewPost(postId, userId)).rejects.toThrow(
-        "insert failed"
-      );
+    with pytest.raises(Exception, match="Post not found"):
+        get_post_by_id(999, 1)
 
-      const [sql, params] = mock.mock.calls[0];
-      const normalizedSQL = normalizeSQL(sql);
-      expect(normalizedSQL).toContain("insert into views (post_id, user_id)");
-      expect(params).toEqual([postId, userId]);
-    });
+    sql_called = mock_cursor.execute.call_args[0][0].lower()
+    assert "select" in normalize_sql(sql_called)
 
-    it("should throw already viewed error on unique constraint", async () => {
-      const postId = 3;
-      const userId = 1;
+    params = mock_cursor.execute.call_args[0][1]
+    assert params == (1, 1, 999)
 
-      const mock = jest.spyOn(pool, "query");
-      mock.mockRejectedValueOnce(
-        new Error('duplicate key value violates unique constraint "pk__views"')
-      );
+def test_delete_post_success(mock_conn):
+    post_id = 1
+    owner_id = 1
 
-      await expect(PostRepository.viewPost(postId, userId)).rejects.toThrow(
-        "Post already viewed"
-      );
-    });
-  });
+    mock_cursor = MagicMock()
+    mock_cursor.rowcount = 1
+    mock_conn.return_value.__enter__.return_value.cursor.return_value.__enter__.return_value = mock_cursor
 
-  describe("likePost", () => {
-    it("should successfully like a post", async () => {
-      const postId = 1;
-      const userId = 1;
+    assert delete_post(post_id, owner_id) is None
 
-      const mock = jest.spyOn(pool, "query");
-      mock.mockResolvedValueOnce({ rowCount: 1 });
+    sql_called = mock_cursor.execute.call_args[0][0].lower()
+    normalized_sql = normalize_sql(sql_called)
+    assert "update posts set deleted_at = now()" in normalized_sql
+    assert "where id =" in normalized_sql and "user_id =" in normalized_sql
 
-      await expect(
-        PostRepository.likePost(postId, userId)
-      ).resolves.toBeUndefined();
+    params = mock_cursor.execute.call_args[0][1]
+    assert params == (post_id, owner_id)
 
-      const [sql, params] = mock.mock.calls[0];
-      const normalizedSQL = normalizeSQL(sql);
-      expect(normalizedSQL).toContain("insert into likes (post_id, user_id)");
-      expect(params).toEqual([postId, userId]);
-    });
 
-    it("should return error if like fails", async () => {
-      const postId = 2;
-      const userId = 1;
+def test_delete_post_not_found(mock_conn):
+    post_id = 2
+    owner_id = 1
 
-      const mock = jest.spyOn(pool, "query");
-      mock.mockRejectedValueOnce(new Error("insert failed"));
+    mock_cursor = MagicMock()
+    mock_cursor.rowcount = 0
+    mock_conn.return_value.__enter__.return_value.cursor.return_value.__enter__.return_value = mock_cursor
 
-      await expect(PostRepository.likePost(postId, userId)).rejects.toThrow(
-        "insert failed"
-      );
+    with pytest.raises(Exception, match="Post not found or already deleted"):
+        delete_post(post_id, owner_id)
 
-      const [sql, params] = mock.mock.calls[0];
-      const normalizedSQL = normalizeSQL(sql);
-      expect(normalizedSQL).toContain("insert into likes (post_id, user_id)");
-      expect(params).toEqual([postId, userId]);
-    });
+    sql_called = mock_cursor.execute.call_args[0][0].lower()
+    normalized_sql = normalize_sql(sql_called)
+    assert "update posts set deleted_at = now()" in normalized_sql
 
-    it("should return 'already liked' error if constraint is violated", async () => {
-      const postId = 3;
-      const userId = 1;
+    params = mock_cursor.execute.call_args[0][1]
+    assert params == (post_id, owner_id)
 
-      const mock = jest.spyOn(pool, "query");
-      mock.mockRejectedValueOnce(
-        new Error('duplicate key value violates unique constraint "pk__likes"')
-      );
+def test_view_post_success(mock_conn):
+    post_id = 1
+    user_id = 1
 
-      await expect(PostRepository.likePost(postId, userId)).rejects.toThrow(
-        "Post already liked"
-      );
-    });
-  });
+    mock_cursor = MagicMock()
+    mock_cursor.rowcount = 1
+    mock_conn.return_value.__enter__.return_value.cursor.return_value.__enter__.return_value = mock_cursor
 
-  describe("dislikePost", () => {
-    it("should successfully remove a like from a post", async () => {
-      const postId = 1;
-      const userId = 1;
+    assert view_post(post_id, user_id) is None
 
-      const mock = jest.spyOn(pool, "query");
-      mock.mockResolvedValueOnce({ rowCount: 1 });
+    sql_called = mock_cursor.execute.call_args[0][0].lower()
+    normalized_sql = normalize_sql(sql_called)
+    assert "insert into views (post_id, user_id)" in normalized_sql
 
-      await expect(
-        PostRepository.dislikePost(postId, userId)
-      ).resolves.toBeUndefined();
+    params = mock_cursor.execute.call_args[0][1]
+    assert params == (post_id, user_id)
 
-      const [sql, params] = mock.mock.calls[0];
-      const normalizedSQL = normalizeSQL(sql);
-      expect(normalizedSQL).toContain(
-        "delete from likes where post_id = $1 and user_id = $2"
-      );
-      expect(params).toEqual([postId, userId]);
-    });
 
-    it("should return error if dislike fails", async () => {
-      const postId = 2;
-      const userId = 1;
+def test_view_post_error_sql(mock_conn):
+    post_id = 2
+    user_id = 1
 
-      const mock = jest.spyOn(pool, "query");
-      mock.mockRejectedValueOnce(new Error("delete failed"));
+    mock_cursor = MagicMock()
+    mock_cursor.execute.side_effect = Exception("insert failed")
+    mock_conn.return_value.__enter__.return_value.cursor.return_value.__enter__.return_value = mock_cursor
 
-      await expect(PostRepository.dislikePost(postId, userId)).rejects.toThrow(
-        "delete failed"
-      );
+    with pytest.raises(Exception, match="insert failed"):
+        view_post(post_id, user_id)
 
-      const [sql, params] = mock.mock.calls[0];
-      const normalizedSQL = normalizeSQL(sql);
-      expect(normalizedSQL).toContain(
-        "delete from likes where post_id = $1 and user_id = $2"
-      );
-      expect(params).toEqual([postId, userId]);
-    });
+    sql_called = mock_cursor.execute.call_args[0][0].lower()
+    normalized_sql = normalize_sql(sql_called)
+    assert "insert into views (post_id, user_id)" in normalized_sql
 
-    it("should return error if like does not exist", async () => {
-      const postId = 3;
-      const userId = 1;
+    params = mock_cursor.execute.call_args[0][1]
+    assert params == (post_id, user_id)
 
-      const mock = jest.spyOn(pool, "query");
-      mock.mockResolvedValueOnce({ rowCount: 0 });
 
-      await expect(PostRepository.dislikePost(postId, userId)).rejects.toThrow(
-        "Post not found"
-      );
+def test_view_post_already_viewed(mock_conn):
+    post_id = 3
+    user_id = 1
 
-      const [sql, params] = mock.mock.calls[0];
-      const normalizedSQL = normalizeSQL(sql);
-      expect(normalizedSQL).toContain(
-        "delete from likes where post_id = $1 and user_id = $2"
-      );
-      expect(params).toEqual([postId, userId]);
-    });
-  });
-});
+    mock_cursor = MagicMock()
+    mock_cursor.execute.side_effect = UniqueViolation(
+        'duplicate key value violates unique constraint "pk__views"'
+    )
+    mock_conn.return_value.__enter__.return_value.cursor.return_value.__enter__.return_value = mock_cursor
+
+    with pytest.raises(ValueError, match="Post already viewed"):
+        view_post(post_id, user_id)
+
+
+def test_like_post_success(mock_conn):
+    post_id = 1
+    user_id = 1
+
+    mock_cursor = MagicMock()
+    mock_cursor.rowcount = 1
+    mock_conn.return_value.__enter__.return_value.cursor.return_value.__enter__.return_value = mock_cursor
+
+    assert like_post(post_id, user_id) is None
+
+    sql_called = mock_cursor.execute.call_args[0][0].lower()
+    normalized_sql = normalize_sql(sql_called)
+    assert "insert into likes (post_id, user_id)" in normalized_sql
+
+    params = mock_cursor.execute.call_args[0][1]
+    assert params == (post_id, user_id, post_id)
+
+
+def test_like_post_error(mock_conn):
+    post_id = 2
+    user_id = 1
+
+    mock_cursor = MagicMock()
+    mock_cursor.execute.side_effect = Exception("insert failed")
+    mock_conn.return_value.__enter__.return_value.cursor.return_value.__enter__.return_value = mock_cursor
+
+    with pytest.raises(Exception, match="insert failed"):
+        like_post(post_id, user_id)
+
+    sql_called = mock_cursor.execute.call_args[0][0].lower()
+    normalized_sql = normalize_sql(sql_called)
+    assert "insert into likes (post_id, user_id)" in normalized_sql
+
+    params = mock_cursor.execute.call_args[0][1]
+    assert params == (post_id, user_id, post_id)
+
+
+def test_like_post_already_liked(mock_conn):
+    post_id = 3
+    user_id = 1
+
+    mock_cursor = MagicMock()
+    mock_cursor.execute.side_effect = UniqueViolation(
+        'duplicate key value violates unique constraint "pk__likes"'
+    )
+    mock_conn.return_value.__enter__.return_value.cursor.return_value.__enter__.return_value = mock_cursor
+
+    with pytest.raises(ValueError, match="Post already liked"):
+        like_post(post_id, user_id)
+
+def test_dislike_post_success(mock_conn):
+    post_id = 1
+    user_id = 1
+
+    mock_cursor = MagicMock()
+    mock_cursor.rowcount = 1
+    mock_conn.return_value.__enter__.return_value.cursor.return_value.__enter__.return_value = mock_cursor
+
+    assert dislike_post(post_id, user_id) is None
+
+    sql_called = mock_cursor.execute.call_args[0][0].lower()
+    normalized_sql = normalize_sql(sql_called)
+    assert "delete from likes where post_id = %s and user_id = %s" in normalized_sql
+
+    params = mock_cursor.execute.call_args[0][1]
+    assert params == (post_id, user_id, post_id)
+
+
+def test_dislike_post_error(mock_conn):
+    post_id = 2
+    user_id = 1
+
+    mock_cursor = MagicMock()
+    mock_cursor.execute.side_effect = Exception("delete failed")
+    mock_conn.return_value.__enter__.return_value.cursor.return_value.__enter__.return_value = mock_cursor
+
+    with pytest.raises(Exception, match="delete failed"):
+        dislike_post(post_id, user_id)
+
+    sql_called = mock_cursor.execute.call_args[0][0].lower()
+    normalized_sql = normalize_sql(sql_called)
+    assert "delete from likes where post_id = %s and user_id = %s" in normalized_sql
+
+    params = mock_cursor.execute.call_args[0][1]
+    assert params == (post_id, user_id, post_id)
+
+
+def test_dislike_post_not_found(mock_conn):
+    post_id = 3
+    user_id = 1
+
+    mock_cursor = MagicMock()
+    mock_cursor.rowcount = 0
+    mock_conn.return_value.__enter__.return_value.cursor.return_value.__enter__.return_value = mock_cursor
+
+    with pytest.raises(Exception, match="Post not found"):
+        dislike_post(post_id, user_id)
+
+    sql_called = mock_cursor.execute.call_args[0][0].lower()
+    normalized_sql = normalize_sql(sql_called)
+    assert "delete from likes where post_id = %s and user_id = %s" in normalized_sql
+
+    params = mock_cursor.execute.call_args[0][1]
+    assert params == (post_id, user_id, post_id)
 ```
 
 :::
@@ -1657,21 +1763,38 @@ describe("PostRepository", () => {
 Запустите тесты. Если вы все сделали правильно, все тесты пройдены.
 
 ```bash
-npm run test
 
-> gophertalk-backend-express@0.1.0 test
-> node --experimental-vm-modules node_modules/jest/bin/jest.js
-
-(node:26001) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
-(Use `node --trace-warnings ...` to show where the warning was created)
- PASS  __tests__/repositories/postRepository.test.js
- PASS  __tests__/repositories/userRepository.test.js
-
-Test Suites: 2 passed, 2 total
-Tests:       30 passed, 30 total
-Snapshots:   0 total
-Time:        0.196 s, estimated 1 s
-Ran all test suites.
+tests/repositories/test_post_repository.py::test_create_post_success PASSED                                                                         [  3%]
+tests/repositories/test_post_repository.py::test_create_post_error PASSED                                                                           [  6%]
+tests/repositories/test_post_repository.py::test_get_all_posts_success PASSED                                                                       [ 10%]
+tests/repositories/test_post_repository.py::test_get_all_posts_error PASSED                                                                         [ 13%]
+tests/repositories/test_post_repository.py::test_get_post_by_id_success PASSED                                                                      [ 16%]
+tests/repositories/test_post_repository.py::test_get_post_by_id_not_found PASSED                                                                    [ 20%]
+tests/repositories/test_post_repository.py::test_delete_post_success PASSED                                                                         [ 23%]
+tests/repositories/test_post_repository.py::test_delete_post_not_found PASSED                                                                       [ 26%]
+tests/repositories/test_post_repository.py::test_view_post_success PASSED                                                                           [ 30%]
+tests/repositories/test_post_repository.py::test_view_post_error_sql PASSED                                                                         [ 33%]
+tests/repositories/test_post_repository.py::test_view_post_already_viewed PASSED                                                                    [ 36%]
+tests/repositories/test_post_repository.py::test_like_post_success PASSED                                                                           [ 40%]
+tests/repositories/test_post_repository.py::test_like_post_error PASSED                                                                             [ 43%]
+tests/repositories/test_post_repository.py::test_like_post_already_liked PASSED                                                                     [ 46%]
+tests/repositories/test_post_repository.py::test_dislike_post_success PASSED                                                                        [ 50%]
+tests/repositories/test_post_repository.py::test_dislike_post_error PASSED                                                                          [ 53%]
+tests/repositories/test_post_repository.py::test_dislike_post_not_found PASSED                                                                      [ 56%]
+tests/repositories/test_user_repository.py::test_create_user_success PASSED                                                                         [ 60%]
+tests/repositories/test_user_repository.py::test_create_user_error PASSED                                                                           [ 63%]
+tests/repositories/test_user_repository.py::test_get_all_users_success PASSED                                                                       [ 66%]
+tests/repositories/test_user_repository.py::test_get_all_users_error PASSED                                                                         [ 70%]
+tests/repositories/test_user_repository.py::test_get_user_by_id_success PASSED                                                                      [ 73%]
+tests/repositories/test_user_repository.py::test_get_user_by_id_not_found PASSED                                                                    [ 76%]
+tests/repositories/test_user_repository.py::test_get_user_by_username_success PASSED                                                                [ 80%]
+tests/repositories/test_user_repository.py::test_get_user_by_username_not_found PASSED                                                              [ 83%]
+tests/repositories/test_user_repository.py::test_update_user_success PASSED                                                                         [ 86%]
+tests/repositories/test_user_repository.py::test_update_user_no_fields PASSED                                                                       [ 90%]
+tests/repositories/test_user_repository.py::test_update_user_not_found PASSED                                                                       [ 93%]
+tests/repositories/test_user_repository.py::test_delete_user_success PASSED                                                                         [ 96%]
+tests/repositories/test_user_repository.py::test_delete_user_not_found PASSED                                                                       [100%]
+=================================================================== 30 passed in 0.10s ====================================================================
 ```
 
 ## Итог
