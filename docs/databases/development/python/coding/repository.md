@@ -71,9 +71,9 @@ erDiagram
 
 Контроллер — это слой, который принимает HTTP-запрос, обрабатывает его и возвращает ответ. Здесь происходит:
 
-- чтение параметров из `req`,
+- чтение параметров из объектов `Request`, `Path`, `Query`, `Body` или `Depends` FastAPI;,
 - вызов нужного метода сервиса,
-- формирование ответа (`res.status().json(...)`).
+- формирование ответа (через `Response`, `JSONResponse` или возврат словаря).
 
 Контроллер не содержит бизнес-логики и не обращается напрямую к базе данных — он просто **управляет потоком данных**. Кроме того, на уровне контроллера решаются вопросы по разграничению доступа к ресурсам и фильтрации запросов.
 
@@ -85,7 +85,7 @@ erDiagram
 - проверяет условия (например, "пользователь уже существует"),
 - вызывает репозиторий для доступа к базе.
 
-Сервис ничего не знает про `req` и `res` — он универсален и может использоваться как в HTTP-приложении, так и, например, в CLI-утилите или фоновом скрипте.
+Сервис ничего не знает про HTTP или FastAPI — он универсален и может использоваться как в HTTP-приложении, так и, например, в CLI-утилите или фоновом скрипте.
 
 ### 3. Репозитории (repositories)
 
@@ -120,70 +120,75 @@ erDiagram
 - обновления данных пользователя,
 - мягкого удаления пользователя.
 
-Мы начнем с самого простого метода — `createUser`, который сохраняет нового пользователя в таблице `users`.  
+Мы начнем с самого простого метода — `create_user`, который сохраняет нового пользователя в таблице `users`.  
 Затем реализуем остальные методы и подключим unit-тесты для проверки корректности.
 
-В папке `src` проекта создайте папку `repositories`, а в ней файл `userRepository.js`. Поместите в него следующий код:
+В папке `src` проекта создайте папку `repositories`, а в ней файл `user_repository.py`. Поместите в него следующий код:
 
-```js
-import { pool } from "../db/index.js";
+```python
+from config.db import pool
+from psycopg.rows import dict_row
 
-export const UserRepository = {
-  async createUser(dto) {
-    const query = `
-      INSERT INTO users (user_name, first_name, last_name, password_hash)
-      VALUES ($1, $2, $3, $4)
-      RETURNING id, user_name, password_hash, status;
-    `;
-    const values = [
-      dto.user_name,
-      dto.first_name,
-      dto.last_name,
-      dto.password_hash,
-    ];
-    const res = await pool.query(query, values);
-    return res.rows[0];
-  },
-};
+
+def create_user(dto: dict) -> dict:
+    query = """
+        INSERT INTO users (user_name, first_name, last_name, password_hash)
+        VALUES (%s, %s, %s, %s)
+        RETURNING id, user_name, password_hash, status;
+    """
+    values = (
+        dto["user_name"],
+        dto["first_name"],
+        dto["last_name"],
+        dto["password_hash"],
+    )
+
+    with pool.connection() as conn:
+        with conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(query, values)
+            return cur.fetchone()
 ```
 
-Этот код реализует метод `createUser` в объекте `UserRepository`, который отвечает за добавление нового пользователя в базу данных.
+Этот код реализует метод `create_user`, который отвечает за добавление нового пользователя в базу данных.
 
 ### Пошаговый разбор
 
 - Импорт подключения к базе данных:
 
-  ```js
-  import { pool } from "../db/index.js";
+  ```python
+  from config.db import pool
   ```
 
-  Здесь импортируется объект `pool`, который представляет пул подключений к базе данных PostgreSQL. Он уже настроен в другом модуле (`db/index.js`) и позволяет выполнять SQL-запросы.
+  Здесь мы импортируем заранее настроенный пул соединений с PostgreSQL, созданный с помощью `psycopg_pool.ConnectionPool` в модуле `config.db`. Через этот пул мы получаем подключения к базе и повторно их используем — без лишнего overhead'а на открытие новых TCP-сессий.
 
-- Экспорт объекта `UserRepository`:
+- Импорт `dict_row` для словарной формы результата:
 
-  ```js
-  export const UserRepository = { ... }
+  ```python
+  from psycopg.rows import dict_row
   ```
 
-- Определение метода `createUser`:
+  `dict_row` — это специальный row factory, который говорит `psycopg` возвращать строки не в виде кортежей, а в виде словарей (`dict`). Это удобно и читабельно: вместо `row[0]` можно писать `row["user_name"]`.
 
-  ```js
-  async createUser(dto) { ... }
+- Определение функции `create_user`:
+
+  ```python
+  def create_user(dto: dict) -> dict:
   ```
 
-  Метод `createUser` — асинхронная функция, которая принимает объект `dto` (data transfer object) с полями нового пользователя. В нашем случае это `user_name`, `first_name`, `last_name`, `password_hash`.
+  Функция принимает словарь `dto`, содержащий данные нового пользователя: `user_name`, `first_name`, `last_name`, `password_hash`.
+  Тип возвращаемого значения — `dict`, то есть мы возвращаем строку из базы в виде словаря.
 
 - SQL-запрос на вставку
 
-  ```js
-  const query = `
-  INSERT INTO users (user_name, first_name, last_name, password_hash)
-  VALUES ($1, $2, $3, $4)
-  RETURNING id, user_name, password_hash, status;
-  `;
+  ```python
+  query = """
+    INSERT INTO users (user_name, first_name, last_name, password_hash)
+    VALUES (%s, %s, %s, %s)
+    RETURNING id, user_name, password_hash, status;
+  """
   ```
 
-  Это SQL-запрос, который вставляет нового пользователя в таблицу `users`. Используются подстановки `$1`, `$2`, `$3`, `$4` — это позиционные параметры (предотвращают SQL-инъекции). После вставки сразу возвращаются данные нового пользователя: его `id`, `user_name`, `password_hash` и `status`.
+  Это SQL-запрос, который вставляет нового пользователя в таблицу `users`, использует позиционные параметры `%s` — безопасный способ подстановки значений и сразу возвращает `id`, `user_name`, `password_hash`, `status` — это нужно, чтобы после создания пользователя отдать его данные в API.
 
   ::: details SQL-инъекции
   SQL-инъекция — это один из самых распространённых видов атак на базу данных.
@@ -191,9 +196,8 @@ export const UserRepository = {
 
   **Пример уязвимого кода:**
 
-  ```js
-  const userInput = "' OR 1=1 --";
-  const query = `SELECT * FROM users WHERE user_name = '${userInput}'`;
+  ```python
+  cur.execute(f"SELECT * FROM users WHERE user_name = '{user_input}'")
   ```
 
   Вместо ожидаемого безопасного значения, пользователь ввёл строку `' OR 1=1 --`.
@@ -218,13 +222,11 @@ export const UserRepository = {
 
   Используя позиционные параметры, мы избегаем этой проблемы:
 
-  ```js
-  const query = "SELECT * FROM users WHERE user_name = $1";
-  const values = [userInput];
-  await pool.query(query, values);
+  ```python
+  cur.execute("SELECT * FROM users WHERE user_name = %s", (user_input,))
   ```
 
-  В случае использования позиционных параметров, даже если пользователь введёт `' OR 1=1 --`, это не приведёт к SQL-инъекции, потому что ввод не вставляется напрямую в текст SQL-запроса. Вместо этого он передаётся отдельно в виде значения, а не как часть кода, а на уровне драйвера PostgreSQL (`pg`) реализован механизм, который:
+  В случае использования позиционных параметров, даже если пользователь введёт `' OR 1=1 --`, это не приведёт к SQL-инъекции, потому что ввод не вставляется напрямую в текст SQL-запроса. Вместо этого он передаётся отдельно в виде значения, а не как часть кода, а на уровне драйвера PostgreSQL (`psycopg`) реализован механизм, который:
 
   - экранирует специальные символы,
 
@@ -240,588 +242,510 @@ export const UserRepository = {
 
 - Подготовка значений для запроса:
 
-  ```js
-  const values = [
-    dto.user_name,
-    dto.first_name,
-    dto.last_name,
-    dto.password_hash,
-  ];
+  ```python
+  values = (
+    dto["user_name"],
+    dto["first_name"],
+    dto["last_name"],
+    dto["password_hash"],
+  )
   ```
 
   Значения берутся из входного объекта `dto` и передаются в том порядке, в котором указаны в SQL-запросе.
 
 - Выполнение запроса
 
-  ```js
-  const res = await pool.query(query, values);
+  ```python
+  with pool.connection() as conn:
+    with conn.cursor(row_factory=dict_row) as cur:
+        cur.execute(query, values)
+        return cur.fetchone()
   ```
 
-  Запрос выполняется с помощью метода `pool.query(...)`. Он асинхронный, поэтому используется `await`. Результат сохраняется в переменной `res`.
-
-- Возврат результата:
-
-  ```js
-  return res.rows[0];
-  ```
+  `pool.connection()` берёт соединение из пула, `conn.cursor(row_factory=dict_row)` создаёт курсор, возвращающий строки как словари, `cur.execute(...)` выполняет SQL-запрос, а `cur.fetchone()` возвращает первую строку результата, то есть только что созданного пользователя.
 
   После выполнения запроса возвращается первая (и единственная) строка результата — то есть данные только что созданного пользователя.
 
-Мы сделали создание пользователя. Также необходимо реализовать методы:
+Мы реализовали создание пользователя. Далее необходимо реализовать следующие функции работы с пользователями:
 
-- `getAllUsers` - получение списка всех пользователей с пагинацией,
+- `get_all_users` — получение списка всех пользователей с пагинацией;
+- `get_user_by_id` — получение пользователя по его `id`;
+- `get_user_by_username` — получение пользователя по его имени пользователя (`user_name`);
+- `update_user` — обновление данных пользователя;
+- `delete_user` — мягкое удаление пользователя.
 
-- `getUserById` - получение пользователя по его id,
+Начнём с функции `get_all_users`.
 
-- `getUserByUserName` - получение пользователя по его имени пользователя,
+```python
+from config.db import pool
+from psycopg.rows import dict_row
 
-- `updateUser` - обновление данных пользователя,
+def create_user(dto: dict) -> dict:
+    query = """
+        INSERT INTO users (user_name, first_name, last_name, password_hash)
+        VALUES (%s, %s, %s, %s)
+        RETURNING id, user_name, password_hash, status;
+    """
+    values = (
+        dto["user_name"],
+        dto["first_name"],
+        dto["last_name"],
+        dto["password_hash"],
+    )
 
-- `deleteUser` - удаление пользователя
+    with pool.connection() as conn:
+        with conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(query, values)
+            return cur.fetchone()
 
-Реализуем метод `getAllUsers`.
 
-```js
-import { pool } from "../db/index.js";
+def get_all_users(limit: int, offset: int) -> list[dict]:
+    query = """
+        SELECT id, user_name, first_name, last_name, status, created_at, updated_at
+        FROM users
+        WHERE deleted_at IS NULL
+        OFFSET %s LIMIT %s;
+    """
+    params = (offset, limit)
 
-export const UserRepository = {
-  async createUser(dto) {
-    const query = `
-      INSERT INTO users (user_name, first_name, last_name, password_hash)
-      VALUES ($1, $2, $3, $4)
-      RETURNING id, user_name, password_hash, status;
-    `;
-    const values = [
-      dto.user_name,
-      dto.first_name,
-      dto.last_name,
-      dto.password_hash,
-    ];
-    const res = await pool.query(query, values);
-    return res.rows[0];
-  },
-
-  async getAllUsers(limit, offset) {
-    const query = `
-      SELECT id, user_name, first_name, last_name, status, created_at, updated_at
-      FROM users
-      WHERE deleted_at IS NULL
-      OFFSET $1 LIMIT $2;
-    `;
-    const res = await pool.query(query, [offset, limit]);
-    return res.rows;
-  },
-};
+    with pool.connection() as conn:
+        with conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(query, params)
+            return cur.fetchall()
 ```
 
 Обратите внимание, что метод принимает два параметра - `offset` и `limit`. Они необходимы для того, чтобы сделать пагинацию, то есть отдавать не всех пользователей сразу, а частями в рамках скользящего окна.
 
-Перейдем к методам `getUserById` и `getUserByUserName`.
+Перейдем к функциям `get_user_by_id` и `get_user_by_user_name`.
 
-```js
-import { pool } from "../db/index.js";
+```python
+from config.db import pool
+from psycopg.rows import dict_row
 
-export const UserRepository = {
-  async createUser(dto) {
-    const query = `
-      INSERT INTO users (user_name, first_name, last_name, password_hash)
-      VALUES ($1, $2, $3, $4)
-      RETURNING id, user_name, password_hash, status;
-    `;
-    const values = [
-      dto.user_name,
-      dto.first_name,
-      dto.last_name,
-      dto.password_hash,
-    ];
-    const res = await pool.query(query, values);
-    return res.rows[0];
-  },
+def create_user(dto: dict) -> dict:
+    query = """
+        INSERT INTO users (user_name, first_name, last_name, password_hash)
+        VALUES (%s, %s, %s, %s)
+        RETURNING id, user_name, password_hash, status;
+    """
+    values = (
+        dto["user_name"],
+        dto["first_name"],
+        dto["last_name"],
+        dto["password_hash"],
+    )
 
-  async getAllUsers(limit, offset) {
-    const query = `
-      SELECT id, user_name, first_name, last_name, status, created_at, updated_at
-      FROM users
-      WHERE deleted_at IS NULL
-      OFFSET $1 LIMIT $2;
-    `;
-    const res = await pool.query(query, [offset, limit]);
-    return res.rows;
-  },
+    with pool.connection() as conn:
+        with conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(query, values)
+            return cur.fetchone()
 
-  async getUserById(id) {
-    const query = `...`;
-    const res = await pool.query(query, [id]);
-    if (res.rowCount === 0) {
-      throw new Error("User not found");
-    }
-    return res.rows[0];
-  },
 
-  async getUserByUserName(user_name) {
-    const query = `...`;
-    const res = await pool.query(query, [user_name]);
-    if (res.rowCount === 0) {
-      throw new Error("User not found");
-    }
-    return res.rows[0];
-  },
-};
+def get_all_users(limit: int, offset: int) -> list[dict]:
+    query = """
+        SELECT id, user_name, first_name, last_name, status, created_at, updated_at
+        FROM users
+        WHERE deleted_at IS NULL
+        OFFSET %s LIMIT %s;
+    """
+    params = (offset, limit)
+
+    with pool.connection() as conn:
+        with conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(query, params)
+            return cur.fetchall()
+
+def get_user_by_id(user_id: int) -> dict:
+    query = """
+        ...
+    """
+    with pool.connection() as conn:
+        with conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(query, (user_id,))
+            result = cur.fetchone()
+
+            if result is None:
+                raise ValueError("User not found")
+
+            return result
+
+def get_user_by_username(user_name: str) -> dict:
+  query = """
+      ...
+  """
+  with pool.connection() as conn:
+      with conn.cursor(row_factory=dict_row) as cur:
+          cur.execute(query, (user_name,))
+          result = cur.fetchone()
+
+          if result is None:
+              raise ValueError("User not found")
+          return result
+
 ```
 
 > [!IMPORTANT] Задание
-> Напишите самостоятельно SQL запросы для методов `getUserById` и `getUserByUserName`. Для метода `getUserById` необходимо вернуть поля `user_name`, `first_name`, `last_name`, `status`, `created_at`, `updated_at`, а для метода `getUserByUserName` - `user_name`, `password_hash`, `status`.
+> Напишите самостоятельно SQL запросы для функций `get_user_by_id` и `get_user_by_user_name`. Для метода `get_user_by_id` необходимо вернуть поля `user_name`, `first_name`, `last_name`, `status`, `created_at`, `updated_at`, а для метода `get_user_by_user_name` - `user_name`, `password_hash`, `status`.
 
-Рассмотрим метод `updateUser`
+Рассмотрим функцию `update_user`
 
-```js
-async updateUser(id, dto) {
-    const fields = [];
-    const args = [];
-    let index = 1;
+```python
+def update_user(user_id: int, dto: dict) -> dict:
+    fields = []
+    values = []
 
-    if (dto.password_hash) {
-      fields.push(`password_hash = $${index++}`);
-      args.push(dto.password_hash);
-    }
-    if (dto.user_name) {
-      fields.push(`user_name = $${index++}`);
-      args.push(dto.user_name);
-    }
-    if (dto.first_name) {
-      fields.push(`first_name = $${index++}`);
-      args.push(dto.first_name);
-    }
-    if (dto.last_name) {
-      fields.push(`last_name = $${index++}`);
-      args.push(dto.last_name);
-    }
+    if "password_hash" in dto:
+        fields.append("password_hash = %s")
+        values.append(dto["password_hash"])
+    if "user_name" in dto:
+        fields.append("user_name = %s")
+        values.append(dto["user_name"])
+    if "first_name" in dto:
+        fields.append("first_name = %s")
+        values.append(dto["first_name"])
+    if "last_name" in dto:
+        fields.append("last_name = %s")
+        values.append(dto["last_name"])
 
-    if (fields.length === 0) {
-      throw new Error("No fields to update");
-    }
+    if not fields:
+        raise ValueError("No fields to update")
 
-    fields.push(`updated_at = NOW()`);
-    const query = `
-      UPDATE users SET ${fields.join(", ")}
-      WHERE id = $${index} AND deleted_at IS NULL
-      RETURNING id, user_name, first_name, last_name, status, created_at, updated_at;
-    `;
-    args.push(id);
+    fields.append("updated_at = NOW()")
+    values.append(user_id)
 
-    const res = await pool.query(query, args);
-    if (res.rowCount === 0) {
-      throw new Error("User not found");
-    }
-    return res.rows[0];
-  }
+    query = f"""
+        UPDATE users
+        SET {", ".join(fields)}
+        WHERE id = %s AND deleted_at IS NULL
+        RETURNING id, user_name, first_name, last_name, status, created_at, updated_at;
+    """
+
+    with pool.connection() as conn:
+        with conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(query, values)
+            result = cur.fetchone()
+
+            if result is None:
+                raise ValueError("User not found")
+
+            return result
 ```
 
-Этот асинхронный метод предназначен для обновления данных пользователя в базе данных. Он принимает два аргумента:
+Эта функция предназначена для обновления данных пользователя в базе данных. Она принимает два аргумента:
 
 - `id`: Идентификатор пользователя, которого необходимо обновить.
 - `dto`: Объект, содержащий данные для обновления.
 
-### Логика работы:
+### Логика работы функции `update_user`
 
-1.  **Инициализация**:
+1. **Инициализация**:
 
-    - Создаются два массива: `fields` для хранения строк с обновлениями полей (`field = $index`) и `args` для хранения значений, которые будут подставлены в запрос.
-    - `index` инициализируется значением `1`. Эта переменная используется для генерации плейсхолдеров `$1`, `$2` и т.д. в SQL-запросе.
+   - Создаются два списка:
+     - `fields` — содержит SQL-строки вида `column_name = %s`;
+     - `values` — содержит значения, которые будут подставлены в SQL-запрос.
+   - Переменная `user_id` передаётся отдельно в конце, для подстановки в `WHERE`.
 
-2.  **Проверка полей для обновления**:
+2. **Проверка и сбор полей для обновления**:
 
-    - Выполняется последовательная проверка наличия полей в объекте `dto` и добавление соответствующих данных в массивы `fields` и `args`:
-      - `password_hash`: Если присутствует, добавляется `password_hash = $index` в `fields` и значение `dto.password_hash` в `args`.
-      - `user_name`: Аналогично для имени пользователя.
-      - `first_name`: Аналогично для имени.
-      - `last_name`: Аналогично для фамилии.
-    - При каждом добавлении поля `index` увеличивается.
+   - Функция последовательно проверяет наличие полей в словаре `dto`.
+   - Если поле присутствует, оно добавляется в `fields`, а его значение — в `values`.
+   - Поддерживаются следующие поля:
+     - `password_hash`
+     - `user_name`
+     - `first_name`
+     - `last_name`
 
-3.  **Проверка наличия полей для обновления**:
+3. **Проверка на пустое обновление**:
 
-    - Если массив `fields` пуст (то есть в `dto` не было полей для обновления), выбрасывается исключение `Error("No fields to update")`.
+   - Если в `dto` не оказалось ни одного обновляемого поля, выбрасывается исключение `ValueError("No fields to update")`.
 
-4.  **Добавление поля `updated_at`**:
+4. **Добавление метки времени**:
 
-    - В массив `fields` добавляется строка `updated_at = NOW()`, которая обновит поле `updated_at` текущим временем.
+   - В `fields` добавляется `updated_at = NOW()` — это системное поле, не требующее подстановки.
 
-5.  **Формирование SQL-запроса**:
+5. **Формирование SQL-запроса**:
 
-    - Формируется SQL-запрос для обновления данных пользователя.
-    - Используется конструкция `UPDATE users SET ${fields.join(", ")}`, где `fields.join(", ")` объединяет строки с обновлениями полей в одну строку, разделенную запятыми.
-    - Условие `WHERE id = $index AND deleted_at IS NULL` указывает, что обновлять нужно пользователя с заданным `id`, который не помечен как удаленный (`deleted_at IS NULL`).
-    - Конструкция `RETURNING id, user_name, first_name, last_name, status, created_at, updated_at` возвращает данные обновленного пользователя.
+   - Поля в `fields` объединяются через запятую.
+   - Генерируется SQL-запрос вида:
+     ```sql
+     UPDATE users SET field1 = %s, field2 = %s, ..., updated_at = NOW()
+     WHERE id = %s AND deleted_at IS NULL
+     RETURNING id, user_name, first_name, last_name, status, created_at, updated_at;
+     ```
 
-6.  **Добавление `id` пользователя в аргументы запроса**:
+6. **Добавление ID в параметры запроса**:
 
-    - В массив `args` добавляется `id` пользователя, который будет использоваться в условии `WHERE id = $index`.
+   - В `values` добавляется `user_id` как последний аргумент, который используется в `WHERE id = %s`.
 
-7.  **Выполнение запроса**:
+7. **Выполнение запроса**:
 
-    - Выполняется SQL-запрос с использованием `pool.query(query, args)`. Результат запроса сохраняется в переменной `res`.
+   - Открывается соединение с базой данных из пула.
+   - Выполняется SQL-запрос через `cursor.execute(...)` с подставленными значениями.
+   - Используется `row_factory=dict_row` для возврата результата в виде словаря.
 
-8.  **Обработка результата запроса**:
-    - Если `res.rowCount === 0`, то есть не было найдено ни одного пользователя для обновления, выбрасывается исключение `Error("User not found")`.
-    - В противном случае возвращается первая строка результата запроса (`res.rows[0]`), содержащая данные обновленного пользователя.
+8. **Обработка результата**:
 
-Последний метод, который мы реализуем в этом репозитории - это метод удаления пользователя `deleteUser`.
+   - Если пользователь не найден (`fetchone()` вернул `None`), выбрасывается `ValueError("User not found")`.
+   - В противном случае возвращается результат — обновлённый пользователь в виде словаря.
 
-```js
-async deleteUser(id) {
-    const query = `...`;
-    const res = await pool.query(query, [id]);
-    if (res.rowCount === 0) {
-      throw new Error("User not found");
-    }
-  }
+Последняя функция, которую мы реализуем в этом репозитории - это функция удаления пользователя `delete_user`.
+
+```python
+def delete_user(user_id: int) -> None:
+    query = """
+        ...
+    """
+
+    with pool.connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(query, (user_id,))
+            if cur.rowcount == 0:
+                raise ValueError("User not found")
 ```
 
-Этот асинхронный метод предназначен для "удаления" пользователя из базы данных. Фактически, это мягкое удаление (soft delete), когда запись не удаляется физически, а лишь помечается как удалённая.
+Эта функция предназначена для "удаления" пользователя из базы данных. Фактически, это мягкое удаление (soft delete), когда запись не удаляется физически, а лишь помечается как удалённая.
 
 > [!IMPORTANT] Задание
 > Напишите SQL-запрос, который выполняет мягкое удаление пользователя, устанавливая значение `deleted_at` в текущее время для пользователя с указанным `id`.
 
 ## Тестирование репозитория пользователей
 
-В корне проекта создайте папку `tests`, а в ней подпапку `repositories`.  
-В папке `repositories` создайте файл `test_user_repository.py` и поместите в него код с unit-тестами:
-
-::: details Unit-тесты userRepository
-
-```js
-import { expect, jest } from "@jest/globals";
-import { pool } from "../../src/config/db.js";
-import { UserRepository } from "../../src/repositories/userRepository.js";
-
-function normalizeSQL(sql) {
-  return sql.toLowerCase().replace(/\s+/g, " ").trim();
-}
-
-describe("UserRepository", () => {
-  afterEach(() => {
-    jest.clearAllMocks();
-  });
-
-  describe("createUser", () => {
-    it("successfully creates new user", async () => {
-      const mock = jest.spyOn(pool, "query");
-
-      const dto = {
-        user_name: "john",
-        first_name: "John",
-        last_name: "Doe",
-        password_hash: "password",
-      };
-
-      const expected = {
-        id: 1,
-        user_name: "john",
-        password_hash: "password",
-        status: 1,
-      };
-
-      mock.mockResolvedValueOnce({ rows: [expected], rowCount: 1 });
-
-      const result = await UserRepository.createUser(dto);
-
-      expect(result).toEqual(expected);
-      const [sql, params] = mock.mock.calls[0];
-      const normalizedSQL = normalizeSQL(sql);
-      expect(normalizedSQL).toContain(
-        "insert into users (user_name, first_name, last_name, password_hash)"
-      );
-      expect(normalizedSQL).toContain(
-        "returning id, user_name, password_hash, status"
-      );
-      expect(params).toEqual([
-        dto.user_name,
-        dto.first_name,
-        dto.last_name,
-        dto.password_hash,
-      ]);
-    });
-
-    it("error on user insert", async () => {
-      const mock = jest.spyOn(pool, "query");
-
-      const dto = {
-        user_name: "john",
-        first_name: "John",
-        last_name: "Doe",
-        password_hash: "password",
-      };
-
-      const fakeError = new Error("insert failed");
-      mock.mockRejectedValueOnce(fakeError);
-
-      await expect(UserRepository.createUser(dto)).rejects.toThrow(
-        "insert failed"
-      );
-
-      const [sql, params] = mock.mock.calls[0];
-      const normalizedSQL = normalizeSQL(sql);
-      expect(normalizedSQL).toContain(
-        "insert into users (user_name, first_name, last_name, password_hash)"
-      );
-      expect(params).toEqual([
-        dto.user_name,
-        dto.first_name,
-        dto.last_name,
-        dto.password_hash,
-      ]);
-    });
-  });
-
-  describe("getAllUsers", () => {
-    it("successfully gets all users", async () => {
-      const mock = jest.spyOn(pool, "query");
-
-      const now = new Date();
-
-      const expectedUsers = [
-        {
-          id: 1,
-          user_name: "john",
-          first_name: "John",
-          last_name: "Doe",
-          status: 1,
-          created_at: now,
-          updated_at: now,
-        },
-        {
-          id: 2,
-          user_name: "jane",
-          first_name: "Jane",
-          last_name: "Smith",
-          status: 1,
-          created_at: now,
-          updated_at: now,
-        },
-      ];
-
-      mock.mockResolvedValueOnce({
-        rows: expectedUsers,
-        rowCount: expectedUsers.length,
-      });
-
-      const result = await UserRepository.getAllUsers(100, 0);
-
-      expect(result).toEqual(expectedUsers);
-
-      const [sql, params] = mock.mock.calls[0];
-      const normalizedSQL = normalizeSQL(sql);
-      expect(normalizedSQL).toContain(
-        "select id, user_name, first_name, last_name, status, created_at, updated_at from users where deleted_at is null"
-      );
-      expect(params).toEqual([0, 100]);
-    });
-
-    it("returns error", async () => {
-      const mock = jest.spyOn(pool, "query");
-      mock.mockRejectedValueOnce(new Error("SQL error"));
-
-      await expect(UserRepository.getAllUsers(100, 0)).rejects.toThrow(
-        "SQL error"
-      );
-
-      const [sql, params] = mock.mock.calls[0];
-      const normalizedSQL = normalizeSQL(sql);
-      expect(normalizedSQL).toContain("from users where deleted_at is null");
-      expect(params).toEqual([0, 100]);
-    });
-  });
-
-  describe("getUserById", () => {
-    it("successfully gets user by id", async () => {
-      const mock = jest.spyOn(pool, "query");
-      const now = new Date();
-
-      const expected = {
-        id: 1,
-        user_name: "john",
-        first_name: "John",
-        last_name: "Doe",
-        status: 1,
-        created_at: now,
-        updated_at: now,
-      };
-
-      mock.mockResolvedValueOnce({ rows: [expected], rowCount: 1 });
-
-      const result = await UserRepository.getUserById(1);
-
-      expect(result).toEqual(expected);
-
-      const [sql, params] = mock.mock.calls[0];
-      const normalizedSQL = normalizeSQL(sql);
-      expect(normalizedSQL).toContain(
-        "from users where id = $1 and deleted_at is null"
-      );
-      expect(params).toEqual([1]);
-    });
-
-    it("returns error if user not found", async () => {
-      const mock = jest.spyOn(pool, "query");
-      mock.mockResolvedValueOnce({ rows: [], rowCount: 0 });
-
-      await expect(UserRepository.getUserById(2)).rejects.toThrow(
-        "User not found"
-      );
-
-      const [sql, params] = mock.mock.calls[0];
-      const normalizedSQL = normalizeSQL(sql);
-      expect(normalizedSQL).toContain(
-        "from users where id = $1 and deleted_at is null"
-      );
-      expect(params).toEqual([2]);
-    });
-  });
-
-  describe("getUserByUserName", () => {
-    it("successfully gets user by username", async () => {
-      const mock = jest.spyOn(pool, "query");
-
-      const expected = {
-        id: 1,
-        user_name: "john",
-        password_hash: "password",
-        status: 1,
-      };
-
-      mock.mockResolvedValueOnce({ rows: [expected], rowCount: 1 });
-
-      const result = await UserRepository.getUserByUserName("john");
-
-      expect(result).toEqual(expected);
-
-      const [sql, params] = mock.mock.calls[0];
-      const normalizedSQL = normalizeSQL(sql);
-      expect(normalizedSQL).toContain(
-        "from users where user_name = $1 and deleted_at is null"
-      );
-      expect(params).toEqual(["john"]);
-    });
-
-    it("returns error if user not found", async () => {
-      const mock = jest.spyOn(pool, "query");
-      mock.mockResolvedValueOnce({ rows: [], rowCount: 0 });
-
-      await expect(
-        UserRepository.getUserByUserName("notfound")
-      ).rejects.toThrow("User not found");
-
-      const [sql, params] = mock.mock.calls[0];
-      const normalizedSQL = normalizeSQL(sql);
-      expect(normalizedSQL).toContain(
-        "from users where user_name = $1 and deleted_at is null"
-      );
-      expect(params).toEqual(["notfound"]);
-    });
-  });
-
-  describe("updateUser", () => {
-    it("successfully updates user", async () => {
-      const mock = jest.spyOn(pool, "query");
-      const now = new Date();
-      const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
-
-      const id = 1;
-      const dto = {
-        user_name: "john_updated",
-        first_name: "John",
-        last_name: "Doe",
-        password_hash: "password",
-      };
-
-      const expected = {
-        id,
-        user_name: dto.user_name,
-        first_name: dto.first_name,
-        last_name: dto.last_name,
-        status: 1,
-        created_at: oneHourAgo,
-        updated_at: now,
-      };
-
-      mock.mockResolvedValueOnce({ rows: [expected], rowCount: 1 });
-
-      const result = await UserRepository.updateUser(id, dto);
-
-      expect(result).toEqual(expected);
-
-      const [sql, params] = mock.mock.calls[0];
-      const normalizedSQL = normalizeSQL(sql);
-      expect(normalizedSQL).toContain("update users set");
-      expect(normalizedSQL).toContain("where id = $");
-      expect(normalizedSQL).toContain(
-        "returning id, user_name, first_name, last_name, status"
-      );
-      expect(params).toContain(dto.user_name);
-      expect(params).toContain(dto.password_hash);
-      expect(params).toContain(dto.first_name);
-      expect(params).toContain(dto.last_name);
-      expect(params).toContain(id);
-    });
-
-    it("returns error if no fields to update", async () => {
-      await expect(UserRepository.updateUser(1, {})).rejects.toThrow(
-        "No fields to update"
-      );
-    });
-
-    it("returns error if user not found", async () => {
-      const mock = jest.spyOn(pool, "query");
-
-      const dto = {
-        user_name: "ghost",
-      };
-
-      mock.mockResolvedValueOnce({ rows: [], rowCount: 0 });
-
-      await expect(UserRepository.updateUser(999, dto)).rejects.toThrow(
-        "User not found"
-      );
-
-      const [sql, params] = mock.mock.calls[0];
-      const normalizedSQL = normalizeSQL(sql);
-      expect(normalizedSQL).toContain("update users set");
-      expect(normalizedSQL).toContain("where id = $");
-      expect(params).toEqual(["ghost", 999]);
-    });
-  });
-
-  describe("deleteUser", () => {
-    it("successfully deletes user", async () => {
-      const mock = jest.spyOn(pool, "query");
-
-      mock.mockResolvedValueOnce({ rowCount: 1 });
-
-      await expect(UserRepository.deleteUser(1)).resolves.toBeUndefined();
-
-      const [sql, params] = mock.mock.calls[0];
-      const normalizedSQL = normalizeSQL(sql);
-      expect(normalizedSQL).toContain("update users set deleted_at = now()");
-      expect(normalizedSQL).toContain("where id = $1 and deleted_at is null");
-      expect(params).toEqual([1]);
-    });
-
-    it("returns error if user not found", async () => {
-      const mock = jest.spyOn(pool, "query");
-
-      mock.mockResolvedValueOnce({ rowCount: 0 });
-
-      await expect(UserRepository.deleteUser(2)).rejects.toThrow(
-        "User not found"
-      );
-
-      const [sql, params] = mock.mock.calls[0];
-      const normalizedSQL = normalizeSQL(sql);
-      expect(normalizedSQL).toContain("update users set deleted_at = now()");
-      expect(params).toEqual([2]);
-    });
-  });
-});
+В корне проекта создайте файл `pytest.ini` со следующим содержимым:
+
+```text
+[pytest]
+pythonpath = ./src
+```
+
+Также в корне проекта создайте папку `__tests__`, а в ней папку `repositories`. В папке `repositories` создайте файл `test_user_repository.py` и поместите в него код с unit-тестами:
+
+::: details Unit-тесты user_repository
+
+```python
+import pytest
+from unittest.mock import patch, MagicMock
+from datetime import datetime, timedelta
+
+from repositories.user_repository import (
+    create_user,
+    get_all_users,
+    get_user_by_id,
+    get_user_by_username,
+    update_user,
+    delete_user,
+)
+
+def normalize_sql(sql: str) -> str:
+    return " ".join(sql.lower().split())
+
+@pytest.fixture
+def mock_conn():
+    with patch("config.db.pool.connection") as mock_conn_context:
+        yield mock_conn_context
+
+
+def test_create_user_success(mock_conn):
+    dto = {
+        "user_name": "john",
+        "first_name": "John",
+        "last_name": "Doe",
+        "password_hash": "password",
+    }
+    expected = {
+        "id": 1,
+        "user_name": "john",
+        "password_hash": "password",
+        "status": 1,
+    }
+
+    mock_cursor = MagicMock()
+    mock_cursor.fetchone.return_value = expected
+    mock_conn.return_value.__enter__.return_value.cursor.return_value.__enter__.return_value = mock_cursor
+
+    result = create_user(dto)
+
+    assert result == expected
+
+def test_create_user_error(mock_conn):
+    dto = {
+        "user_name": "john",
+        "first_name": "John",
+        "last_name": "Doe",
+        "password_hash": "password",
+    }
+
+    fake_error = Exception("insert failed")
+
+    mock_cursor = MagicMock()
+    mock_cursor.execute.side_effect = fake_error
+    mock_conn.return_value.__enter__.return_value.cursor.return_value.__enter__.return_value = mock_cursor
+
+    with pytest.raises(Exception, match="insert failed"):
+        create_user(dto)
+
+    sql_called = mock_cursor.execute.call_args[0][0].lower()
+    assert "insert into users" in sql_called
+    assert "user_name" in sql_called
+    assert "password_hash" in sql_called
+
+    params = mock_cursor.execute.call_args[0][1]
+    assert params == (
+        dto["user_name"],
+        dto["first_name"],
+        dto["last_name"],
+        dto["password_hash"],
+    )
+
+def test_get_all_users_success(mock_conn):
+    now = datetime.utcnow()
+    expected = [{
+        "id": 1,
+        "user_name": "john",
+        "first_name": "John",
+        "last_name": "Doe",
+        "status": 1,
+        "created_at": now,
+        "updated_at": now,
+    }]
+
+    mock_cursor = MagicMock()
+    mock_cursor.fetchall.return_value = expected
+    mock_conn.return_value.__enter__.return_value.cursor.return_value.__enter__.return_value = mock_cursor
+
+    result = get_all_users(limit=10, offset=0)
+    assert result == expected
+
+
+def test_get_all_users_error(mock_conn):
+    mock_cursor = MagicMock()
+    mock_cursor.execute.side_effect = Exception("SQL error")
+    mock_conn.return_value.__enter__.return_value.cursor.return_value.__enter__.return_value = mock_cursor
+
+    with pytest.raises(Exception, match="SQL error"):
+        get_all_users(limit=100, offset=0)
+
+    sql_called = mock_cursor.execute.call_args[0][0].lower()
+
+    normalized_sql = normalize_sql(sql_called)
+    assert "from users where deleted_at is null" in normalized_sql
+
+    params = mock_cursor.execute.call_args[0][1]
+    assert params == (0, 100)
+
+
+def test_get_user_by_id_success(mock_conn):
+    now = datetime.utcnow()
+    expected = {
+        "user_name": "john",
+        "first_name": "John",
+        "last_name": "Doe",
+        "status": 1,
+        "created_at": now,
+        "updated_at": now,
+    }
+
+    mock_cursor = MagicMock()
+    mock_cursor.fetchone.return_value = expected
+    mock_conn.return_value.__enter__.return_value.cursor.return_value.__enter__.return_value = mock_cursor
+
+    result = get_user_by_id(1)
+    assert result == expected
+
+
+def test_get_user_by_id_not_found(mock_conn):
+    mock_cursor = MagicMock()
+    mock_cursor.fetchone.return_value = None
+    mock_conn.return_value.__enter__.return_value.cursor.return_value.__enter__.return_value = mock_cursor
+
+    with pytest.raises(ValueError, match="User not found"):
+        get_user_by_id(999)
+
+
+def test_get_user_by_username_success(mock_conn):
+    expected = {
+        "user_name": "john",
+        "password_hash": "password",
+        "status": 1,
+    }
+
+    mock_cursor = MagicMock()
+    mock_cursor.fetchone.return_value = expected
+    mock_conn.return_value.__enter__.return_value.cursor.return_value.__enter__.return_value = mock_cursor
+
+    result = get_user_by_username("john")
+    assert result == expected
+
+
+def test_get_user_by_username_not_found(mock_conn):
+    mock_cursor = MagicMock()
+    mock_cursor.fetchone.return_value = None
+    mock_conn.return_value.__enter__.return_value.cursor.return_value.__enter__.return_value = mock_cursor
+
+    with pytest.raises(ValueError, match="User not found"):
+        get_user_by_username("notfound")
+
+
+def test_update_user_success(mock_conn):
+    now = datetime.utcnow()
+    earlier = now - timedelta(hours=1)
+
+    dto = {
+        "user_name": "john_updated",
+        "first_name": "John",
+        "last_name": "Doe",
+        "password_hash": "password",
+    }
+
+    expected = {
+        "id": 1,
+        "user_name": "john_updated",
+        "first_name": "John",
+        "last_name": "Doe",
+        "status": 1,
+        "created_at": earlier,
+        "updated_at": now,
+    }
+
+    mock_cursor = MagicMock()
+    mock_cursor.fetchone.return_value = expected
+    mock_conn.return_value.__enter__.return_value.cursor.return_value.__enter__.return_value = mock_cursor
+
+    result = update_user(1, dto)
+    assert result == expected
+
+
+def test_update_user_no_fields(mock_conn):
+    with pytest.raises(ValueError, match="No fields to update"):
+        update_user(1, {})
+
+
+def test_update_user_not_found(mock_conn):
+    dto = {"user_name": "ghost"}
+
+    mock_cursor = MagicMock()
+    mock_cursor.fetchone.return_value = None
+    mock_conn.return_value.__enter__.return_value.cursor.return_value.__enter__.return_value = mock_cursor
+
+    with pytest.raises(ValueError, match="User not found"):
+        update_user(999, dto)
+
+
+def test_delete_user_success(mock_conn):
+    mock_cursor = MagicMock()
+    mock_cursor.rowcount = 1
+    mock_conn.return_value.__enter__.return_value.cursor.return_value.__enter__.return_value = mock_cursor
+
+    assert delete_user(1) is None
+
+
+def test_delete_user_not_found(mock_conn):
+    mock_cursor = MagicMock()
+    mock_cursor.rowcount = 0
+    mock_conn.return_value.__enter__.return_value.cursor.return_value.__enter__.return_value = mock_cursor
+
+    with pytest.raises(ValueError, match="User not found"):
+        delete_user(2)
+
 ```
 
 :::
@@ -829,44 +753,27 @@ describe("UserRepository", () => {
 После этого выполните команду
 
 ```bash
-npm run test
+pytest-v
 ```
 
 Если вы все сделали правильно, все тесты пройдены.
 
 ```bash
-> gophertalk-backend-express@0.1.0 test
-> node --experimental-vm-modules node_modules/jest/bin/jest.js
+tests/repositories/test_user_repository.py::test_create_user_success PASSED                                                                         [  7%]
+tests/repositories/test_user_repository.py::test_create_user_error PASSED                                                                           [ 15%]
+tests/repositories/test_user_repository.py::test_get_all_users_success PASSED                                                                       [ 23%]
+tests/repositories/test_user_repository.py::test_get_all_users_error PASSED                                                                         [ 30%]
+tests/repositories/test_user_repository.py::test_get_user_by_id_success PASSED                                                                      [ 38%]
+tests/repositories/test_user_repository.py::test_get_user_by_id_not_found PASSED                                                                    [ 46%]
+tests/repositories/test_user_repository.py::test_get_user_by_username_success PASSED                                                                [ 53%]
+tests/repositories/test_user_repository.py::test_get_user_by_username_not_found PASSED                                                              [ 61%]
+tests/repositories/test_user_repository.py::test_update_user_success PASSED                                                                         [ 69%]
+tests/repositories/test_user_repository.py::test_update_user_no_fields PASSED                                                                       [ 76%]
+tests/repositories/test_user_repository.py::test_update_user_not_found PASSED                                                                       [ 84%]
+tests/repositories/test_user_repository.py::test_delete_user_success PASSED                                                                         [ 92%]
+tests/repositories/test_user_repository.py::test_delete_user_not_found PASSED                                                                       [100%]
 
-(node:50607) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
-(Use `node --trace-warnings ...` to show where the warning was created)
- PASS  __tests__/repositories/userRepository.test.js
-  UserRepository
-    createUser
-      ✓ successfully creates new user (2 ms)
-      ✓ error on user insert (2 ms)
-    getAllUsers
-      ✓ successfully gets all users (1 ms)
-      ✓ returns error
-    getUserById
-      ✓ successfully gets user by id (1 ms)
-      ✓ returns error if user not found
-    getUserByUserName
-      ✓ successfully gets user by username
-      ✓ returns error if user not found (1 ms)
-    updateUser
-      ✓ successfully updates user
-      ✓ returns error if no fields to update (1 ms)
-      ✓ returns error if user not found
-    deleteUser
-      ✓ successfully deletes user
-      ✓ returns error if user not found
-
-Test Suites: 1 passed, 1 total
-Tests:       13 passed, 13 total
-Snapshots:   0 total
-Time:        0.138 s
-Ran all test suites.
+=================================================================== 13 passed in 0.12s ====================================================================
 ```
 
 ## Разработка репозитория постов
@@ -886,7 +793,7 @@ Ran all test suites.
 
 Создайте файл `src/repositories/postRepository.js`, в него поместите следующий код:
 
-```js
+```python
 import { pool } from "../db/index.js";
 
 export const PostRepository = {
@@ -912,7 +819,7 @@ export const PostRepository = {
 
 Метод `getAllPosts` возвращает список постов с расширенной информацией: количество лайков, просмотров, ответов, а также информацию о пользователе и отметках "нравится" и "просмотрено" от текущего пользователя.
 
-```js
+```python
 async getAllPosts(dto) {
     const params = [dto.user_id];
     let query = `
@@ -1121,7 +1028,7 @@ if (dto.reply_to_id) {
 
 #### 6. Пагинация
 
-```js
+```python
 query += ` OFFSET $${params.length + 1} LIMIT $${params.length + 2}`;
 params.push(dto.offset, dto.limit);
 ```
@@ -1142,7 +1049,7 @@ params.push(dto.offset, dto.limit);
 
 Далее рассмотрим реализацию метода `getPostById`.
 
-```js
+```python
 import { pool } from "../db/index.js";
 
 export const PostRepository = {
@@ -1164,7 +1071,7 @@ export const PostRepository = {
         WHERE reply_to_id IS NOT NULL
         GROUP BY reply_to_id
       )
-      SELECT 
+      SELECT
         p.id AS post_id,
         p.text,
         p.reply_to_id,
@@ -1242,7 +1149,7 @@ WHERE p.id = $2 AND p.deleted_at IS NULL
 
 Перейдем к реализации метода `deletePost` в репозитории `PostRepository`
 
-```js
+```python
 async deletePost(id, ownerId) {
   const query = `...`;
   const res = await pool.query(query, [id, ownerId]);
@@ -1257,7 +1164,7 @@ async deletePost(id, ownerId) {
 
 Теперь реализуем метод, который регистрирует факт просмотра поста пользователем. Каждый пользователь может просмотреть пост только один раз — повторные просмотры не записываются.
 
-```js
+```python
 async function viewPost(postId, userId) {
   const query = `...`;
 
@@ -1283,7 +1190,7 @@ async function viewPost(postId, userId) {
 
 Теперь реализуем метод, который позволяет пользователю поставить лайк посту. Один пользователь может поставить лайк одному посту только один раз — повторные попытки должны вызывать ошибку.
 
-```js
+```python
 async function likePost(postId, userId) {
   const query = `...`;
 
@@ -1309,7 +1216,7 @@ async function likePost(postId, userId) {
 
 Метод `dislikePost` позволяет пользователю убрать лайк с поста, если он его ранее поставил.
 
-```js
+```python
 async function dislikePost(postId, userId) {
   const query = `...`;
 
@@ -1330,7 +1237,7 @@ async function dislikePost(postId, userId) {
 
 ::: details Unit-тесты postRepository
 
-```js
+```python
 import { describe, expect, jest } from "@jest/globals";
 import { pool } from "../../src/config/db.js";
 import { PostRepository } from "../../src/repositories/postRepository.js";
