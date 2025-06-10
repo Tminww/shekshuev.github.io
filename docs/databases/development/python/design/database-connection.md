@@ -159,7 +159,7 @@ gophertalk-backend-fastapi/
 │   ├── services/          # Бизнес-логика
 │   ├── repositories/      # Работа с БД (SQL-запросы)
 │   ├── routes/            # Определение маршрутов
-│   ├── middlewares/       # Общие мидлвари
+│   ├── dependencies/      # Общие зависимости FastAPI
 │   ├── packages/          # скачанные пакеты с зависимостями
 │   ├── config/            # Конфигурация проекта
 │   ├── utils/             # Вспомогательные функции
