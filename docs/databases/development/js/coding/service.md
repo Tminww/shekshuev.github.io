@@ -108,13 +108,9 @@ export const AuthService = {
     const accessToken = jwt.sign({ sub: id }, process.env.ACCESS_TOKEN_SECRET, {
       expiresIn: process.env.ACCESS_TOKEN_EXPIRES,
     });
-    const refreshToken = jwt.sign(
-      { sub: id },
-      process.env.REFRESH_TOKEN_SECRET,
-      {
-        expiresIn: process.env.REFRESH_TOKEN_EXPIRES,
-      }
-    );
+    const refreshToken = jwt.sign({ sub: id }, process.env.REFRESH_TOKEN_SECRET, {
+      expiresIn: process.env.REFRESH_TOKEN_EXPIRES,
+    });
     return {
       access_token: accessToken,
       refresh_token: refreshToken,
@@ -218,10 +214,7 @@ describe("AuthService", () => {
         refresh_token: "mocked_token",
       });
 
-      expect(bcrypt.compare).toHaveBeenCalledWith(
-        dto.password,
-        user.password_hash
-      );
+      expect(bcrypt.compare).toHaveBeenCalledWith(dto.password, user.password_hash);
     });
 
     it("throws error if user not found", async () => {
@@ -232,9 +225,7 @@ describe("AuthService", () => {
 
       jest.spyOn(UserRepository, "getUserByUserName").mockResolvedValue(null);
 
-      await expect(AuthService.login(dto, {})).rejects.toThrow(
-        "User not found"
-      );
+      await expect(AuthService.login(dto, {})).rejects.toThrow("User not found");
     });
 
     it("throws error if password is wrong", async () => {
@@ -252,9 +243,7 @@ describe("AuthService", () => {
       jest.spyOn(UserRepository, "getUserByUserName").mockResolvedValue(user);
       jest.spyOn(bcrypt, "compare").mockResolvedValue(false);
 
-      await expect(AuthService.login(dto, {})).rejects.toThrow(
-        "Wrong password"
-      );
+      await expect(AuthService.login(dto, {})).rejects.toThrow("Wrong password");
     });
   });
 
@@ -339,10 +328,7 @@ export const UserService = {
     const updateFields = { ...userDto };
     if (updateFields.password) {
       const saltRounds = 10;
-      updateFields.password_hash = await bcrypt.hash(
-        updateFields.password,
-        saltRounds
-      );
+      updateFields.password_hash = await bcrypt.hash(updateFields.password, saltRounds);
       delete updateFields.password;
     }
     return await UserRepository.updateUser(id, updateFields);
@@ -431,9 +417,7 @@ describe("UserService", () => {
 
       mock.mockRejectedValueOnce(new Error("SQL error"));
 
-      await expect(UserService.getAllUsers(100, 0)).rejects.toThrow(
-        "SQL error"
-      );
+      await expect(UserService.getAllUsers(100, 0)).rejects.toThrow("SQL error");
       expect(mock).toHaveBeenCalledWith(100, 0);
     });
   });
@@ -466,9 +450,7 @@ describe("UserService", () => {
 
       mock.mockRejectedValueOnce(new Error("User not found"));
 
-      await expect(UserService.getUserById(2)).rejects.toThrow(
-        "User not found"
-      );
+      await expect(UserService.getUserById(2)).rejects.toThrow("User not found");
       expect(mock).toHaveBeenCalledWith(2);
     });
   });
@@ -509,9 +491,7 @@ describe("UserService", () => {
 
       mockUpdate.mockRejectedValueOnce(new Error("Update failed"));
 
-      await expect(
-        UserService.updateUser(2, { user_name: "ghost" })
-      ).rejects.toThrow("Update failed");
+      await expect(UserService.updateUser(2, { user_name: "ghost" })).rejects.toThrow("Update failed");
     });
   });
 
@@ -621,9 +601,9 @@ export const PostService = {
 
 ## Тестирование сервиса постов
 
-Аналогично и здесь сразу напишем тесты для `userService`, чтобы проверить его работу. Для этого в папке `__tests__/services` создайте файл `userService.test.js`. Поместите в него код ниже.
+Аналогично и здесь сразу напишем тесты для `postService`, чтобы проверить его работу. Для этого в папке `__tests__/services` создайте файл `postService.test.js`. Поместите в него код ниже.
 
-::: details Unit-тесты userService
+::: details Unit-тесты postService
 
 ```js
 import { describe, expect, jest } from "@jest/globals";
@@ -641,9 +621,7 @@ describe("PostService", () => {
         { id: 1, text: "post1" },
         { id: 2, text: "post2" },
       ];
-      const mock = jest
-        .spyOn(PostRepository, "getAllPosts")
-        .mockResolvedValue(posts);
+      const mock = jest.spyOn(PostRepository, "getAllPosts").mockResolvedValue(posts);
 
       const result = await PostService.getAllPosts({
         user_id: 1,
@@ -655,13 +633,9 @@ describe("PostService", () => {
     });
 
     it("throws error on failure", async () => {
-      const mock = jest
-        .spyOn(PostRepository, "getAllPosts")
-        .mockRejectedValue(new Error("DB error"));
+      const mock = jest.spyOn(PostRepository, "getAllPosts").mockRejectedValue(new Error("DB error"));
 
-      await expect(
-        PostService.getAllPosts({ user_id: 1, limit: 100, offset: 0 })
-      ).rejects.toThrow("DB error");
+      await expect(PostService.getAllPosts({ user_id: 1, limit: 100, offset: 0 })).rejects.toThrow("DB error");
       expect(mock).toHaveBeenCalledTimes(1);
     });
   });
@@ -669,9 +643,7 @@ describe("PostService", () => {
   describe("createPost", () => {
     it("successfully creates a post", async () => {
       const post = { id: 1, text: "new post" };
-      const mock = jest
-        .spyOn(PostRepository, "createPost")
-        .mockResolvedValue(post);
+      const mock = jest.spyOn(PostRepository, "createPost").mockResolvedValue(post);
 
       const result = await PostService.createPost({
         text: "new post",
@@ -682,13 +654,9 @@ describe("PostService", () => {
     });
 
     it("throws error on insert failure", async () => {
-      const mock = jest
-        .spyOn(PostRepository, "createPost")
-        .mockRejectedValue(new Error("Insert error"));
+      const mock = jest.spyOn(PostRepository, "createPost").mockRejectedValue(new Error("Insert error"));
 
-      await expect(
-        PostService.createPost({ text: "new post", user_id: 1 })
-      ).rejects.toThrow("Insert error");
+      await expect(PostService.createPost({ text: "new post", user_id: 1 })).rejects.toThrow("Insert error");
       expect(mock).toHaveBeenCalledTimes(1);
     });
   });
@@ -702,13 +670,9 @@ describe("PostService", () => {
     });
 
     it("throws error on delete failure", async () => {
-      const mock = jest
-        .spyOn(PostRepository, "deletePost")
-        .mockRejectedValue(new Error("Delete error"));
+      const mock = jest.spyOn(PostRepository, "deletePost").mockRejectedValue(new Error("Delete error"));
 
-      await expect(PostService.deletePost(2, 0)).rejects.toThrow(
-        "Delete error"
-      );
+      await expect(PostService.deletePost(2, 0)).rejects.toThrow("Delete error");
       expect(mock).toHaveBeenCalledWith(2, 0);
     });
   });
@@ -722,9 +686,7 @@ describe("PostService", () => {
     });
 
     it("throws error on view failure", async () => {
-      const mock = jest
-        .spyOn(PostRepository, "viewPost")
-        .mockRejectedValue(new Error("View error"));
+      const mock = jest.spyOn(PostRepository, "viewPost").mockRejectedValue(new Error("View error"));
 
       await expect(PostService.viewPost(2, 0)).rejects.toThrow("View error");
       expect(mock).toHaveBeenCalledWith(2, 0);
@@ -740,9 +702,7 @@ describe("PostService", () => {
     });
 
     it("throws error on like failure", async () => {
-      const mock = jest
-        .spyOn(PostRepository, "likePost")
-        .mockRejectedValue(new Error("Like error"));
+      const mock = jest.spyOn(PostRepository, "likePost").mockRejectedValue(new Error("Like error"));
 
       await expect(PostService.likePost(2, 0)).rejects.toThrow("Like error");
       expect(mock).toHaveBeenCalledWith(2, 0);
@@ -751,22 +711,16 @@ describe("PostService", () => {
 
   describe("dislikePost", () => {
     it("successfully dislikes a post", async () => {
-      const mock = jest
-        .spyOn(PostRepository, "dislikePost")
-        .mockResolvedValue();
+      const mock = jest.spyOn(PostRepository, "dislikePost").mockResolvedValue();
 
       await expect(PostService.dislikePost(1, 0)).resolves.toBeUndefined();
       expect(mock).toHaveBeenCalledWith(1, 0);
     });
 
     it("throws error on dislike failure", async () => {
-      const mock = jest
-        .spyOn(PostRepository, "dislikePost")
-        .mockRejectedValue(new Error("Dislike error"));
+      const mock = jest.spyOn(PostRepository, "dislikePost").mockRejectedValue(new Error("Dislike error"));
 
-      await expect(PostService.dislikePost(2, 0)).rejects.toThrow(
-        "Dislike error"
-      );
+      await expect(PostService.dislikePost(2, 0)).rejects.toThrow("Dislike error");
       expect(mock).toHaveBeenCalledWith(2, 0);
     });
   });
