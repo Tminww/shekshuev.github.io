@@ -238,6 +238,7 @@ SELECT * FROM users;
 
 Используя эту таблицу, мы будем практиковаться в составлении SQL-запросов для выборки и преобразования данных.
 
+<ClientOnly>
 <Repl :initial-queries="[
 `CREATE TABLE poteshnye_polki (
     id SERIAL PRIMARY KEY,
@@ -270,6 +271,7 @@ SELECT * FROM users;
 ('Алексей', 'Лопухин', '1666-07-19', NULL, 240, FALSE),
 ('Василий', 'Трубецкой', '1677-04-22', 'Санкт-Петербург', 220, FALSE);`
 ]"/>
+</ClientOnly>
 
 Начнем с базового синтаксиса.
 
