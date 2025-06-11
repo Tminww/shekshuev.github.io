@@ -183,102 +183,128 @@ python3 -m venv .venv
 source .venv/bin/activate
 ```
 
+::: details Настройка для Linux
 В файл `requirements.txt` поместите следующее содержимое:
 
 ```text
-./src/packages/annotated_types-0.7.0-py3-none-any.whl
-./src/packages/anyio-4.9.0-py3-none-any.whl
-./src/packages/bcrypt-4.3.0-cp39-abi3-macosx_10_12_universal2.whl
-./src/packages/certifi-2025.4.26-py3-none-any.whl
-./src/packages/cffi-1.17.1-cp313-cp313-macosx_11_0_arm64.whl
-./src/packages/click-8.2.1-py3-none-any.whl
-./src/packages/cryptography-45.0.3-cp311-abi3-macosx_10_9_universal2.whl
-./src/packages/ecdsa-0.19.1-py2.py3-none-any.whl
-./src/packages/fastapi-0.115.12-py3-none-any.whl
-./src/packages/h11-0.16.0-py3-none-any.whl
-./src/packages/httpcore-1.0.9-py3-none-any.whl
-./src/packages/httptools-0.6.4-cp313-cp313-macosx_11_0_arm64.whl
-./src/packages/httpx-0.28.1-py3-none-any.whl
-./src/packages/idna-3.10-py3-none-any.whl
-./src/packages/iniconfig-2.1.0-py3-none-any.whl
-./src/packages/packaging-25.0-py3-none-any.whl
-./src/packages/pluggy-1.6.0-py3-none-any.whl
-./src/packages/psycopg-3.2.9-py3-none-any.whl
-./src/packages/psycopg_pool-3.2.6-py3-none-any.whl
-./src/packages/pyasn1-0.6.1-py3-none-any.whl
-./src/packages/pycparser-2.22-py3-none-any.whl
-./src/packages/pydantic_core-2.33.2-cp313-cp313-macosx_11_0_arm64.whl
-./src/packages/pydantic-2.11.5-py3-none-any.whl
-./src/packages/pygments-2.19.1-py3-none-any.whl
-./src/packages/pytest-8.4.0-py3-none-any.whl
-./src/packages/python_dotenv-1.1.0-py3-none-any.whl
-./src/packages/python_jose-3.5.0-py2.py3-none-any.whl
-./src/packages/PyYAML-6.0.2-cp313-cp313-macosx_11_0_arm64.whl
-./src/packages/rsa-4.9.1-py3-none-any.whl
-./src/packages/six-1.17.0-py2.py3-none-any.whl
-./src/packages/sniffio-1.3.1-py3-none-any.whl
-./src/packages/starlette-0.46.2-py3-none-any.whl
-./src/packages/typing_extensions-4.14.0-py3-none-any.whl
-./src/packages/typing_inspection-0.4.1-py3-none-any.whl
-./src/packages/uvicorn-0.34.3-py3-none-any.whl
-./src/packages/uvloop-0.21.0-cp313-cp313-macosx_10_13_universal2.whl
-./src/packages/watchfiles-1.0.5-cp313-cp313-macosx_11_0_arm64.whl
-./src/packages/websockets-15.0.1-cp313-cp313-macosx_11_0_arm64.whl
+./src/packages-linux/annotated_types-0.7.0-py3-none-any.whl
+./src/packages-linux/anyio-4.9.0-py3-none-any.whl
+./src/packages-linux/bcrypt-4.3.0-cp39-abi3-manylinux_2_34_x86_64.whl
+./src/packages-linux/certifi-2025.4.26-py3-none-any.whl
+./src/packages-linux/cffi-1.17.1-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+./src/packages-linux/click-8.2.1-py3-none-any.whl
+./src/packages-linux/cryptography-45.0.4-cp37-abi3-manylinux_2_34_x86_64.whl
+./src/packages-linux/ecdsa-0.19.1-py2.py3-none-any.whl
+./src/packages-linux/exceptiongroup-1.3.0-py3-none-any.whl
+./src/packages-linux/fastapi-0.115.12-py3-none-any.whl
+./src/packages-linux/h11-0.16.0-py3-none-any.whl
+./src/packages-linux/httpcore-1.0.9-py3-none-any.whl
+./src/packages-linux/httptools-0.6.4-cp310-cp310-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+./src/packages-linux/httpx-0.28.1-py3-none-any.whl
+./src/packages-linux/idna-3.10-py3-none-any.whl
+./src/packages-linux/iniconfig-2.1.0-py3-none-any.whl
+./src/packages-linux/packaging-25.0-py3-none-any.whl
+./src/packages-linux/pluggy-1.6.0-py3-none-any.whl
+./src/packages-linux/psycopg_binary-3.2.9-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+./src/packages-linux/psycopg_pool-3.2.6-py3-none-any.whl
+./src/packages-linux/psycopg-3.2.9-py3-none-any.whl
+./src/packages-linux/pyasn1-0.6.1-py3-none-any.whl
+./src/packages-linux/pycparser-2.22-py3-none-any.whl
+./src/packages-linux/pydantic-2.11.5-py3-none-any.whl
+./src/packages-linux/pydantic_core-2.33.2-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+./src/packages-linux/pygments-2.19.1-py3-none-any.whl
+./src/packages-linux/pytest-8.4.0-py3-none-any.whl
+./src/packages-linux/python_dotenv-1.1.0-py3-none-any.whl
+./src/packages-linux/python_jose-3.5.0-py2.py3-none-any.whl
+./src/packages-linux/PyYAML-6.0.2-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+./src/packages-linux/rsa-4.9.1-py3-none-any.whl
+./src/packages-linux/six-1.17.0-py2.py3-none-any.whl
+./src/packages-linux/sniffio-1.3.1-py3-none-any.whl
+./src/packages-linux/starlette-0.46.2-py3-none-any.whl
+./src/packages-linux/tomli-2.2.1-py3-none-any.whl
+./src/packages-linux/typing_extensions-4.14.0-py3-none-any.whl
+./src/packages-linux/typing_inspection-0.4.1-py3-none-any.whl
+./src/packages-linux/uvicorn-0.34.3-py3-none-any.whl
+./src/packages-linux/uvloop-0.21.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+./src/packages-linux/watchfiles-1.0.5-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+./src/packages-linux/websockets-15.0.1-cp310-cp310-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl
 ```
 
-## Поместите в папку `src/packages` пакеты:
+Распакуйте содержимое [архива](/databases/packages-linux.zip) в папку `src/packages-linux`.
 
-- <a target="_blank" href="/databases/annotated_types-0.7.0-py3-none-any.whl">annotated_types</a>
-- <a target="_blank" href="/databases/anyio-4.9.0-py3-none-any.whl">anyio</a>
-- <a target="_blank" href="/databases/bcrypt-4.3.0-cp39-abi3-macosx_10_12_universal2.whl">bcrypt</a>
-- <a target="_blank" href="/databases/certifi-2025.4.26-py3-none-any.whl">certifi</a>
-- <a target="_blank" href="/databases/cffi-1.17.1-cp313-cp313-macosx_11_0_arm64.whl">cffi</a>
-- <a target="_blank" href="/databases/click-8.2.1-py3-none-any.whl">click</a>
-- <a target="_blank" href="/databases/cryptography-45.0.3-cp311-abi3-macosx_10_9_universal2.whl">cryptography</a>
-- <a target="_blank" href="/databases/ecdsa-0.19.1-py2.py3-none-any.whl">ecdsa</a>
-- <a target="_blank" href="/databases/fastapi-0.115.12-py3-none-any.whl">fastapi</a>
-- <a target="_blank" href="/databases/h11-0.16.0-py3-none-any.whl">h11</a>
-- <a target="_blank" href="/databases/httpcore-1.0.9-py3-none-any.whl">httpcore</a>
-- <a target="_blank" href="/databases/httptools-0.6.4-cp313-cp313-macosx_11_0_arm64.whl">httptools</a>
-- <a target="_blank" href="/databases/httpx-0.28.1-py3-none-any.whl">httpx</a>
-- <a target="_blank" href="/databases/idna-3.10-py3-none-any.whl">idna</a>
-- <a target="_blank" href="/databases/iniconfig-2.1.0-py3-none-any.whl">iniconfig</a>
-- <a target="_blank" href="/databases/packaging-25.0-py3-none-any.whl">packaging</a>
-- <a target="_blank" href="/databases/pluggy-1.6.0-py3-none-any.whl">pluggy</a>
-- <a target="_blank" href="/databases/psycopg-3.2.9-py3-none-any.whl">psycopg</a>
-- <a target="_blank" href="/databases/psycopg_pool-3.2.6-py3-none-any.whl">psycopg_pool</a>
-- <a target="_blank" href="/databases/pyasn1-0.6.1-py3-none-any.whl">pyasn1</a>
-- <a target="_blank" href="/databases/pycparser-2.22-py3-none-any.whl">pycparser</a>
-- <a target="_blank" href="/databases/pydantic_core-2.33.2-cp313-cp313-macosx_11_0_arm64.whl">pydantic_core</a>
-- <a target="_blank" href="/databases/pydantic-2.11.5-py3-none-any.whl">pydantic</a>
-- <a target="_blank" href="/databases/pygments-2.19.1-py3-none-any.whl">pygments</a>
-- <a target="_blank" href="/databases/pytest-8.4.0-py3-none-any.whl">pytest</a>
-- <a target="_blank" href="/databases/python_dotenv-1.1.0-py3-none-any.whl">python-dotenv</a>
-- <a target="_blank" href="/databases/python_jose-3.5.0-py2.py3-none-any.whl">python-jose</a>
-- <a target="_blank" href="/databases/PyYAML-6.0.2-cp313-cp313-macosx_11_0_arm64.whl">PyYAML</a>
-- <a target="_blank" href="/databases/rsa-4.9.1-py3-none-any.whl">rsa</a>
-- <a target="_blank" href="/databases/six-1.17.0-py2.py3-none-any.whl">six</a>
-- <a target="_blank" href="/databases/sniffio-1.3.1-py3-none-any.whl">sniffio</a>
-- <a target="_blank" href="/databases/starlette-0.46.2-py3-none-any.whl">starlette</a>
-- <a target="_blank" href="/databases/typing_extensions-4.14.0-py3-none-any.whl">typing-extensions</a>
-- <a target="_blank" href="/databases/typing_inspection-0.4.1-py3-none-any.whl">typing-inspection</a>
-- <a target="_blank" href="/databases/uvicorn-0.34.3-py3-none-any.whl">uvicorn</a>
-- <a target="_blank" href="/databases/uvloop-0.21.0-cp313-cp313-macosx_10_13_universal2.whl">uvloop</a>
-- <a target="_blank" href="/databases/watchfiles-1.0.5-cp313-cp313-macosx_11_0_arm64.whl">watchfiles</a>
-- <a target="_blank" href="/databases/websockets-15.0.1-cp313-cp313-macosx_11_0_arm64.whl">websockets</a>
-
-Здесь находятся все библиотеки, необходимые для работы. Так, установив их, можно работать оффлайн.
+Выполните команду
 
 ```bash
 pip install -r requirements.txt
 ```
 
-На самом деле при наличии сети достаточно выполнить команду:
+:::
+
+::: details Настройка для Windows
+В файл `requirements.txt` поместите следующее содержимое:
+
+```text
+./src/packages-win/annotated_types-0.7.0-py3-none-any.whl
+./src/packages-win/anyio-4.9.0-py3-none-any.whl
+./src/packages-win/bcrypt-4.3.0-cp39-abi3-win_amd64.whl
+./src/packages-win/certifi-2025.4.26-py3-none-any.whl
+./src/packages-win/cffi-1.17.1-cp310-cp310-win_amd64.whl
+./src/packages-win/click-8.2.1-py3-none-any.whl
+./src/packages-win/cryptography-45.0.4-cp37-abi3-win_amd64.whl
+./src/packages-win/ecdsa-0.19.1-py2.py3-none-any.whl
+./src/packages-win/exceptiongroup-1.3.0-py3-none-any.whl
+./src/packages-win/fastapi-0.115.12-py3-none-any.whl
+./src/packages-win/h11-0.16.0-py3-none-any.whl
+./src/packages-win/httpcore-1.0.9-py3-none-any.whl
+./src/packages-win/httptools-0.6.4-cp310-cp310-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+./src/packages-win/httpx-0.28.1-py3-none-any.whl
+./src/packages-win/idna-3.10-py3-none-any.whl
+./src/packages-win/iniconfig-2.1.0-py3-none-any.whl
+./src/packages-win/packaging-25.0-py3-none-any.whl
+./src/packages-win/pluggy-1.6.0-py3-none-any.whl
+./src/packages-win/psycopg_binary-3.2.9-cp310-cp310-win_amd64.whl
+./src/packages-win/psycopg_pool-3.2.6-py3-none-any.whl
+./src/packages-win/psycopg-3.2.9-py3-none-any.whl
+./src/packages-win/pyasn1-0.6.1-py3-none-any.whl
+./src/packages-win/pycparser-2.22-py3-none-any.whl
+./src/packages-win/pydantic-2.11.5-py3-none-any.whl
+./src/packages-win/pydantic_core-2.33.2-cp310-cp310-win_amd64.whl
+./src/packages-win/pygments-2.19.1-py3-none-any.whl
+./src/packages-win/pytest-8.4.0-py3-none-any.whl
+./src/packages-win/python_dotenv-1.1.0-py3-none-any.whl
+./src/packages-win/python_jose-3.5.0-py2.py3-none-any.whl
+./src/packages-win/PyYAML-6.0.2-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+./src/packages-win/rsa-4.9.1-py3-none-any.whl
+./src/packages-win/six-1.17.0-py2.py3-none-any.whl
+./src/packages-win/sniffio-1.3.1-py3-none-any.whl
+./src/packages-win/starlette-0.46.2-py3-none-any.whl
+./src/packages-win/tomli-2.2.1-py3-none-any.whl
+./src/packages-win/typing_extensions-4.14.0-py3-none-any.whl
+./src/packages-win/typing_inspection-0.4.1-py3-none-any.whl
+./src/packages-win/uvicorn-0.34.3-py3-none-any.whl
+./src/packages-win/uvloop-0.21.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+./src/packages-win/watchfiles-1.0.5-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+./src/packages-win/websockets-15.0.1-cp310-cp310-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+```
+
+Распакуйте содержимое [архива](/databases/packages-win.zip) в папку `src/packages-win`.
+
+Выполните команду
+
+```bash
+pip install -r requirements.txt
+```
+
+:::
+
+::: details Онлайн настройка
+Выполните команду
 
 ```bash
 pip install \
   fastapi \
   psycopg \
+  psycopg-binary \
   psycopg_pool \
   python-dotenv \
   pydantic \
@@ -289,7 +315,9 @@ pip install \
   "uvicorn[standard]"
 ```
 
-Большинство указанных библиотек имеют собственные зависимости, поэтому при в каталоге `src/packages` вы увидели десятки `.whl`-файлов. Это нормально — Python-пакеты часто собираются из множества взаимосвязанных компонентов.
+:::
+
+Большинство указанных библиотек имеют собственные зависимости, поэтому при в каталоге `src/packages-*` вы увидели десятки `.whl`-файлов. Это нормально — Python-пакеты часто собираются из множества взаимосвязанных компонентов.
 
 ### Основные зависимости проекта и их назначение:
 
