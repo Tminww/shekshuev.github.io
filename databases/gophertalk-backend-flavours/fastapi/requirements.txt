@@ -1,0 +1,13 @@
+fastapi
+psycopg
+psycopg-binary
+psycopg_pool
+python-dotenv
+pydantic
+python-jose[cryptography]
+bcrypt
+httpx
+pytest
+uvicorn[standard]
+pydantic
+regex

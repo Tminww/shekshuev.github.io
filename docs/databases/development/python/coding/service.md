@@ -108,7 +108,10 @@ def register(dto: dict) -> dict:
         "last_name": dto["last_name"],
     }
 
-    user = create_user(user_data)
+    try:
+        user = create_user(user_data)
+    except errors.UniqueViolation:
+        raise ValueError("User already exists")
     return generate_token_pair(user["id"])
 
 

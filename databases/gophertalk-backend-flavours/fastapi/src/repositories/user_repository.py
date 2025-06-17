@@ -51,7 +51,7 @@ def get_user_by_id(user_id: int) -> dict:
         
 def get_user_by_username(user_name: str) -> dict:
     query = """
-        SELECT user_name, password_hash, status
+        SELECT id, user_name, password_hash, status
         FROM users
         WHERE user_name = %s AND deleted_at IS NULL;
     """

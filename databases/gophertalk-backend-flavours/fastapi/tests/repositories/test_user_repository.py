@@ -139,6 +139,7 @@ def test_get_user_by_id_not_found(mock_conn):
 
 def test_get_user_by_username_success(mock_conn):
     expected = {
+        "id": 1,
         "user_name": "john",
         "password_hash": "password",
         "status": 1,

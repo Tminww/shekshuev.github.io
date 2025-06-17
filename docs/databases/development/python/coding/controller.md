@@ -67,37 +67,35 @@ flowchart TD
 
 ## Разаботка контроллера авторизации
 
-Контроллер авторизации отвечает за обработку запросов пользователей, связанных с входом в систему (`Login`) и регистрацией новых пользователей (`Register`).
+Контроллер авторизации отвечает за обработку запросов пользователей, связанных с входом в систему (`login`) и регистрацией новых пользователей (`register`).
 На этом этапе контроллер принимает HTTP-запросы, проводит валидацию входных данных и делегирует бизнес-логику в сервис аутентификации.
 
 Этот подход помогает соблюдать разделение ответственности между уровнями приложения: контроллеры отвечают только за прием и возврат данных, а логика обработки сосредоточена в сервисах.
 
-В папке `src` создайте папку `controllers`, а в ней файл `authController.js`, и поместите туда следующий код:
+В папке `src` создайте папку `controllers`, а в ней файл `auth_controller.py`, и поместите туда следующий код:
 
 ```python
-import { AuthService } from "../services/authService.js";
+from fastapi import APIRouter, HTTPException, status
+from dto.auth_dto import LoginDTO, RegisterDTO
+from services.auth_service import login as login_service, register as register_service
 
-export class AuthController {
-  static async login(req, res) {
-    try {
-      const dto = req.body;
-      const tokens = await AuthService.login(dto);
-      res.status(200).json(tokens);
-    } catch (err) {
-      res.status(401).json({ message: err.message });
-    }
-  }
+router = APIRouter(prefix="/auth", tags=["Auth"])
 
-  static async register(req, res) {
-    try {
-      const dto = req.body;
-      const tokens = await AuthService.register(dto);
-      res.status(201).json(tokens);
-    } catch (err) {
-      res.status(401).json({ message: err.message });
-    }
-  }
-}
+@router.post("/login")
+def login(dto: LoginDTO):
+    try:
+        tokens = login_service(dto.dict())
+        return tokens
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))
+
+@router.post("/register", status_code=201)
+def register(dto: RegisterDTO):
+    try:
+        tokens = register_service(dto.dict())
+        return tokens
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))
 ```
 
 **`login(req, res)`**
@@ -108,7 +106,7 @@ export class AuthController {
 
 - При успешной аутентификации возвращает пользователю пару токенов (`access_token` и `refresh_token`).
 
-- В случае ошибки возвращает соответствующий HTTP-статус и сообщение об ошибке.
+- В случае ошибки возвращает соответствующий `HTTPException` с кодом `401 Unauthorized`.
 
 **`register(req, res)`**
 
@@ -118,261 +116,179 @@ export class AuthController {
 
 - При успешной регистрации возвращает пару токенов для нового пользователя.
 
-- Если регистрация не удалась, отправляет сообщение об ошибке и соответствующий HTTP-статус.
+- В случае ошибки выбрасывает исключение `HTTPException` с кодом `401 Unauthorized`.
 
-Сейчас входные данные никаки не валидируются. Чтобы это исправить, необходимо добавить валидаторы - специальные объекты, которые будут следить за правильностью тех данных, которые приходят на сервер.
+Сейчас входные валидируются через валидационные схемы — специальные модели на базе `pydantic`, которые автоматически проверяют структуру и корректность данных, поступающих на сервер (`LoginDTO` и `RegisterDTO`).
 
-Создайте в каталоге `src` папку `validators`, а в ней файл `authValidators.js`. Поместите в него следующий код:
+::: details DTO и dict
+DTO (Data Transfer Object) — это простой объект, который описывает структуру данных, передаваемых от клиента к серверу (или между слоями приложения). Он не содержит бизнес-логики, а используется исключительно для описания формы входных данных и их валидации.
+
+В FastAPI роль DTO выполняют `pydantic`-модели. Они:
+
+- автоматически валидируют данные запроса;
+- гарантируют типобезопасность;
+- формируют документацию OpenAPI;
+- позволяют удобно описывать ограничения (например, длина строки, формат email и т.д.).
+
+В контроллере мы вызываем `dto.dict()`, чтобы передать данные в сервис в виде словаря. Это сделано осознанно: на этапе написания сервисов DTO ещё не существовали — в архитектуре мы придерживаемся принципа, при котором контроллеры отвечают за приём и валидацию данных, а сервисы работают уже с готовыми, проверенными структурами.
+Такой подход упрощает разработку: сначала создаются репозитории и сервисы, не завязанные на конкретные фреймворки, а DTO добавляются позже, уже на уровне FastAPI-контроллеров.
+
+Если хочется — можно самостоятельно попробовать переписать сервисы так, чтобы они принимали DTO-объекты вместо словарей. FastAPI и Pydantic это позволяют, и такой подход делает код строже типизированным.
+:::
+
+Создайте в папке `src/dto` (DTO - data transfer object) файл `auth_dto.py` и добавьте в него следующий код:
 
 ```python
-import { z } from "zod";
+from pydantic import BaseModel, Field, validator
+import regex as re
 
-const usernameSchema = z
-  .string()
-  .min(5)
-  .max(30)
-  .regex(/^[a-zA-Z0-9_]+$/, "Must be alphanumeric or underscore")
-  .regex(/^[^0-9]/, "Must start with a letter");
+def username_validator(value: str) -> str:
+    if not re.match(r"^[a-zA-Z0-9_]{5,30}$", value):
+        raise ValueError("Must be alphanumeric or underscore (5-30 characters)")
+    if re.match(r"^[0-9]", value):
+        raise ValueError("Must start with a letter")
+    return value
 
-const passwordSchema = z
-  .string()
-  .min(5)
-  .max(30)
-  .regex(/^(?=.*[a-zA-Z])(?=.*\d)(?=.*[@$!%*?&])/, "Must contain letter, number and special character");
+def password_validator(value: str) -> str:
+    if not re.match(r"^(?=.*[a-zA-Z])(?=.*\d)(?=.*[@$!%*?&]).{5,30}$", value):
+        raise ValueError("Must contain letter, number and special character (5-30 characters)")
+    return value
 
-export const loginValidator = z.object({
-  user_name: usernameSchema,
-  password: passwordSchema,
-});
+def name_validator(value: str) -> str:
+    if not re.match(r"^[\p{L}]+$", value, re.UNICODE):
+        raise ValueError("Only letters allowed")
+    return value
 
-export const registerValidator = z
-  .object({
-    user_name: usernameSchema,
-    password: passwordSchema,
-    password_confirm: passwordSchema,
-    first_name: z
-      .string()
-      .min(1)
-      .max(30)
-      .regex(/^[\p{L}]+$/u, "Only letters allowed"),
-    last_name: z
-      .string()
-      .min(1)
-      .max(30)
-      .regex(/^[\p{L}]+$/u, "Only letters allowed"),
-  })
-  .refine(data => data.password === data.password_confirm, {
-    message: "Passwords must match",
-    path: ["password_confirm"],
-  });
+class LoginDTO(BaseModel):
+    user_name: str = Field(..., min_length=5, max_length=30)
+    password: str = Field(..., min_length=5, max_length=30)
+
+    _validate_username = validator("user_name", allow_reuse=True)(username_validator)
+    _validate_password = validator("password", allow_reuse=True)(password_validator)
+
+class RegisterDTO(LoginDTO):
+    password_confirm: str = Field(..., min_length=5, max_length=30)
+    first_name: str = Field(..., min_length=1, max_length=30)
+    last_name: str = Field(..., min_length=1, max_length=30)
+
+    _validate_password_confirm = validator("password_confirm", allow_reuse=True)(password_validator)
+    _validate_first_name = validator("first_name", allow_reuse=True)(name_validator)
+    _validate_last_name = validator("last_name", allow_reuse=True)(name_validator)
+
+    @validator("password_confirm")
+    def passwords_match(cls, v, values):
+        if "password" in values and v != values["password"]:
+            raise ValueError("Passwords must match")
+        return v
 ```
 
-Этот файл содержит схемы валидации для тела запроса (`req.body`) при авторизации пользователей.
+Этот файл содержит схемы валидации для тела запроса (`request.body`) при авторизации пользователей.
 
-Всё построено на библиотеке `zod` — это современный и мощный инструмент для валидации данных в JavaScript и TypeScript.
+Всё построено на библиотеке `pydantic` — это современный и мощный инструмент для декларативной валидации данных в Python и FastAPI.
 
 ```python
-const usernameSchema = z
-  .string()
-  .min(5)
-  .max(30)
-  .regex(/^[a-zA-Z0-9_]+$/, "Must be alphanumeric or underscore")
-  .regex(/^[^0-9]/, "Must start with a letter");
+def username_validator(value: str) -> str:
+    if not re.match(r"^[a-zA-Z0-9_]{5,30}$", value):
+        raise ValueError("Must be alphanumeric or underscore (5–30 characters)")
+    if re.match(r"^[0-9]", value):
+        raise ValueError("Must start with a letter")
+    return value
 ```
 
 - Строка длиной от `5` до `30` символов.
-
 - Только буквы, цифры и подчёркивание (`_`).
-
 - Первая буква должна быть символом, не цифрой.
 
 ```python
-const passwordSchema = z
-  .string()
-  .min(5)
-  .max(30)
-  .regex(/^(?=.*[a-zA-Z])(?=.*\d)(?=.*[@$!%*?&])/, "Must contain letter, number and special character");
+def password_validator(value: str) -> str:
+    if not re.match(r"^(?=.*[a-zA-Z])(?=.*\d)(?=.*[@$!%*?&]).{5,30}$", value):
+        raise ValueError("Must contain letter, number and special character (5–30 characters)")
+    return value
 ```
 
 - Строка длиной от `5` до `30` символов.
-
 - Обязательно должна содержать:
-
   - хотя бы одну букву,
-
   - хотя бы одну цифру,
-
   - хотя бы один спецсимвол (`@`, `$`, `!`, `%`, `*`, `?`, `&`).
 
 ```python
-export const loginValidator = z.object({
-  user_name: usernameSchema,
-  password: passwordSchema,
-});
+class LoginDTO(BaseModel):
+    user_name: str = Field(..., min_length=5, max_length=30)
+    password: str = Field(..., min_length=5, max_length=30)
+
+    _validate_username = validator("user_name", allow_reuse=True)(username_validator)
+    _validate_password = validator("password", allow_reuse=True)(password_validator)
 ```
 
-- Проверяет `user_name` и `password` при логине.
+Проверяет `user_name` и `password` при логине.
 
 ```python
-export const registerValidator = z
-  .object({
-    user_name: usernameSchema,
-    password: passwordSchema,
-    password_confirm: passwordSchema,
-    first_name: z
-      .string()
-      .min(1)
-      .max(30)
-      .regex(/^[\p{L}]+$/u, "Only letters allowed"),
-    last_name: z
-      .string()
-      .min(1)
-      .max(30)
-      .regex(/^[\p{L}]+$/u, "Only letters allowed"),
-  })
-  .refine(data => data.password === data.password_confirm, {
-    message: "Passwords must match",
-    path: ["password_confirm"],
-  });
+class RegisterDTO(LoginDTO):
+    password_confirm: str = Field(..., min_length=5, max_length=30)
+    first_name: str = Field(..., min_length=1, max_length=30)
+    last_name: str = Field(..., min_length=1, max_length=30)
+
+    _validate_password_confirm = validator("password_confirm", allow_reuse=True)(password_validator)
+    _validate_first_name = validator("first_name", allow_reuse=True)(name_validator)
+    _validate_last_name = validator("last_name", allow_reuse=True)(name_validator)
+
+    @validator("password_confirm")
+    def passwords_match(cls, v, values):
+        if "password" in values and v != values["password"]:
+            raise ValueError("Passwords must match")
+        return v
 ```
 
 Проверяет:
 
-- `user_name`, `password`, `password_confirm` (по тем же схемам).
+- `user_name`, `password`, `password_confirm` (по тем же схемам, что и при логине).
+- `first_name` и `last_name` — строки длиной от `1` до `30` символов, только буквенные символы, включая буквы любых алфавитов (`\p{L}`).
 
-- `first_name` и `last_name` — строки длиной от 1 до 30 символов, только буквы, поддерживает любые алфавиты (`\p{L}` — буквенные символы Unicode).
+Дополнительная проверка реализована через `@validator("password_confirm")`:
 
-Дополнительная проверка через `.refine()`:
+- `password` и `password_confirm` должны совпадать, иначе будет выброшена ошибка "Passwords must match".
 
-- `password` и `password_confirm` должны совпадать, иначе выдаётся ошибка "Passwords must match".
-
-Этот валидатор будет запускаться через middleware. В папке `src/middleware` создайте файл `validate.js` и поместите в него код:
-
-```python
-export const validate = schema => (req, res, next) => {
-  try {
-    schema.parse(req.body);
-    next();
-  } catch (err) {
-    return res.status(422).json({
-      errors: err.errors.map(e => ({
-        path: e.path.join("."),
-        message: e.message,
-      })),
-    });
-  }
-};
-```
-
-Мы добавили второй middleware. Посмотрим, как теперь будет обрабатываться входящий HTTP-запрос:
-
-```mermaid
-flowchart TD
-  A[Клиент отправляет запрос] --> B{Есть Authorization заголовок?}
-  B -- Нет --> C[Ответ 401 Unauthorized]
-  B -- Да --> D[Проверка токена]
-  D -- Некорректный токен --> C
-  D -- Валидный токен --> E{Middleware: Проверка авторизации}
-
-  E -- requestAuth --> F{Middleware: Валидация тела запроса}
-
-  F -- Успешная валидация --> G[Передача запроса в контроллер]
-  F -- Ошибка валидации --> H[Ответ 422 Unprocessable Entity]
-
-  E -- requestAuthSameId --> I{ID в URL = ID в токене?}
-
-  I -- Нет --> C
-  I -- Да --> F
-```
-
-Если же для запроса не требуется авторизация (например при авторизации или регистрации), то схема обработки запроса будет выглядеть так:
-
-```mermaid
-flowchart TD
-  A[Клиент отправляет запрос] --> B{Middleware: Валидация тела запроса}
-
-  B -- Ошибка валидации --> C[Ответ 422 Unprocessable Entity]
-  B -- Успешная валидация --> D[Передача запроса в контроллер]
-```
-
-Как же все это соединить? Как сервер express поймет, что клиент хочет авторизоваться и нужно провалидировать входные данные? В прошлом уроке в файле `app.js` мы указали наш первый эндпоинт для проверки соединения с БД:
+Теперь нужно обновить `app.py`, чтобы FastAPI знал про `auth_controller`. Добавьте две строки, выделенные внизу:
 
 ```python
-...
-app.get("/api/health-check", async (req, res) => {
-  try {
-    await pool.query("SELECT 1");
-    res.status(200).send("OK");
-  } catch (err) {
-    res.status(500).send("DB connection failed");
-  }
-});
-...
-```
+import os
 
-Можно пойти тем же путем и в `app.js` прописать остальные маршруты. Однако, если приложение разрастется, будет бардак. ПОэтому хорошей практикой считается выносить определение маршрутов в отдельный файл, что мы и сделаем.
+from dotenv import load_dotenv
+from fastapi import FastAPI, Response, status
+from routes.auth_routes import router as auth_router # [!code ++]
 
-В каталоге `src` создайте папку `routes`, а в ней файл `authRoutes.js`, и поместите туда следующий код:
+load_dotenv()
 
-```python
-import express from "express";
-import { AuthController } from "../controllers/authController.js";
-import { validate } from "../middleware/validate.js";
-import { loginValidator, registerValidator } from "../validators/authValidators.js";
+from config.db import pool
 
-const router = express.Router();
+app = FastAPI()
+app.include_router(auth_router, prefix="/api") # [!code ++]
 
-router.post("/login", validate(loginValidator), AuthController.login);
-router.post("/register", validate(registerValidator), AuthController.register);
+port = int(os.getenv("PORT", 3000))
 
-export default router;
-```
 
-Далее необходимо обновить `app.js`, добавив две строки (выделены зеленым цветом):
+@app.get("/api/health-check")
+def health_check():
+    try:
+        with pool.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT 1")
+                cur.fetchone()
+        return Response(content="OK", status_code=status.HTTP_200_OK)
+    except Exception:
+        return Response(content="DB connection failed", status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-```python
-import dotenv from "dotenv";
-import express from "express";
-import { pool } from "./config/db.js";
-import authRoutes from "./routes/authRoutes.js"; // [!code ++]
 
-dotenv.config();
-
-const app = express();
-const PORT = process.env.PORT || 3000;
-
-app.use(express.json());
-
-app.use("/api/auth", authRoutes); // [!code ++]
-
-app.get("/api/health-check", async (req, res) => {
-  try {
-    await pool.query("SELECT 1");
-    res.status(200).send("OK");
-  } catch (err) {
-    res.status(500).send("DB connection failed");
-  }
-});
-
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
-});
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("app:app", host="0.0.0.0", port=port, reload=True)
 ```
 
 После этого нужно запустить сервер. Если все сделано правильно, он запустится без ошибок:
 
 ```bash
-npm run dev
-
-> gophertalk-backend-express@0.1.0 dev
-> nodemon src/app.js
-
-[nodemon] 3.1.9
-[nodemon] to restart at any time, enter `rs`
-[nodemon] watching path(s): *.*
-[nodemon] watching extensions: js,mjs,cjs,json
-[nodemon] starting `node src/app.js`
-Server is running on port 3000
+python3 app.py
 ```
 
 Чтобы убедится, что все работает, давайте попробуем зарегистрировать пользователя и затем авторизоваться.
@@ -381,7 +297,7 @@ Server is running on port 3000
 
 В Postman откройте запрос `register` в каталоге `auth`. Для начала можно проверить валидацию. Давайте удалим поле `first_name` и добавим в поле `last_name` цифры.
 
-![Невалидный запрос на регистрацию](../../../../assets/databases/postman-incorrect-register-request.png)
+![Невалидный запрос на регистрацию](../../../../assets/databases/postman-incorrect-register-request-fastapi.png)
 
 Если же мы отправим корректный запрос, то в ответ получим пару `access_token` и `refresh_token`.
 
@@ -402,93 +318,78 @@ Server is running on port 3000
 
 ## Тестирование контроллера авторизации
 
-В каталоге `__tests__` создайте каталог `controllers`, а в нем файл `authController.test.js`, и поместите туда код:
+В каталоге `tests` создайте каталог `controllers`, а в нем файл `test_auth_Controller.py`, и поместите туда код:
 
 ::: details Unit тесты authController
 
 ```python
-import { expect, jest } from "@jest/globals";
-import express from "express";
-import request from "supertest";
-import { AuthController } from "../../src/controllers/authController.js";
-import { AuthService } from "../../src/services/authService.js";
+import pytest
+from fastapi.testclient import TestClient
+from unittest.mock import patch
+from app import app
 
-const app = express();
-app.use(express.json());
-app.post("/api/auth/login", AuthController.login);
-app.post("/api/auth/register", AuthController.register);
+client = TestClient(app)
 
-describe("AuthController", () => {
-  afterEach(() => {
-    jest.clearAllMocks();
-  });
 
-  describe("POST /api/auth/login", () => {
-    it("should successfully login", async () => {
-      const tokens = { access_token: "access", refresh_token: "refresh" };
-      const loginDTO = { user_name: "test_user", password: "test123!" };
+@pytest.fixture
+def tokens():
+    return {"access_token": "access", "refresh_token": "refresh"}
 
-      jest.spyOn(AuthService, "login").mockResolvedValueOnce(tokens);
 
-      const res = await request(app).post("/api/auth/login").send(loginDTO);
+def test_login_success(tokens):
+    login_data = {"user_name": "test_user", "password": "test123!"}
 
-      expect(res.status).toBe(200);
-      expect(res.body).toEqual(tokens);
-      expect(AuthService.login).toHaveBeenCalledWith(loginDTO);
-    });
+    with patch("controllers.auth_controller.login_service", return_value=tokens) as mock_login:
+        response = client.post("/api/auth/login", json=login_data)
 
-    it("should return 401 if login fails", async () => {
-      const loginDTO = { user_name: "test_user", password: "wrongpassword" };
+    assert response.status_code == 200
+    assert response.json() == tokens
+    mock_login.assert_called_once_with(login_data)
 
-      jest.spyOn(AuthService, "login").mockRejectedValueOnce(new Error("Wrong password"));
 
-      const res = await request(app).post("/api/auth/login").send(loginDTO);
+def test_login_failure():
+    login_data = {"user_name": "test_user", "password": "invalid123!"}
 
-      expect(res.status).toBe(401);
-      expect(res.body.message).toBe("Wrong password");
-      expect(AuthService.login).toHaveBeenCalledWith(loginDTO);
-    });
-  });
+    with patch("controllers.auth_controller.login_service", side_effect=ValueError("Wrong password")) as mock_login:
+        response = client.post("/api/auth/login", json=login_data)
 
-  describe("POST /api/auth/register", () => {
-    it("should successfully register", async () => {
-      const tokens = { access_token: "access", refresh_token: "refresh" };
-      const registerDTO = {
-        user_name: "test_user",
-        password: "test123!",
-        password_confirm: "test123!",
-        first_name: "John",
-        last_name: "Doe",
-      };
+    assert response.status_code == 401
+    assert response.json() == {"detail": "Wrong password"}
+    mock_login.assert_called_once_with(login_data)
 
-      jest.spyOn(AuthService, "register").mockResolvedValueOnce(tokens);
 
-      const res = await request(app).post("/api/auth/register").send(registerDTO);
+def test_register_success(tokens):
+    register_data = {
+        "user_name": "test_user",
+        "password": "test123!",
+        "password_confirm": "test123!",
+        "first_name": "John",
+        "last_name": "Doe",
+    }
 
-      expect(res.status).toBe(201);
-      expect(res.body).toEqual(tokens);
-      expect(AuthService.register).toHaveBeenCalledWith(registerDTO);
-    });
+    with patch("controllers.auth_controller.register_service", return_value=tokens) as mock_register:
+        response = client.post("/api/auth/register", json=register_data)
 
-    it("should return 401 if registration fails", async () => {
-      const registerDTO = {
-        user_name: "test_user",
-        password: "test123!",
-        password_confirm: "test123!",
-        first_name: "John",
-        last_name: "Doe",
-      };
+    assert response.status_code == 201
+    assert response.json() == tokens
+    mock_register.assert_called_once_with(register_data)
 
-      jest.spyOn(AuthService, "register").mockRejectedValueOnce(new Error("User already exists"));
 
-      const res = await request(app).post("/api/auth/register").send(registerDTO);
+def test_register_failure():
+    register_data = {
+        "user_name": "test_user",
+        "password": "test123!",
+        "password_confirm": "test123!",
+        "first_name": "John",
+        "last_name": "Doe",
+    }
 
-      expect(res.status).toBe(401);
-      expect(res.body.message).toBe("User already exists");
-      expect(AuthService.register).toHaveBeenCalledWith(registerDTO);
-    });
-  });
-});
+    with patch("controllers.auth_controller.register_service", side_effect=ValueError("User already exists")) as mock_register:
+        response = client.post("/api/auth/register", json=register_data)
+
+    assert response.status_code == 401
+    assert response.json() == {"detail": "User already exists"}
+    mock_register.assert_called_once_with(register_data)
 ```
 
 :::
@@ -496,25 +397,65 @@ describe("AuthController", () => {
 Если все сделано правильно, тесты выполнятся успешно:
 
 ```bash
-npm run test
-
-> gophertalk-backend-express@0.1.0 test
-> node --experimental-vm-modules node_modules/jest/bin/jest.js
-
-(node:90459) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
-(Use `node --trace-warnings ...` to show where the warning was created)
- PASS  __tests__/services/authService.test.js
- PASS  __tests__/controllers/authController.test.js
- PASS  __tests__/services/userService.test.js
- PASS  __tests__/repositories/postRepository.test.js
- PASS  __tests__/repositories/userRepository.test.js
- PASS  __tests__/services/postService.test.js
-
-Test Suites: 6 passed, 6 total
-Tests:       58 passed, 58 total
-Snapshots:   0 total
-Time:        1.141 s
-Ran all test suites.
+tests/controllers/test_auth_controller.py::test_login_success PASSED                                              [  1%]
+tests/controllers/test_auth_controller.py::test_login_failure PASSED                                              [  3%]
+tests/controllers/test_auth_controller.py::test_register_success PASSED                                           [  5%]
+tests/controllers/test_auth_controller.py::test_register_failure PASSED                                           [  6%]
+tests/repositories/test_post_repository.py::test_create_post_success PASSED                                       [  8%]
+tests/repositories/test_post_repository.py::test_create_post_error PASSED                                         [ 10%]
+tests/repositories/test_post_repository.py::test_get_all_posts_success PASSED                                     [ 12%]
+tests/repositories/test_post_repository.py::test_get_all_posts_error PASSED                                       [ 13%]
+tests/repositories/test_post_repository.py::test_get_post_by_id_success PASSED                                    [ 15%]
+tests/repositories/test_post_repository.py::test_get_post_by_id_not_found PASSED                                  [ 17%]
+tests/repositories/test_post_repository.py::test_delete_post_success PASSED                                       [ 18%]
+tests/repositories/test_post_repository.py::test_delete_post_not_found PASSED                                     [ 20%]
+tests/repositories/test_post_repository.py::test_view_post_success PASSED                                         [ 22%]
+tests/repositories/test_post_repository.py::test_view_post_error_sql PASSED                                       [ 24%]
+tests/repositories/test_post_repository.py::test_view_post_already_viewed PASSED                                  [ 25%]
+tests/repositories/test_post_repository.py::test_like_post_success PASSED                                         [ 27%]
+tests/repositories/test_post_repository.py::test_like_post_error PASSED                                           [ 29%]
+tests/repositories/test_post_repository.py::test_like_post_already_liked PASSED                                   [ 31%]
+tests/repositories/test_post_repository.py::test_dislike_post_success PASSED                                      [ 32%]
+tests/repositories/test_post_repository.py::test_dislike_post_error PASSED                                        [ 34%]
+tests/repositories/test_post_repository.py::test_dislike_post_not_found PASSED                                    [ 36%]
+tests/repositories/test_user_repository.py::test_create_user_success PASSED                                       [ 37%]
+tests/repositories/test_user_repository.py::test_create_user_error PASSED                                         [ 39%]
+tests/repositories/test_user_repository.py::test_get_all_users_success PASSED                                     [ 41%]
+tests/repositories/test_user_repository.py::test_get_all_users_error PASSED                                       [ 43%]
+tests/repositories/test_user_repository.py::test_get_user_by_id_success PASSED                                    [ 44%]
+tests/repositories/test_user_repository.py::test_get_user_by_id_not_found PASSED                                  [ 46%]
+tests/repositories/test_user_repository.py::test_get_user_by_username_success PASSED                              [ 48%]
+tests/repositories/test_user_repository.py::test_get_user_by_username_not_found PASSED                            [ 50%]
+tests/repositories/test_user_repository.py::test_update_user_success PASSED                                       [ 51%]
+tests/repositories/test_user_repository.py::test_update_user_no_fields PASSED                                     [ 53%]
+tests/repositories/test_user_repository.py::test_update_user_not_found PASSED                                     [ 55%]
+tests/repositories/test_user_repository.py::test_delete_user_success PASSED                                       [ 56%]
+tests/repositories/test_user_repository.py::test_delete_user_not_found PASSED                                     [ 58%]
+tests/services/test_auth_service.py::test_login_success PASSED                                                    [ 60%]
+tests/services/test_auth_service.py::test_login_user_not_found PASSED                                             [ 62%]
+tests/services/test_auth_service.py::test_login_wrong_password PASSED                                             [ 63%]
+tests/services/test_auth_service.py::test_register_success PASSED                                                 [ 65%]
+tests/services/test_post_service.py::test_get_all_posts_success PASSED                                            [ 67%]
+tests/services/test_post_service.py::test_get_all_posts_error PASSED                                              [ 68%]
+tests/services/test_post_service.py::test_create_post_success PASSED                                              [ 70%]
+tests/services/test_post_service.py::test_create_post_error PASSED                                                [ 72%]
+tests/services/test_post_service.py::test_delete_post_success PASSED                                              [ 74%]
+tests/services/test_post_service.py::test_delete_post_error PASSED                                                [ 75%]
+tests/services/test_post_service.py::test_view_post_success PASSED                                                [ 77%]
+tests/services/test_post_service.py::test_view_post_error PASSED                                                  [ 79%]
+tests/services/test_post_service.py::test_like_post_success PASSED                                                [ 81%]
+tests/services/test_post_service.py::test_like_post_error PASSED                                                  [ 82%]
+tests/services/test_post_service.py::test_dislike_post_success PASSED                                             [ 84%]
+tests/services/test_post_service.py::test_dislike_post_error PASSED                                               [ 86%]
+tests/services/test_user_service.py::test_get_all_users_success PASSED                                            [ 87%]
+tests/services/test_user_service.py::test_get_all_users_failure PASSED                                            [ 89%]
+tests/services/test_user_service.py::test_get_user_by_id_success PASSED                                           [ 91%]
+tests/services/test_user_service.py::test_get_user_by_id_failure PASSED                                           [ 93%]
+tests/services/test_user_service.py::test_update_user_success PASSED                                              [ 94%]
+tests/services/test_user_service.py::test_update_user_failure PASSED                                              [ 96%]
+tests/services/test_user_service.py::test_delete_user_success PASSED                                              [ 98%]
+tests/services/test_user_service.py::test_delete_user_failure PASSED                                              [100%]
+====================================================== 58 passed =======================================================
 ```
 
 ## Разработка контроллера пользователей

@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 import bcrypt
 from jose import jwt
 from repositories.user_repository import create_user, get_user_by_username
+from psycopg import errors
 
 ACCESS_SECRET = os.getenv("ACCESS_TOKEN_SECRET", "dev_secret")
 REFRESH_SECRET = os.getenv("REFRESH_TOKEN_SECRET", "dev_refresh")
@@ -32,7 +33,10 @@ def register(dto: dict) -> dict:
         "last_name": dto["last_name"],
     }
 
-    user = create_user(user_data)
+    try:
+        user = create_user(user_data)
+    except errors.UniqueViolation:
+        raise ValueError("User already exists")
     return generate_token_pair(user["id"])
 
 

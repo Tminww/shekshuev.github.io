@@ -163,7 +163,7 @@ gophertalk-backend-fastapi/
 │   ├── packages/          # скачанные пакеты с зависимостями
 │   ├── config/            # Конфигурация проекта
 │   ├── utils/             # Вспомогательные функции
-│   ├── validators/        # Валидаторы входных данных
+│   ├── dto/               # Data transfer objects и pydantic модели
 │   └── app.py             # Инициализация приложения
 ├── __tests__              # unit тесты
 │   ├── controllers/
@@ -183,164 +183,35 @@ python3 -m venv .venv
 source .venv/bin/activate
 ```
 
-::: details Настройка для Linux
-В файл `requirements.txt` поместите следующее содержимое:
+Поместите в файл `requirements.txt` содержимое:
 
 ```text
-./src/packages-linux/annotated_types-0.7.0-py3-none-any.whl
-./src/packages-linux/anyio-4.9.0-py3-none-any.whl
-./src/packages-linux/bcrypt-4.3.0-cp39-abi3-manylinux_2_34_x86_64.whl
-./src/packages-linux/certifi-2025.4.26-py3-none-any.whl
-./src/packages-linux/cffi-1.17.1-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
-./src/packages-linux/click-8.2.1-py3-none-any.whl
-./src/packages-linux/cryptography-45.0.4-cp37-abi3-manylinux_2_34_x86_64.whl
-./src/packages-linux/ecdsa-0.19.1-py2.py3-none-any.whl
-./src/packages-linux/exceptiongroup-1.3.0-py3-none-any.whl
-./src/packages-linux/fastapi-0.115.12-py3-none-any.whl
-./src/packages-linux/h11-0.16.0-py3-none-any.whl
-./src/packages-linux/httpcore-1.0.9-py3-none-any.whl
-./src/packages-linux/httptools-0.6.4-cp310-cp310-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl
-./src/packages-linux/httpx-0.28.1-py3-none-any.whl
-./src/packages-linux/idna-3.10-py3-none-any.whl
-./src/packages-linux/iniconfig-2.1.0-py3-none-any.whl
-./src/packages-linux/packaging-25.0-py3-none-any.whl
-./src/packages-linux/pluggy-1.6.0-py3-none-any.whl
-./src/packages-linux/psycopg_binary-3.2.9-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
-./src/packages-linux/psycopg_pool-3.2.6-py3-none-any.whl
-./src/packages-linux/psycopg-3.2.9-py3-none-any.whl
-./src/packages-linux/pyasn1-0.6.1-py3-none-any.whl
-./src/packages-linux/pycparser-2.22-py3-none-any.whl
-./src/packages-linux/pydantic-2.11.5-py3-none-any.whl
-./src/packages-linux/pydantic_core-2.33.2-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
-./src/packages-linux/pygments-2.19.1-py3-none-any.whl
-./src/packages-linux/pytest-8.4.0-py3-none-any.whl
-./src/packages-linux/python_dotenv-1.1.0-py3-none-any.whl
-./src/packages-linux/python_jose-3.5.0-py2.py3-none-any.whl
-./src/packages-linux/PyYAML-6.0.2-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
-./src/packages-linux/rsa-4.9.1-py3-none-any.whl
-./src/packages-linux/six-1.17.0-py2.py3-none-any.whl
-./src/packages-linux/sniffio-1.3.1-py3-none-any.whl
-./src/packages-linux/starlette-0.46.2-py3-none-any.whl
-./src/packages-linux/tomli-2.2.1-py3-none-any.whl
-./src/packages-linux/typing_extensions-4.14.0-py3-none-any.whl
-./src/packages-linux/typing_inspection-0.4.1-py3-none-any.whl
-./src/packages-linux/uvicorn-0.34.3-py3-none-any.whl
-./src/packages-linux/uvloop-0.21.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
-./src/packages-linux/watchfiles-1.0.5-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
-./src/packages-linux/websockets-15.0.1-cp310-cp310-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+fastapi
+psycopg
+psycopg-binary
+psycopg_pool
+python-dotenv
+pydantic
+python-jose[cryptography]
+bcrypt
+httpx
+pytest
+uvicorn[standard]
+pydantic
+regex
 ```
-
-Распакуйте содержимое [архива](/databases/packages-linux.zip) в папку `src/packages-linux`.
 
 Выполните команду
 
 ```bash
 pip install -r requirements.txt
 ```
-
-:::
-
-::: details Настройка для Windows
-В файл `requirements.txt` поместите следующее содержимое:
-
-```text
-./src/packages-win/annotated_types-0.7.0-py3-none-any.whl
-./src/packages-win/anyio-4.9.0-py3-none-any.whl
-./src/packages-win/bcrypt-4.3.0-cp39-abi3-win_amd64.whl
-./src/packages-win/certifi-2025.4.26-py3-none-any.whl
-./src/packages-win/cffi-1.17.1-cp310-cp310-win_amd64.whl
-./src/packages-win/click-8.2.1-py3-none-any.whl
-./src/packages-win/cryptography-45.0.4-cp37-abi3-win_amd64.whl
-./src/packages-win/ecdsa-0.19.1-py2.py3-none-any.whl
-./src/packages-win/exceptiongroup-1.3.0-py3-none-any.whl
-./src/packages-win/fastapi-0.115.12-py3-none-any.whl
-./src/packages-win/h11-0.16.0-py3-none-any.whl
-./src/packages-win/httpcore-1.0.9-py3-none-any.whl
-./src/packages-win/httptools-0.6.4-cp310-cp310-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl
-./src/packages-win/httpx-0.28.1-py3-none-any.whl
-./src/packages-win/idna-3.10-py3-none-any.whl
-./src/packages-win/iniconfig-2.1.0-py3-none-any.whl
-./src/packages-win/packaging-25.0-py3-none-any.whl
-./src/packages-win/pluggy-1.6.0-py3-none-any.whl
-./src/packages-win/psycopg_binary-3.2.9-cp310-cp310-win_amd64.whl
-./src/packages-win/psycopg_pool-3.2.6-py3-none-any.whl
-./src/packages-win/psycopg-3.2.9-py3-none-any.whl
-./src/packages-win/pyasn1-0.6.1-py3-none-any.whl
-./src/packages-win/pycparser-2.22-py3-none-any.whl
-./src/packages-win/pydantic-2.11.5-py3-none-any.whl
-./src/packages-win/pydantic_core-2.33.2-cp310-cp310-win_amd64.whl
-./src/packages-win/pygments-2.19.1-py3-none-any.whl
-./src/packages-win/pytest-8.4.0-py3-none-any.whl
-./src/packages-win/python_dotenv-1.1.0-py3-none-any.whl
-./src/packages-win/python_jose-3.5.0-py2.py3-none-any.whl
-./src/packages-win/PyYAML-6.0.2-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
-./src/packages-win/rsa-4.9.1-py3-none-any.whl
-./src/packages-win/six-1.17.0-py2.py3-none-any.whl
-./src/packages-win/sniffio-1.3.1-py3-none-any.whl
-./src/packages-win/starlette-0.46.2-py3-none-any.whl
-./src/packages-win/tomli-2.2.1-py3-none-any.whl
-./src/packages-win/typing_extensions-4.14.0-py3-none-any.whl
-./src/packages-win/typing_inspection-0.4.1-py3-none-any.whl
-./src/packages-win/uvicorn-0.34.3-py3-none-any.whl
-./src/packages-win/uvloop-0.21.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
-./src/packages-win/watchfiles-1.0.5-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
-./src/packages-win/websockets-15.0.1-cp310-cp310-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl
-```
-
-Распакуйте содержимое [архива](/databases/packages-win.zip) в папку `src/packages-win`.
-
-Выполните команду
-
-```bash
-pip install -r requirements.txt
-```
-
-:::
-
-::: details Онлайн настройка
-Выполните команду
-
-```bash
-pip install \
-  fastapi \
-  psycopg \
-  psycopg-binary \
-  psycopg_pool \
-  python-dotenv \
-  pydantic \
-  "python-jose[cryptography]" \
-  bcrypt \
-  httpx \
-  pytest \
-  "uvicorn[standard]"
-```
-
-:::
-
-Большинство указанных библиотек имеют собственные зависимости, поэтому при в каталоге `src/packages-*` вы увидели десятки `.whl`-файлов. Это нормально — Python-пакеты часто собираются из множества взаимосвязанных компонентов.
-
-### Основные зависимости проекта и их назначение:
-
-| Библиотека                  | Назначение                                                                   |
-| --------------------------- | ---------------------------------------------------------------------------- |
-| `fastapi`                   | Веб-фреймворк для создания API. Основан на `Starlette` и `Pydantic`.         |
-| `psycopg`                   | Драйвер для работы с PostgreSQL. Обеспечивает подключение и SQL-запросы.     |
-| `psycop_pool`               | Пул соединений для `psycopg`                                                 |
-| `python-dotenv`             | Загрузка переменных окружения из `.env` файлов в `os.environ`.               |
-| `pydantic`                  | Валидация и сериализация входных данных (используется FastAPI).              |
-| `python-jose[cryptography]` | Работа с JWT-токенами, включая `HS256`, `RS256`, `exp`, `iat`, и т.д.        |
-| `bcrypt`                    | Безопасное хеширование паролей.                                              |
-| `httpx`                     | HTTP-клиент, используется для тестирования и взаимодействия с API.           |
-| `pytest`                    | Фреймворк для написания и запуска тестов.                                    |
-| `uvicorn[standard]`         | ASGI-сервер для запуска FastAPI, `standard` включает поддержку перезагрузки. |
-
-Даже если вы явно указали 9–10 пакетов, итоговая установка может включать более 40 `.whl` файлов. Все они перечислены в `requirements.txt`, и при установке из него `pip` не обращается в интернет, что важно для изолированной среды.
 
 ## Установка переменных окружения
 
 Использование переменных окружения в проекте позволяет отделить конфиденциальные и изменяемые настройки (например, параметры подключения к базе данных) от основного кода приложения. Это важно по нескольким причинам.
 
-Во-первых, безопасность: данные вроде логина, пароля, адреса сервера и имени базы данных не должны попадать в систему контроля версий (например, Git), чтобы избежать утечек при публикации кода. Переменные окружения можно хранить в .env файле, который добавляется в .gitignore, или задавать напрямую в среде запуска (например, на сервере или в CI/CD).
+Во-первых, безопасность: данные вроде логина, пароля, адреса сервера и имени базы данных не должны попадать в систему контроля версий (например, Git), чтобы избежать утечек при публикации кода. Переменные окружения можно хранить в .env файле, который добавляется в `.gitignore`, или задавать напрямую в среде запуска (например, на сервере или в CI/CD).
 
 Во-вторых, гибкость и удобство настройки: приложение можно разворачивать в разных средах — локально, на тестовом сервере, в продакшене — без изменения исходного кода. Достаточно задать переменные окружения для каждой среды.
 
