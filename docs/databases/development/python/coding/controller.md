@@ -833,96 +833,91 @@ tests/services/test_user_service.py::test_delete_user_failure PASSED            
 
 ## Разработка контроллера постов
 
-Осталось разработать последний контроллер - `postController`.
+Осталось разработать последний контроллер - `post_controller`.
 
-В каталоге `src/controllers` создадим файл в `postController.js` и поместим в него следующий код:
+В каталоге `src/controllers` создадим файл в `post_controller.py` и поместим в него следующий код:
 
 ```python
-import { PostService } from "../services/postService.js";
+from fastapi import APIRouter, Depends, HTTPException, Query, Path, status
+from typing import List
 
-export class PostController {
-  static async getAllPosts(req, res) {
-    try {
-      const userId = req.user.sub;
-      const { limit = 10, offset = 0, reply_to_id = 0, owner_id = 0, search = "" } = req.query;
+from services.post_service import (
+    get_all_posts,
+    create_post,
+    delete_post,
+    view_post,
+    like_post,
+    dislike_post,
+)
+from dto.post_dto import PostCreateDTO, PostReadDTO, PostFilterDTO
+from dependencies.auth import get_current_user
 
-      const filterDTO = {
-        user_id: Number(userId),
-        limit: Number(limit),
-        offset: Number(offset),
-        reply_to_id: Number(reply_to_id),
-        owner_id: Number(owner_id),
-        search,
-      };
+router = APIRouter(prefix="/posts", tags=["Posts"])
 
-      const posts = await PostService.getAllPosts(filterDTO);
-      res.status(200).json(posts);
-    } catch (err) {
-      res.status(400).json({ message: err.message });
-    }
-  }
 
-  static async createPost(req, res) {
-    try {
-      const userId = req.user.sub;
-      const dto = req.body;
-      dto.user_id = Number(userId);
+@router.get("/", response_model=List[PostReadDTO])
+def get_all_posts_handler(
+    limit: int = Query(10, ge=1),
+    offset: int = Query(0, ge=0),
+    reply_to_id: int = Query(0),
+    owner_id: int = Query(0),
+    search: str = Query(""),
+    user=Depends(get_current_user),
+):
+    try:
+        filter_dto = PostFilterDTO(
+            user_id=user["sub"],
+            limit=limit,
+            offset=offset,
+            reply_to_id=reply_to_id,
+            owner_id=owner_id,
+            search=search,
+        )
+        return get_all_posts(filter_dto)
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
-      const post = await PostService.createPost(dto);
-      res.status(201).json(post);
-    } catch (err) {
-      res.status(400).json({ message: err.message });
-    }
-  }
 
-  static async deletePost(req, res) {
-    try {
-      const postId = Number(req.params.id);
-      const userId = Number(req.user.sub);
+@router.post("/", response_model=PostReadDTO, status_code=status.HTTP_201_CREATED)
+def create_post_handler(dto: PostCreateDTO, user=Depends(get_current_user)):
+    try:
+        dto.user_id = user["sub"]
+        return create_post(dto)
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
-      await PostService.deletePost(postId, userId);
-      res.status(204).send();
-    } catch (err) {
-      res.status(404).json({ message: err.message });
-    }
-  }
 
-  static async viewPost(req, res) {
-    try {
-      const postId = Number(req.params.id);
-      const userId = Number(req.user.sub);
+@router.delete("/{post_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_post_handler(post_id: int = Path(..., gt=0), user=Depends(get_current_user)):
+    try:
+        delete_post(post_id, user["sub"])
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
-      await PostService.viewPost(postId, userId);
-      res.status(201).send();
-    } catch (err) {
-      res.status(404).json({ message: err.message });
-    }
-  }
 
-  static async likePost(req, res) {
-    try {
-      const postId = Number(req.params.id);
-      const userId = Number(req.user.sub);
+@router.post("/{post_id}/view", status_code=status.HTTP_201_CREATED)
+def view_post_handler(post_id: int = Path(..., gt=0), user=Depends(get_current_user)):
+    try:
+        view_post(post_id, user["sub"])
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
-      await PostService.likePost(postId, userId);
-      res.status(201).send();
-    } catch (err) {
-      res.status(404).json({ message: err.message });
-    }
-  }
 
-  static async dislikePost(req, res) {
-    try {
-      const postId = Number(req.params.id);
-      const userId = Number(req.user.sub);
+@router.post("/{post_id}/like", status_code=status.HTTP_201_CREATED)
+def like_post_handler(post_id: int = Path(..., gt=0), user=Depends(get_current_user)):
+    try:
+        like_post(post_id, user["sub"])
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
-      await PostService.dislikePost(postId, userId);
-      res.status(204).send();
-    } catch (err) {
-      res.status(404).json({ message: err.message });
-    }
-  }
-}
+
+@router.delete("/{post_id}/like", status_code=status.HTTP_204_NO_CONTENT)
+def dislike_post_handler(post_id: int = Path(..., gt=0), user=Depends(get_current_user)):
+    try:
+        dislike_post(post_id, user["sub"])
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
 ```
 
 В каталоге `src/validators` создайте файл `postValidators.js` и поместите туда код:

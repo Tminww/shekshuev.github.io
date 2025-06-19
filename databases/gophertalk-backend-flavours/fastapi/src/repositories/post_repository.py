@@ -22,7 +22,7 @@ def create_post(dto: dict) -> dict:
 
 
 def get_all_posts(dto: dict) -> list[dict]:
-    params = [dto["user_id"]]
+    params = [dto["user_id"], dto["user_id"]]
     query = """
         WITH likes_count AS (
             SELECT post_id, COUNT(*) AS likes_count
@@ -81,12 +81,13 @@ def get_all_posts(dto: dict) -> list[dict]:
             "id": row["id"],
             "text": row["text"],
             "reply_to_id": row["reply_to_id"],
-            "created_at": row["created_at"],
+            "created_at": row["created_at"].isoformat(),
             "likes_count": row["likes_count"],
             "views_count": row["views_count"],
             "replies_count": row["replies_count"],
             "user_liked": row["user_liked"],
             "user_viewed": row["user_viewed"],
+            "user_id": row["user_id"],
             "user": {
                 "id": row["user_id"],
                 "user_name": row["user_name"],
