@@ -201,15 +201,12 @@ def like_post(post_id: int, user_id: int) -> None:
     query = """
         INSERT INTO likes (post_id, user_id)
         SELECT %s, %s
-        WHERE EXISTS (
-            SELECT 1 FROM posts WHERE id = %s AND deleted_at IS NULL
-        );
     """
 
     try:
         with pool.connection() as conn:
             with conn.cursor() as cur:
-                cur.execute(query, (post_id, user_id, post_id))
+                cur.execute(query, (post_id, user_id))
                 if cur.rowcount == 0:
                     raise ValueError("Post not found")
     except UniqueViolation as err:
@@ -222,14 +219,11 @@ def dislike_post(post_id: int, user_id: int) -> None:
     query = """
         DELETE FROM likes
         WHERE post_id = %s AND user_id = %s
-        AND EXISTS (
-            SELECT 1 FROM posts WHERE id = %s AND deleted_at IS NULL
-        );
     """
 
     with pool.connection() as conn:
         with conn.cursor() as cur:
-            cur.execute(query, (post_id, user_id, post_id))
+            cur.execute(query, (post_id, user_id))
             if cur.rowcount == 0:
                 raise ValueError("Post not found")
 

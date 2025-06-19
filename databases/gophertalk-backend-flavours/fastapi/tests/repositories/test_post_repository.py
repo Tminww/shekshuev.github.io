@@ -72,59 +72,6 @@ def test_create_post_error(mock_conn):
     params = mock_cursor.execute.call_args[0][1]
     assert params == (dto["text"], dto["user_id"], dto["reply_to_id"])
 
-def test_create_post_success(mock_conn):
-    dto = {
-        "text": "Lorem ipsum dolor sit amet, consectetur adipiscing",
-        "user_id": 1,
-        "reply_to_id": None,
-    }
-
-    expected = {
-        "id": 1,
-        "text": dto["text"],
-        "created_at": datetime.utcnow(),
-        "reply_to_id": None,
-    }
-
-    mock_cursor = MagicMock()
-    mock_cursor.fetchone.return_value = expected
-    mock_conn.return_value.__enter__.return_value.cursor.return_value.__enter__.return_value = mock_cursor
-
-    result = create_post(dto)
-
-    assert result == expected
-
-    sql_called = mock_cursor.execute.call_args[0][0].lower()
-    normalized_sql = normalize_sql(sql_called)
-    assert "insert into posts" in normalized_sql
-
-    params = mock_cursor.execute.call_args[0][1]
-    assert params == (dto["text"], dto["user_id"], dto["reply_to_id"])
-
-
-def test_create_post_error(mock_conn):
-    dto = {
-        "text": "Lorem ipsum dolor sit amet, consectetur adipiscing",
-        "user_id": 1,
-        "reply_to_id": None,
-    }
-
-    fake_error = Exception("insert failed")
-
-    mock_cursor = MagicMock()
-    mock_cursor.execute.side_effect = fake_error
-    mock_conn.return_value.__enter__.return_value.cursor.return_value.__enter__.return_value = mock_cursor
-
-    with pytest.raises(Exception, match="insert failed"):
-        create_post(dto)
-
-    sql_called = mock_cursor.execute.call_args[0][0].lower()
-    normalized_sql = normalize_sql(sql_called)
-    assert "insert into posts" in normalized_sql
-
-    params = mock_cursor.execute.call_args[0][1]
-    assert params == (dto["text"], dto["user_id"], dto["reply_to_id"])
-
 
 def test_get_all_posts_success(mock_conn):
     now = datetime(2025, 4, 24, 20, 55, 53, 21000)
@@ -414,7 +361,7 @@ def test_like_post_success(mock_conn):
     assert "insert into likes (post_id, user_id)" in normalized_sql
 
     params = mock_cursor.execute.call_args[0][1]
-    assert params == (post_id, user_id, post_id)
+    assert params == (post_id, user_id)
 
 
 def test_like_post_error(mock_conn):
@@ -433,7 +380,7 @@ def test_like_post_error(mock_conn):
     assert "insert into likes (post_id, user_id)" in normalized_sql
 
     params = mock_cursor.execute.call_args[0][1]
-    assert params == (post_id, user_id, post_id)
+    assert params == (post_id, user_id)
 
 
 def test_like_post_already_liked(mock_conn):
@@ -464,7 +411,7 @@ def test_dislike_post_success(mock_conn):
     assert "delete from likes where post_id = %s and user_id = %s" in normalized_sql
 
     params = mock_cursor.execute.call_args[0][1]
-    assert params == (post_id, user_id, post_id)
+    assert params == (post_id, user_id)
 
 
 def test_dislike_post_error(mock_conn):
@@ -483,7 +430,7 @@ def test_dislike_post_error(mock_conn):
     assert "delete from likes where post_id = %s and user_id = %s" in normalized_sql
 
     params = mock_cursor.execute.call_args[0][1]
-    assert params == (post_id, user_id, post_id)
+    assert params == (post_id, user_id)
 
 
 def test_dislike_post_not_found(mock_conn):
@@ -502,4 +449,4 @@ def test_dislike_post_not_found(mock_conn):
     assert "delete from likes where post_id = %s and user_id = %s" in normalized_sql
 
     params = mock_cursor.execute.call_args[0][1]
-    assert params == (post_id, user_id, post_id)
+    assert params == (post_id, user_id)
