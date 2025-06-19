@@ -36,7 +36,7 @@ def get_all_users(limit: int, offset: int) -> list[dict]:
         
 def get_user_by_id(user_id: int) -> dict:
     query = """
-        SELECT user_name, first_name, last_name, status, created_at, updated_at
+        SELECT id, user_name, first_name, last_name, status, created_at, updated_at
         FROM users
         WHERE id = %s AND deleted_at IS NULL;
     """

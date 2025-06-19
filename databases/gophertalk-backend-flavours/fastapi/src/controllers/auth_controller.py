@@ -7,7 +7,7 @@ router = APIRouter(prefix="/auth", tags=["Auth"])
 @router.post("/login")
 def login(dto: LoginDTO):
     try:
-        tokens = login_service(dto.dict())
+        tokens = login_service(dto.model_dump())
         return tokens
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))
@@ -15,7 +15,7 @@ def login(dto: LoginDTO):
 @router.post("/register", status_code=201)
 def register(dto: RegisterDTO):
     try:
-        tokens = register_service(dto.dict())
+        tokens = register_service(dto.model_dump())
         return tokens
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))

@@ -84,7 +84,7 @@ router = APIRouter(prefix="/auth", tags=["Auth"])
 @router.post("/login")
 def login(dto: LoginDTO):
     try:
-        tokens = login_service(dto.dict())
+        tokens = login_service(dto.model_dump())
         return tokens
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))
@@ -92,7 +92,7 @@ def login(dto: LoginDTO):
 @router.post("/register", status_code=201)
 def register(dto: RegisterDTO):
     try:
-        tokens = register_service(dto.dict())
+        tokens = register_service(dto.model_dump())
         return tokens
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))
@@ -120,7 +120,7 @@ def register(dto: RegisterDTO):
 
 Сейчас входные валидируются через валидационные схемы — специальные модели на базе `pydantic`, которые автоматически проверяют структуру и корректность данных, поступающих на сервер (`LoginDTO` и `RegisterDTO`).
 
-::: details DTO и dict
+::: details DTO и словари (dict)
 DTO (Data Transfer Object) — это простой объект, который описывает структуру данных, передаваемых от клиента к серверу (или между слоями приложения). Он не содержит бизнес-логики, а используется исключительно для описания формы входных данных и их валидации.
 
 В FastAPI роль DTO выполняют `pydantic`-модели. Они:
@@ -130,7 +130,7 @@ DTO (Data Transfer Object) — это простой объект, которы�
 - формируют документацию OpenAPI;
 - позволяют удобно описывать ограничения (например, длина строки, формат email и т.д.).
 
-В контроллере мы вызываем `dto.dict()`, чтобы передать данные в сервис в виде словаря. Это сделано осознанно: на этапе написания сервисов DTO ещё не существовали — в архитектуре мы придерживаемся принципа, при котором контроллеры отвечают за приём и валидацию данных, а сервисы работают уже с готовыми, проверенными структурами.
+В контроллере мы вызываем `dto.model_dump()`, чтобы передать данные в сервис в виде словаря. Это сделано осознанно: на этапе написания сервисов DTO ещё не существовали — в архитектуре мы придерживаемся принципа, при котором контроллеры отвечают за приём и валидацию данных, а сервисы работают уже с готовыми, проверенными структурами.
 Такой подход упрощает разработку: сначала создаются репозитории и сервисы, не завязанные на конкретные фреймворки, а DTO добавляются позже, уже на уровне FastAPI-контроллеров.
 
 Если хочется — можно самостоятельно попробовать переписать сервисы так, чтобы они принимали DTO-объекты вместо словарей. FastAPI и Pydantic это позволяют, и такой подход делает код строже типизированным.
@@ -397,6 +397,8 @@ def test_register_failure():
 Если все сделано правильно, тесты выполнятся успешно:
 
 ```bash
+pytest -v
+
 tests/controllers/test_auth_controller.py::test_login_success PASSED                                              [  1%]
 tests/controllers/test_auth_controller.py::test_login_failure PASSED                                              [  3%]
 tests/controllers/test_auth_controller.py::test_register_success PASSED                                           [  5%]
@@ -460,191 +462,173 @@ tests/services/test_user_service.py::test_delete_user_failure PASSED            
 
 ## Разработка контроллера пользователей
 
-Полностью аналогично `authController` выполним все действия.
+Полностью аналогично `auth_controller` выполним все действия.
 
-В каталоге `src/controllers` создадим файл в `userController.js` и поместим в него следующий код:
+В каталоге `src/controllers` создадим файл в `user_controller.py` и поместим в него следующий код:
 
 ```python
-import { UserService } from "../services/userService.js";
+from fastapi import APIRouter, HTTPException, Query, Path, status
+from typing import List
 
-export class UserController {
-  static async getAllUsers(req, res) {
-    try {
-      const limit = parseInt(req.query.limit, 10) || 10;
-      const offset = parseInt(req.query.offset, 10) || 0;
-      const users = await UserService.getAllUsers(limit, offset);
-      res.status(200).json(users);
-    } catch (err) {
-      res.status(400).json({ message: err.message });
-    }
-  }
+from dto.user_dto import UpdateUserDTO, ReadUserDTO
+from services.user_service import (
+    get_all_users,
+    get_user_by_id,
+    update_user,
+    delete_user,
+)
 
-  static async getUserById(req, res) {
-    try {
-      const id = parseInt(req.params.id, 10);
-      if (isNaN(id)) {
-        return res.status(404).json({ message: "Invalid ID" });
-      }
-      const user = await UserService.getUserById(id);
-      res.status(200).json(user);
-    } catch (err) {
-      res.status(404).json({ message: err.message });
-    }
-  }
+router = APIRouter(prefix="/users", tags=["Users"])
 
-  static async updateUser(req, res) {
-    try {
-      const id = parseInt(req.params.id, 10);
-      if (isNaN(id)) {
-        return res.status(404).json({ message: "Invalid ID" });
-      }
-      const dto = req.body;
-      const updatedUser = await UserService.updateUser(id, dto);
-      res.status(200).json(updatedUser);
-    } catch (err) {
-      res.status(400).json({ message: err.message });
-    }
-  }
 
-  static async deleteUserById(req, res) {
-    try {
-      const id = parseInt(req.params.id, 10);
-      if (isNaN(id)) {
-        return res.status(404).json({ message: "Invalid ID" });
-      }
-      await UserService.deleteUser(id);
-      res.status(204).send();
-    } catch (err) {
-      res.status(404).json({ message: err.message });
-    }
-  }
-}
+@router.get("/", response_model=List[ReadUserDTO])
+def get_all(limit: int = Query(10, ge=1), offset: int = Query(0, ge=0)):
+    try:
+        return get_all_users(limit, offset)
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
+@router.get("/{user_id}", response_model=ReadUserDTO)
+def get_by_id(user_id: int = Path(..., gt=0)):
+    try:
+        return get_user_by_id(user_id)
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
+
+@router.put("/{user_id}", response_model=ReadUserDTO)
+def update_by_id(user_id: int, dto: UpdateUserDTO):
+    try:
+        return update_user(user_id, dto.model_dump())
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
+@router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_by_id(user_id: int = Path(..., gt=0)):
+    try:
+        delete_user(user_id)
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 ```
 
-В каталоге `src/validators` создайте файл `userValidators.js` и поместите туда код:
+В каталоге `src/dto` создайте файл `user_dto.py` и поместите туда код:
 
 ```python
-import { z } from "zod";
+from pydantic import BaseModel, Field, field_validator, model_validator
+from typing import Optional
+import regex as re
 
-const usernameSchema = z
-  .string()
-  .min(5)
-  .max(30)
-  .regex(/^[a-zA-Z0-9_]+$/, "Must be alphanumeric or underscore")
-  .regex(/^[^0-9]/, "Must start with a letter");
 
-const passwordSchema = z
-  .string()
-  .min(5)
-  .max(30)
-  .regex(/^(?=.*[a-zA-Z])(?=.*\d)(?=.*[@$!%*?&])/, "Must contain letter, number and special character");
+def username_validator(value: str) -> str:
+    if not re.match(r"^[a-zA-Z0-9_]+$", value):
+        raise ValueError("Must be alphanumeric or underscore")
+    if re.match(r"^[0-9]", value):
+        raise ValueError("Must start with a letter")
+    return value
 
-export const updateUserValidator = z
-  .object({
-    user_name: usernameSchema.optional(),
-    password: passwordSchema.optional(),
-    password_confirm: passwordSchema.optional(),
-    first_name: z
-      .string()
-      .min(1)
-      .max(30)
-      .regex(/^[\p{L}]+$/u, "Only letters allowed")
-      .optional(),
-    last_name: z
-      .string()
-      .min(1)
-      .max(30)
-      .regex(/^[\p{L}]+$/u, "Only letters allowed")
-      .optional(),
-  })
-  .refine(
-    data => {
-      if (data.password || data.password_confirm) {
-        return data.password === data.password_confirm;
-      }
-      return true;
-    },
-    {
-      message: "Passwords must match",
-      path: ["password_confirm"],
-    }
-  );
+
+def password_validator(value: str) -> str:
+    if not re.match(r"^(?=.*[a-zA-Z])(?=.*\d)(?=.*[@$!%*?&])", value):
+        raise ValueError("Must contain letter, number and special character")
+    return value
+
+
+def name_validator(value: str) -> str:
+    if not re.match(r"^[\p{L}]+$", value):
+        raise ValueError("Only letters allowed")
+    return value
+
+
+class UpdateUserDTO(BaseModel):
+    user_name: Optional[str] = Field(None, min_length=5, max_length=30)
+    password: Optional[str] = Field(None, min_length=5, max_length=30)
+    password_confirm: Optional[str] = Field(None, min_length=5, max_length=30)
+    first_name: Optional[str] = Field(None, min_length=1, max_length=30)
+    last_name: Optional[str] = Field(None, min_length=1, max_length=30)
+
+    @field_validator("user_name")
+    def validate_username(cls, v):
+        return username_validator(v)
+
+    @field_validator("password")
+    def validate_password(cls, v):
+        return password_validator(v)
+
+    @field_validator("password_confirm")
+    def validate_password_confirm(cls, v):
+        return password_validator(v)
+
+    @field_validator("first_name")
+    def validate_first_name(cls, v):
+        return name_validator(v)
+
+    @field_validator("last_name")
+    def validate_last_name(cls, v):
+        return name_validator(v)
+
+    @model_validator(mode="after")
+    def check_passwords_match(self):
+        if (self.password or self.password_confirm) and self.password != self.password_confirm:
+            raise ValueError("Passwords must match")
+        return self
+
+
+class ReadUserDTO(BaseModel):
+    id: int
+    user_name: str
+    first_name: Optional[str]
+    last_name: Optional[str]
+    status: int
+
+    class Config:
+        orm_mode = True
 ```
 
-Далее добавим маршруты. В каталоге `src/routes` создайте файл `userRoutes.js` и поместите туда код:
+Далее необходимо обновить `app.py`, добавив две строки (выделены цветом):
 
 ```python
-import express from "express";
-import { UserController } from "../controllers/userController.js";
-import { validate } from "../middleware/validate.js";
-import { updateUserValidator } from "../validators/userValidators.js";
-import { requestAuth, requestAuthSameId } from "../middleware/auth.js";
+import os
 
-const router = express.Router();
+from dotenv import load_dotenv
+from fastapi import FastAPI, Response, status
+from controllers.auth_controller import router as auth_router
+from controllers.user_controller import router as user_router         # [!code ++]
 
-// Только авторизованные пользователи
-router.get("/", requestAuth(process.env.ACCESS_TOKEN_SECRET), UserController.getAllUsers);
-router.get("/:id", requestAuth(process.env.ACCESS_TOKEN_SECRET), UserController.getUserById);
+load_dotenv()
 
-// Обновить или удалить пользователь может только себя
-router.put(
-  "/:id",
-  requestAuthSameId(process.env.ACCESS_TOKEN_SECRET),
-  validate(updateUserValidator),
-  UserController.updateUser
-);
-router.delete("/:id", requestAuthSameId(process.env.ACCESS_TOKEN_SECRET), UserController.deleteUserById);
+from config.db import pool
 
-export default router;
-```
+app = FastAPI()
+app.include_router(auth_router, prefix="/api")
+app.include_router(user_router, prefix="/api")               # [!code ++]
 
-Далее необходимо обновить `app.js`, добавив две строки (выделены зеленым цветом):
+port = int(os.getenv("PORT", 3000))
 
-```python
-import dotenv from "dotenv";
-import express from "express";
-import { pool } from "./config/db.js";
-import authRoutes from "./routes/authRoutes.js";
-import userRoutes from "./routes/userRoutes.js"; // [!code ++]
 
-dotenv.config();
+@app.get("/api/health-check")
+def health_check():
+    try:
+        with pool.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT 1")
+                cur.fetchone()
+        return Response(content="OK", status_code=status.HTTP_200_OK)
+    except Exception:
+        return Response(content="DB connection failed", status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-const app = express();
-const PORT = process.env.PORT || 3000;
 
-app.use(express.json());
-
-app.use("/api/auth", authRoutes);
-app.use("/api/users", userRoutes); // [!code ++]
-
-app.get("/api/health-check", async (req, res) => {
-  try {
-    await pool.query("SELECT 1");
-    res.status(200).send("OK");
-  } catch (err) {
-    res.status(500).send("DB connection failed");
-  }
-});
-
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
-});
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("app:app", host="0.0.0.0", port=port, reload=True)
+;
 ```
 
 После этого нужно запустить сервер. Если все сделано правильно, он запустится без ошибок:
 
 ```bash
-npm run dev
-
-> gophertalk-backend-express@0.1.0 dev
-> nodemon src/app.js
-
-[nodemon] 3.1.9
-[nodemon] to restart at any time, enter `rs`
-[nodemon] watching path(s): *.*
-[nodemon] watching extensions: js,mjs,cjs,json
-[nodemon] starting `node src/app.js`
-Server is running on port 3000
+python3 app.py
 ```
 
 Самостоятельно проверьте эндпоинты из папки `users` в Postman:
@@ -656,142 +640,116 @@ Server is running on port 3000
 
 ## Тестирование контроллера пользователей
 
-В каталоге `__tests__/controllers` создайте файл `userController.test.js` и поместите в него следующий код:
+В каталоге `tests/controllers` создайте файл `test_user_controller.py` и поместите в него следующий код:
 
-::: details Unit тесты userController
+::: details Unit тесты `user_controller`
 
 ```python
-import { expect, jest } from "@jest/globals";
-import express from "express";
-import request from "supertest";
-import { UserController } from "../../src/controllers/userController.js";
-import { validate } from "../../src/middleware/validate.js";
-import { UserService } from "../../src/services/userService.js";
-import { updateUserValidator } from "../../src/validators/userValidators.js";
+import pytest
+from fastapi.testclient import TestClient
+from unittest.mock import patch
+from app import app
 
-const app = express();
-app.use(express.json());
+client = TestClient(app)
 
-app.get("/api/users", UserController.getAllUsers);
-app.get("/api/users/:id", UserController.getUserById);
-app.put("/api/users/:id", validate(updateUserValidator), UserController.updateUser);
-app.delete("/api/users/:id", UserController.deleteUserById);
 
-describe("UserController", () => {
-  afterEach(() => {
-    jest.clearAllMocks();
-  });
+@pytest.fixture
+def mock_token_header():
+    return {"Authorization": "Bearer mockToken"}
 
-  describe("GET /api/users", () => {
-    it("should return 200 and list of users", async () => {
-      const users = [{ id: 1, user_name: "test_user" }];
-      jest.spyOn(UserService, "getAllUsers").mockResolvedValueOnce(users);
+@pytest.fixture
+def mock_user_dto():
+    return {
+        "id": 1,
+        "user_name": "test_user",
+        "first_name": "John",
+        "last_name": "Doe",
+        "status": 1
+    }
 
-      const res = await request(app).get("/api/users?limit=10&offset=0").set("Authorization", "Bearer mockToken");
+@pytest.fixture
+def mock_update_dto():
+    return {
+        "id": 1,
+        "user_name": "test_user",
+        "first_name": "Jane",
+        "last_name": "Smith",
+        "status": 1
+    }
 
-      expect(res.status).toBe(200);
-      expect(res.body).toEqual(users);
-      expect(UserService.getAllUsers).toHaveBeenCalled();
-    });
 
-    it("should return 400 if service fails", async () => {
-      jest.spyOn(UserService, "getAllUsers").mockRejectedValueOnce(new Error("Service error"));
+def test_get_all_users_success(mock_token_header, mock_user_dto):
+    users = [mock_user_dto]
+    with patch("controllers.user_controller.get_all_users", return_value=users):
+        res = client.get("/api/users?limit=10&offset=0", headers=mock_token_header)
+        assert res.status_code == 200
+        assert res.json() == users
 
-      const res = await request(app).get("/api/users?limit=10&offset=0").set("Authorization", "Bearer mockToken");
 
-      expect(res.status).toBe(400);
-    });
-  });
+def test_get_all_users_failure(mock_token_header):
+    with patch("controllers.user_controller.get_all_users", side_effect=Exception("Service error")):
+        res = client.get("/api/users?limit=10&offset=0", headers=mock_token_header)
+        assert res.status_code == 400
 
-  describe("GET /api/users/:id", () => {
-    it("should return 200 and a user", async () => {
-      const user = { id: 1, user_name: "test_user" };
-      jest.spyOn(UserService, "getUserById").mockResolvedValueOnce(user);
 
-      const res = await request(app).get("/api/users/1").set("Authorization", "Bearer mockToken");
+def test_get_user_by_id_success(mock_token_header, mock_user_dto):
+    with patch("controllers.user_controller.get_user_by_id", return_value=mock_user_dto):
+        res = client.get("/api/users/1", headers=mock_token_header)
+        assert res.status_code == 200
+        assert res.json() == mock_user_dto
 
-      expect(res.status).toBe(200);
-      expect(res.body).toEqual(user);
-      expect(UserService.getUserById).toHaveBeenCalledWith(1);
-    });
 
-    it("should return 404 if id is invalid", async () => {
-      const res = await request(app).get("/api/users/abc").set("Authorization", "Bearer mockToken");
+def test_get_user_by_id_invalid_id(mock_token_header):
+    res = client.get("/api/users/abc", headers=mock_token_header)
+    assert res.status_code == 422
 
-      expect(res.status).toBe(404);
-    });
 
-    it("should return 404 if user not found", async () => {
-      jest.spyOn(UserService, "getUserById").mockRejectedValueOnce(new Error("Not found"));
+def test_get_user_by_id_not_found(mock_token_header):
+    with patch("controllers.user_controller.get_user_by_id", side_effect=ValueError("Not found")):
+        res = client.get("/api/users/2", headers=mock_token_header)
+        assert res.status_code == 404
 
-      const res = await request(app).get("/api/users/2").set("Authorization", "Bearer mockToken");
 
-      expect(res.status).toBe(404);
-    });
-  });
+def test_update_user_success(mock_token_header, mock_user_dto, mock_update_dto):
+    with patch("controllers.user_controller.update_user", return_value=mock_update_dto):
+        res = client.put("/api/users/1", headers=mock_token_header, json=mock_user_dto)
+        assert res.status_code == 200
+        assert res.json() == mock_update_dto
 
-  describe("PUT /api/users/:id", () => {
-    it("should return 200 and updated user", async () => {
-      const updateDto = { first_name: "Updated", last_name: "User" };
-      const updatedUser = { id: 1, user_name: "updated_user" };
-      jest.spyOn(UserService, "updateUser").mockResolvedValueOnce(updatedUser);
 
-      const res = await request(app).put("/api/users/1").set("Authorization", "Bearer mockToken").send(updateDto);
+def test_update_user_invalid_id(mock_token_header):
+    res = client.put("/api/users/abc", headers=mock_token_header, json={})
+    assert res.status_code == 422
 
-      expect(res.status).toBe(200);
-      expect(res.body).toEqual(updatedUser);
-      expect(UserService.updateUser).toHaveBeenCalledWith(1, updateDto);
-    });
 
-    it("should return 404 if id is invalid", async () => {
-      const res = await request(app).put("/api/users/abc").set("Authorization", "Bearer mockToken").send({});
+def test_update_user_validation_fail(mock_token_header):
+    invalid_dto = {"user_name": "x"}
+    res = client.put("/api/users/1", headers=mock_token_header, json=invalid_dto)
+    assert res.status_code == 422
 
-      expect(res.status).toBe(404);
-    });
 
-    it("should return 422 if validation fails", async () => {
-      const invalidDto = { user_name: "test" };
+def test_update_user_service_error(mock_token_header,mock_update_dto):
+    with patch("controllers.user_controller.update_user", side_effect=Exception("Service error")):
+        res = client.put("/api/users/1", headers=mock_token_header, json=mock_update_dto)
+        assert res.status_code == 400
 
-      const res = await request(app).put("/api/users/1").set("Authorization", "Bearer mockToken").send(invalidDto);
 
-      expect(res.status).toBe(422);
-    });
+def test_delete_user_success(mock_token_header):
+    with patch("controllers.user_controller.delete_user", return_value=None):
+        res = client.delete("/api/users/1", headers=mock_token_header)
+        assert res.status_code == 204
 
-    it("should return 400 on service error", async () => {
-      const updateDto = { first_name: "Updated", last_name: "User" };
-      jest.spyOn(UserService, "updateUser").mockRejectedValueOnce(new Error("Service error"));
 
-      const res = await request(app).put("/api/users/1").set("Authorization", "Bearer mockToken").send(updateDto);
+def test_delete_user_invalid_id(mock_token_header):
+    res = client.delete("/api/users/abc", headers=mock_token_header)
+    assert res.status_code == 422
 
-      expect(res.status).toBe(400);
-    });
-  });
 
-  describe("DELETE /api/users/:id", () => {
-    it("should return 204 if user deleted", async () => {
-      jest.spyOn(UserService, "deleteUser").mockResolvedValueOnce();
+def test_delete_user_not_found(mock_token_header):
+    with patch("controllers.user_controller.delete_user", side_effect=ValueError("Not found")):
+        res = client.delete("/api/users/2", headers=mock_token_header)
+        assert res.status_code == 404
 
-      const res = await request(app).delete("/api/users/1").set("Authorization", "Bearer mockToken");
-
-      expect(res.status).toBe(204);
-      expect(UserService.deleteUser).toHaveBeenCalledWith(1);
-    });
-
-    it("should return 404 if id is invalid", async () => {
-      const res = await request(app).delete("/api/users/abc").set("Authorization", "Bearer mockToken");
-
-      expect(res.status).toBe(404);
-    });
-
-    it("should return 404 if user not found", async () => {
-      jest.spyOn(UserService, "deleteUser").mockRejectedValueOnce(new Error("Not found"));
-
-      const res = await request(app).delete("/api/users/2").set("Authorization", "Bearer mockToken");
-
-      expect(res.status).toBe(404);
-    });
-  });
-});
 ```
 
 :::
@@ -799,26 +757,78 @@ describe("UserController", () => {
 Если все сделано правильно, тесты выполнятся успешно:
 
 ```bash
-npm run test
-
-> gophertalk-backend-express@0.1.0 test
-> node --experimental-vm-modules node_modules/jest/bin/jest.js
-
-(node:109419) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
-(Use `node --trace-warnings ...` to show where the warning was created)
- PASS  __tests__/controllers/authController.test.js
- PASS  __tests__/controllers/userController.test.js
- PASS  __tests__/services/authService.test.js
- PASS  __tests__/services/userService.test.js
- PASS  __tests__/repositories/userRepository.test.js
- PASS  __tests__/repositories/postRepository.test.js
- PASS  __tests__/services/postService.test.js
-
-Test Suites: 7 passed, 7 total
-Tests:       70 passed, 70 total
-Snapshots:   0 total
-Time:        1.367 s
-Ran all test suites.
+pytest -v
+tests/controllers/test_auth_controller.py::test_login_success PASSED                                                  [  1%]
+tests/controllers/test_auth_controller.py::test_login_failure PASSED                                                  [  2%]
+tests/controllers/test_auth_controller.py::test_register_success PASSED                                               [  4%]
+tests/controllers/test_auth_controller.py::test_register_failure PASSED                                               [  5%]
+tests/controllers/test_user_controller.py::test_get_all_users_success PASSED                                          [  7%]
+tests/controllers/test_user_controller.py::test_get_all_users_failure PASSED                                          [  8%]
+tests/controllers/test_user_controller.py::test_get_user_by_id_success PASSED                                         [ 10%]
+tests/controllers/test_user_controller.py::test_get_user_by_id_invalid_id PASSED                                      [ 11%]
+tests/controllers/test_user_controller.py::test_get_user_by_id_not_found PASSED                                       [ 12%]
+tests/controllers/test_user_controller.py::test_update_user_success PASSED                                            [ 14%]
+tests/controllers/test_user_controller.py::test_update_user_invalid_id PASSED                                         [ 15%]
+tests/controllers/test_user_controller.py::test_update_user_validation_fail PASSED                                    [ 17%]
+tests/controllers/test_user_controller.py::test_update_user_service_error PASSED                                      [ 18%]
+tests/controllers/test_user_controller.py::test_delete_user_success PASSED                                            [ 20%]
+tests/controllers/test_user_controller.py::test_delete_user_invalid_id PASSED                                         [ 21%]
+tests/controllers/test_user_controller.py::test_delete_user_not_found PASSED                                          [ 22%]
+tests/repositories/test_post_repository.py::test_create_post_success PASSED                                           [ 24%]
+tests/repositories/test_post_repository.py::test_create_post_error PASSED                                             [ 25%]
+tests/repositories/test_post_repository.py::test_get_all_posts_success PASSED                                         [ 27%]
+tests/repositories/test_post_repository.py::test_get_all_posts_error PASSED                                           [ 28%]
+tests/repositories/test_post_repository.py::test_get_post_by_id_success PASSED                                        [ 30%]
+tests/repositories/test_post_repository.py::test_get_post_by_id_not_found PASSED                                      [ 31%]
+tests/repositories/test_post_repository.py::test_delete_post_success PASSED                                           [ 32%]
+tests/repositories/test_post_repository.py::test_delete_post_not_found PASSED                                         [ 34%]
+tests/repositories/test_post_repository.py::test_view_post_success PASSED                                             [ 35%]
+tests/repositories/test_post_repository.py::test_view_post_error_sql PASSED                                           [ 37%]
+tests/repositories/test_post_repository.py::test_view_post_already_viewed PASSED                                      [ 38%]
+tests/repositories/test_post_repository.py::test_like_post_success PASSED                                             [ 40%]
+tests/repositories/test_post_repository.py::test_like_post_error PASSED                                               [ 41%]
+tests/repositories/test_post_repository.py::test_like_post_already_liked PASSED                                       [ 42%]
+tests/repositories/test_post_repository.py::test_dislike_post_success PASSED                                          [ 44%]
+tests/repositories/test_post_repository.py::test_dislike_post_error PASSED                                            [ 45%]
+tests/repositories/test_post_repository.py::test_dislike_post_not_found PASSED                                        [ 47%]
+tests/repositories/test_user_repository.py::test_create_user_success PASSED                                           [ 48%]
+tests/repositories/test_user_repository.py::test_create_user_error PASSED                                             [ 50%]
+tests/repositories/test_user_repository.py::test_get_all_users_success PASSED                                         [ 51%]
+tests/repositories/test_user_repository.py::test_get_all_users_error PASSED                                           [ 52%]
+tests/repositories/test_user_repository.py::test_get_user_by_id_success PASSED                                        [ 54%]
+tests/repositories/test_user_repository.py::test_get_user_by_id_not_found PASSED                                      [ 55%]
+tests/repositories/test_user_repository.py::test_get_user_by_username_success PASSED                                  [ 57%]
+tests/repositories/test_user_repository.py::test_get_user_by_username_not_found PASSED                                [ 58%]
+tests/repositories/test_user_repository.py::test_update_user_success PASSED                                           [ 60%]
+tests/repositories/test_user_repository.py::test_update_user_no_fields PASSED                                         [ 61%]
+tests/repositories/test_user_repository.py::test_update_user_not_found PASSED                                         [ 62%]
+tests/repositories/test_user_repository.py::test_delete_user_success PASSED                                           [ 64%]
+tests/repositories/test_user_repository.py::test_delete_user_not_found PASSED                                         [ 65%]
+tests/services/test_auth_service.py::test_login_success PASSED                                                        [ 67%]
+tests/services/test_auth_service.py::test_login_user_not_found PASSED                                                 [ 68%]
+tests/services/test_auth_service.py::test_login_wrong_password PASSED                                                 [ 70%]
+tests/services/test_auth_service.py::test_register_success PASSED                                                     [ 71%]
+tests/services/test_post_service.py::test_get_all_posts_success PASSED                                                [ 72%]
+tests/services/test_post_service.py::test_get_all_posts_error PASSED                                                  [ 74%]
+tests/services/test_post_service.py::test_create_post_success PASSED                                                  [ 75%]
+tests/services/test_post_service.py::test_create_post_error PASSED                                                    [ 77%]
+tests/services/test_post_service.py::test_delete_post_success PASSED                                                  [ 78%]
+tests/services/test_post_service.py::test_delete_post_error PASSED                                                    [ 80%]
+tests/services/test_post_service.py::test_view_post_success PASSED                                                    [ 81%]
+tests/services/test_post_service.py::test_view_post_error PASSED                                                      [ 82%]
+tests/services/test_post_service.py::test_like_post_success PASSED                                                    [ 84%]
+tests/services/test_post_service.py::test_like_post_error PASSED                                                      [ 85%]
+tests/services/test_post_service.py::test_dislike_post_success PASSED                                                 [ 87%]
+tests/services/test_post_service.py::test_dislike_post_error PASSED                                                   [ 88%]
+tests/services/test_user_service.py::test_get_all_users_success PASSED                                                [ 90%]
+tests/services/test_user_service.py::test_get_all_users_failure PASSED                                                [ 91%]
+tests/services/test_user_service.py::test_get_user_by_id_success PASSED                                               [ 92%]
+tests/services/test_user_service.py::test_get_user_by_id_failure PASSED                                               [ 94%]
+tests/services/test_user_service.py::test_update_user_success PASSED                                                  [ 95%]
+tests/services/test_user_service.py::test_update_user_failure PASSED                                                  [ 97%]
+tests/services/test_user_service.py::test_delete_user_success PASSED                                                  [ 98%]
+tests/services/test_user_service.py::test_delete_user_failure PASSED                                                  [100%]
+====================================================== 58 passed =======================================================
 ```
 
 ## Разработка контроллера постов

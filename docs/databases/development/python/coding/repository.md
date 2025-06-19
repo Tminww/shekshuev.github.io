@@ -385,7 +385,7 @@ def get_user_by_username(user_name: str) -> dict:
 ```
 
 > [!IMPORTANT] Задание
-> Напишите самостоятельно SQL запросы для функций `get_user_by_id` и `get_user_by_user_name`. Для метода `get_user_by_id` необходимо вернуть поля `user_name`, `first_name`, `last_name`, `status`, `created_at`, `updated_at`, а для метода `get_user_by_user_name` - `id`, `user_name`, `password_hash`, `status`.
+> Напишите самостоятельно SQL запросы для функций `get_user_by_id` и `get_user_by_user_name`. Для метода `get_user_by_id` необходимо вернуть поля `id`, `user_name`, `first_name`, `last_name`, `status`, `created_at`, `updated_at`, а для метода `get_user_by_user_name` - `id`, `user_name`, `password_hash`, `status`.
 
 Рассмотрим функцию `update_user`
 
