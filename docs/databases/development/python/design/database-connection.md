@@ -77,18 +77,12 @@ conn.close()
 - По умолчанию `psycopg` использует неавтоматические транзакции: нужно вызывать `conn.commit()` или `conn.rollback()`.
 
 Параметры подключения:
-
-```python
-psycopg.connect(
-    host="localhost",
-    port=5432,
-    user="postgres",
-    password="secret",
-    dbname="mydb",
-    connect_timeout=10
-)
-
-```
+- **host** — адрес сервера PostgreSQL (Например, `localhost` для локального подключения);
+- **port** — порт, на котором работает PostgreSQL (По умолчанию - 5432);
+- **user** — имя пользователя PostgreSQL;
+- **password** — пароль пользователя;
+- **dbname** — имя базы данных, к которой осуществляется подключение;
+- **connect_timeout** (необязательный параметр) — таймаут в секундах при установке соединения.
 
 Также можно использовать DSN-строку:
 
