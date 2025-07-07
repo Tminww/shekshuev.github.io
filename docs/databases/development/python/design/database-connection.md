@@ -85,8 +85,7 @@ psycopg.connect(
     user="postgres",
     password="secret",
     dbname="mydb",
-    connect_timeout=10,
-    application_name="myapp"
+    connect_timeout=10
 )
 
 ```
@@ -94,7 +93,7 @@ psycopg.connect(
 Также можно использовать DSN-строку:
 
 ```python
-psycopg.connect("postgresql://postgres:secret@localhost:5432/mydb")
+psycopg.connect(conninfo="postgresql://postgres:secret@localhost:5432/mydb")
 ```
 
 ### 2. Пул подключений (рекомендуемый способ)
