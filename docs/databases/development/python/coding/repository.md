@@ -754,7 +754,7 @@ def test_delete_user_not_found(mock_conn):
 После этого выполните команду
 
 ```bash
-pytest-v
+pytest -v
 ```
 
 Если вы все сделали правильно, все тесты пройдены.
