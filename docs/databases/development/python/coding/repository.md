@@ -132,8 +132,8 @@ from psycopg.rows import dict_row
 
 def create_user(dto: dict) -> dict:
     query = """
-        INSERT INTO users (user_name, first_name, last_name, password_hash)
-        VALUES (%s, %s, %s, %s)
+        INSERT INTO users (user_name, first_name, last_name, password_hash, created_at)
+        VALUES (%s, %s, %s, %s, %s)
         RETURNING id, user_name, password_hash, status;
     """
     values = (
@@ -141,6 +141,7 @@ def create_user(dto: dict) -> dict:
         dto["first_name"],
         dto["last_name"],
         dto["password_hash"],
+        "NOW()",
     )
 
     with pool.connection() as conn:
@@ -282,8 +283,8 @@ from psycopg.rows import dict_row
 
 def create_user(dto: dict) -> dict:
     query = """
-        INSERT INTO users (user_name, first_name, last_name, password_hash)
-        VALUES (%s, %s, %s, %s)
+        INSERT INTO users (user_name, first_name, last_name, password_hash, created_at)
+        VALUES (%s, %s, %s, %s, %s)
         RETURNING id, user_name, password_hash, status;
     """
     values = (
@@ -291,6 +292,7 @@ def create_user(dto: dict) -> dict:
         dto["first_name"],
         dto["last_name"],
         dto["password_hash"],
+        "NOW()",
     )
 
     with pool.connection() as conn:
@@ -324,8 +326,8 @@ from psycopg.rows import dict_row
 
 def create_user(dto: dict) -> dict:
     query = """
-        INSERT INTO users (user_name, first_name, last_name, password_hash)
-        VALUES (%s, %s, %s, %s)
+        INSERT INTO users (user_name, first_name, last_name, password_hash, created_at)
+        VALUES (%s, %s, %s, %s, %s)
         RETURNING id, user_name, password_hash, status;
     """
     values = (
@@ -333,6 +335,7 @@ def create_user(dto: dict) -> dict:
         dto["first_name"],
         dto["last_name"],
         dto["password_hash"],
+        "NOW()",
     )
 
     with pool.connection() as conn:
