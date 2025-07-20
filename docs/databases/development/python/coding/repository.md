@@ -597,7 +597,7 @@ def test_create_user_error(mock_conn):
     )
 
 def test_get_all_users_success(mock_conn):
-    now = datetime.utcnow()
+    now = datetime.now()
     expected = [{
         "id": 1,
         "user_name": "john",
@@ -634,7 +634,7 @@ def test_get_all_users_error(mock_conn):
 
 
 def test_get_user_by_id_success(mock_conn):
-    now = datetime.utcnow()
+    now = datetime.now()
     expected = {
         "user_name": "john",
         "first_name": "John",
@@ -687,7 +687,7 @@ def test_get_user_by_username_not_found(mock_conn):
 
 
 def test_update_user_success(mock_conn):
-    now = datetime.utcnow()
+    now = datetime.now()
     earlier = now - timedelta(hours=1)
 
     dto = {
@@ -1283,7 +1283,7 @@ def test_create_post_success(mock_conn):
     expected = {
         "id": 1,
         "text": dto["text"],
-        "created_at": datetime.utcnow(),
+        "created_at": datetime.now(),
         "reply_to_id": None,
     }
 
@@ -1336,7 +1336,7 @@ def test_create_post_success(mock_conn):
     expected = {
         "id": 1,
         "text": dto["text"],
-        "created_at": datetime.utcnow(),
+        "created_at": datetime.now(),
         "reply_to_id": None,
     }
 
@@ -1502,7 +1502,7 @@ def test_get_all_posts_error(mock_conn):
 def test_get_post_by_id_success(mock_conn):
     user_id = 1
     post_id = 1
-    now = datetime.utcnow()
+    now = datetime.now()
 
     row = {
         "post_id": post_id,
