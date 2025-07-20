@@ -597,6 +597,7 @@ def test_create_user_error(mock_conn):
         dto["first_name"],
         dto["last_name"],
         dto["password_hash"],
+        "NOW()",
     )
 
 def test_get_all_users_success(mock_conn):
