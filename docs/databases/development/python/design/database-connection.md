@@ -294,13 +294,11 @@ pool = ConnectionPool(
 
 ```python
 import os
-
 from dotenv import load_dotenv
 from fastapi import FastAPI, Response, status
+from config.db import pool
 
 load_dotenv()
-
-from config.db import pool
 
 app = FastAPI()
 port = int(os.getenv("PORT", 3000))
