@@ -1216,7 +1216,7 @@ def like_post(post_id: int, user_id: int) -> None:
     try:
         with pool.connection() as conn:
             with conn.cursor() as cur:
-                cur.execute(query, (post_id, user_id, post_id))
+                cur.execute(query, (post_id, user_id))
                 if cur.rowcount == 0:
                     raise ValueError("Post not found")
     except UniqueViolation as err:
@@ -1241,7 +1241,7 @@ def dislike_post(post_id: int, user_id: int) -> None:
 
     with pool.connection() as conn:
         with conn.cursor() as cur:
-            cur.execute(query, (post_id, user_id, post_id))
+            cur.execute(query, (post_id, user_id))
             if cur.rowcount == 0:
                 raise ValueError("Post not found")
 ```
@@ -1672,7 +1672,7 @@ def test_like_post_success(mock_conn):
     assert "insert into likes (post_id, user_id)" in normalized_sql
 
     params = mock_cursor.execute.call_args[0][1]
-    assert params == (post_id, user_id, post_id)
+    assert params == (post_id, user_id)
 
 
 def test_like_post_error(mock_conn):
@@ -1691,7 +1691,7 @@ def test_like_post_error(mock_conn):
     assert "insert into likes (post_id, user_id)" in normalized_sql
 
     params = mock_cursor.execute.call_args[0][1]
-    assert params == (post_id, user_id, post_id)
+    assert params == (post_id, user_id)
 
 
 def test_like_post_already_liked(mock_conn):
@@ -1722,7 +1722,7 @@ def test_dislike_post_success(mock_conn):
     assert "delete from likes where post_id = %s and user_id = %s" in normalized_sql
 
     params = mock_cursor.execute.call_args[0][1]
-    assert params == (post_id, user_id, post_id)
+    assert params == (post_id, user_id)
 
 
 def test_dislike_post_error(mock_conn):
@@ -1741,7 +1741,7 @@ def test_dislike_post_error(mock_conn):
     assert "delete from likes where post_id = %s and user_id = %s" in normalized_sql
 
     params = mock_cursor.execute.call_args[0][1]
-    assert params == (post_id, user_id, post_id)
+    assert params == (post_id, user_id)
 
 
 def test_dislike_post_not_found(mock_conn):
@@ -1760,7 +1760,7 @@ def test_dislike_post_not_found(mock_conn):
     assert "delete from likes where post_id = %s and user_id = %s" in normalized_sql
 
     params = mock_cursor.execute.call_args[0][1]
-    assert params == (post_id, user_id, post_id)
+    assert params == (post_id, user_id)
 ```
 
 :::
